@@ -7,3 +7,8 @@ pnpm-lock.yaml
 # Documentos escritos a mano con ancho fijo deliberado:
 # el reflow de Prettier solo añade ruido al diff.
 docs/
+
+# Artefactos generados: los reescribe su generador en su propio formato, y
+# formatearlos crea un diff perpetuo contra la comprobación de coherencia de CI.
+packages/contracts/openapi.json
+packages/contracts/src/schema.ts

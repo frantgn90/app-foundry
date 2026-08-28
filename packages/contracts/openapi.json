@@ -18,7 +18,9 @@
           }
         },
         "summary": "Liveness: el proceso responde",
-        "tags": ["health"]
+        "tags": [
+          "health"
+        ]
       }
     },
     "/health/ready": {
@@ -48,7 +50,9 @@
           }
         },
         "summary": "Readiness: las dependencias responden",
-        "tags": ["health"]
+        "tags": [
+          "health"
+        ]
       }
     }
   },
@@ -67,7 +71,10 @@
         "properties": {
           "status": {
             "type": "string",
-            "enum": ["up", "down"],
+            "enum": [
+              "up",
+              "down"
+            ],
             "description": "Estado de la dependencia"
           },
           "latencyMs": {
@@ -80,24 +87,34 @@
             "description": "Motivo del fallo, si lo hubo"
           }
         },
-        "required": ["status", "latencyMs"]
+        "required": [
+          "status",
+          "latencyMs"
+        ]
       },
       "LivenessDto": {
         "type": "object",
         "properties": {
           "status": {
             "type": "string",
-            "enum": ["ok"]
+            "enum": [
+              "ok"
+            ]
           }
         },
-        "required": ["status"]
+        "required": [
+          "status"
+        ]
       },
       "ReadinessReportDto": {
         "type": "object",
         "properties": {
           "status": {
             "type": "string",
-            "enum": ["ok", "degraded"]
+            "enum": [
+              "ok",
+              "degraded"
+            ]
           },
           "checks": {
             "type": "object",
@@ -107,7 +124,10 @@
             "description": "Una entrada por dependencia comprobada"
           }
         },
-        "required": ["status", "checks"]
+        "required": [
+          "status",
+          "checks"
+        ]
       }
     }
   }

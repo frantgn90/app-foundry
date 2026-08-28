@@ -1,0 +1,134 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  NODE_VERSION: '22.20.0'
+
+jobs:
+  # Comprobaciones rápidas y sin infraestructura: dan feedback en menos de un
+  # minuto y atrapan la mayoría de los errores.
+  estatico:
+    name: Lint, tipos y formato
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v5
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm format:check
+      - run: pnpm lint
+      - run: pnpm typecheck
+
+  unitarios:
+    name: Tests unitarios
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v5
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm test:unit
+
+  # La suite que de verdad protege el invariante del producto: corre contra un
+  # Postgres real levantado por Testcontainers, con el rol de la aplicación.
+  # Si esto se salta, el aislamiento entre workspaces deja de estar garantizado.
+  integracion:
+    name: Tests de integración y aislamiento
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v5
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm build
+      - run: pnpm test:integration
+
+  compilacion:
+    name: Compilación
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v5
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm build
+
+  # Dos comprobaciones de que el código y sus artefactos no han divergido.
+  coherencia:
+    name: Migraciones y contrato al día
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:18.6-alpine
+        env:
+          POSTGRES_USER: foundry_migrator
+          POSTGRES_PASSWORD: ci
+          POSTGRES_DB: app_foundry
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd "pg_isready -U foundry_migrator -d app_foundry"
+          --health-interval 5s --health-timeout 5s --health-retries 10
+    env:
+      DATABASE_MIGRATION_URL: postgres://foundry_migrator:ci@localhost:5432/app_foundry
+      DATABASE_URL: postgres://app_user@localhost:5432/app_foundry
+      REDIS_URL: redis://localhost:6379
+      GITHUB_CLIENT_ID: ci
+      GITHUB_CLIENT_SECRET: ci
+      SESSION_SECRET: secreto-de-ci-de-al-menos-32-caracteres
+      OTEL_ENABLED: 'false'
+    steps:
+      - uses: actions/checkout@v5
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v5
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm build
+
+      - name: Las migraciones aplican sobre una base limpia
+        run: pnpm --filter @app-foundry/db db:migrate
+
+      # Si alguien cambia el esquema de Drizzle y olvida generar la migración,
+      # drizzle-kit produciría una nueva aquí y el árbol dejaría de estar
+      # limpio. Es la diferencia entre enterarse ahora o en el despliegue.
+      - name: El esquema declarado coincide con las migraciones
+        run: |
+          pnpm --filter @app-foundry/db db:generate
+          if [ -n "$(git status --porcelain packages/db/migrations)" ]; then
+            echo "El esquema de Drizzle ha cambiado sin generar la migración correspondiente:"
+            git status --porcelain packages/db/migrations
+            exit 1
+          fi
+
+      # Lo mismo para el contrato de la API: un DTO que cambie sin regenerar
+      # dejaría al cliente tipado describiendo una API que ya no existe.
+      - name: El contrato OpenAPI está al día
+        run: |
+          node apps/api/dist/openapi.js
+          pnpm --filter @app-foundry/contracts generate
+          if [ -n "$(git status --porcelain packages/contracts)" ]; then
+            echo "El contrato OpenAPI no coincide con el código:"
+            git diff --stat packages/contracts
+            exit 1
+          fi
