@@ -1,0 +1,18 @@
+{
+  "extends": "@app-foundry/config/tsconfig.base.json",
+  "compilerOptions": {
+    "noEmit": true,
+    "types": ["node"],
+    "experimentalDecorators": true,
+    "emitDecoratorMetadata": true,
+    /*
+     * Desactivado a propósito, al contrario que en el resto del monorepo.
+     * `emitDecoratorMetadata` necesita que los tipos de los constructores
+     * sobrevivan a la compilación para que la inyección de dependencias de Nest
+     * pueda resolverlos; con `verbatimModuleSyntax` esos imports se borrarían y
+     * la DI fallaría en tiempo de ejecución, no de compilación.
+     */
+    "verbatimModuleSyntax": false
+  },
+  "include": ["src"]
+}

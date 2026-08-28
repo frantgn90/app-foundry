@@ -4,20 +4,22 @@ packages:
 
 # Scripts de instalación: se decide uno a uno, no en bloque.
 #
-# esbuild necesita enlazar su binario nativo y lo usan tsx, vitest y
+# esbuild los necesita para enlazar su binario nativo y lo usan tsx, vitest y
 # drizzle-kit; protobufjs genera código al instalarse. cpu-features y ssh2 son
-# optimizaciones nativas opcionales de testcontainers: sin sus scripts funcionan
-# igual, en JavaScript puro. Cuantos menos scripts se ejecuten al instalar,
-# menos superficie de cadena de suministro.
+# optimizaciones nativas opcionales de testcontainers que funcionan igual en
+# JavaScript puro, y el script de @scarf/scarf —que llega arrastrado por
+# swagger-ui-dist— envía telemetría de uso al proveedor. Cuantos menos scripts
+# se ejecuten al instalar, menos superficie de cadena de suministro.
 allowBuilds:
+  '@scarf/scarf': false
   cpu-features: false
   esbuild: true
   protobufjs: true
   ssh2: false
 
-# pnpm rechaza paquetes publicados hace menos de un día y alguna dependencia
-# transitiva arrastra la última versión de zod el mismo día de su publicación.
-# Fijarla es más honesto que relajar la política: una salvaguarda de cadena de
-# suministro no se desactiva para salir del paso.
+# pnpm rechaza paquetes publicados hace menos de un día. Cuando uno cae dentro
+# de esa ventana se baja a la versión anterior en lugar de excluirlo de la
+# política: una salvaguarda de cadena de suministro no se relaja para salir del
+# paso.
 overrides:
   zod: 4.4.3

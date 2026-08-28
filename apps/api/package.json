@@ -1,0 +1,36 @@
+{
+  "name": "@app-foundry/api",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "clean": "rm -rf dist .turbo",
+    "dev": "tsc -p tsconfig.build.json --watch --preserveWatchOutput & node --watch dist/main.js",
+    "start": "node dist/main.js",
+    "lint": "eslint src",
+    "typecheck": "tsc -p tsconfig.json"
+  },
+  "dependencies": {
+    "@app-foundry/core": "workspace:*",
+    "@app-foundry/db": "workspace:*",
+    "@app-foundry/env": "workspace:*",
+    "@nestjs/common": "12.0.1",
+    "@nestjs/core": "12.0.1",
+    "@nestjs/platform-express": "12.0.1",
+    "@nestjs/swagger": "12.0.0",
+    "class-transformer": "0.5.1",
+    "class-validator": "0.15.1",
+    "drizzle-orm": "0.45.2",
+    "ioredis": "6.0.0",
+    "reflect-metadata": "0.2.2",
+    "rxjs": "7.8.2"
+  },
+  "devDependencies": {
+    "@app-foundry/config": "workspace:*",
+    "@types/express": "5.0.6",
+    "@types/node": "26.4.0",
+    "eslint": "10.9.1",
+    "typescript": "6.0.3"
+  }
+}
