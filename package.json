@@ -1,0 +1,31 @@
+{
+  "name": "app-foundry",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Un espacio para pensar, definir y traquear ideas de aplicaciones",
+  "packageManager": "pnpm@11.24.0",
+  "engines": {
+    "node": ">=22.20.0"
+  },
+  "scripts": {
+    "build": "turbo run build",
+    "dev": "turbo run dev",
+    "lint": "turbo run lint",
+    "lint:fix": "turbo run lint -- --fix",
+    "typecheck": "turbo run typecheck",
+    "test:unit": "turbo run test:unit",
+    "test:integration": "turbo run test:integration",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "infra:up": "docker compose -f infra/docker-compose.yml up -d",
+    "infra:down": "docker compose -f infra/docker-compose.yml down",
+    "clean": "turbo run clean && rm -rf node_modules"
+  },
+  "devDependencies": {
+    "@app-foundry/config": "workspace:*",
+    "prettier": "3.9.6",
+    "turbo": "2.10.12",
+    "typescript": "6.0.3"
+  }
+}
