@@ -1,0 +1,29 @@
+# Dependencias
+node_modules/
+.pnpm-store/
+
+# Builds
+dist/
+build/
+.turbo/
+*.tsbuildinfo
+
+# Entorno
+.env
+.env.local
+.env.*.local
+
+# Tests y herramientas
+coverage/
+playwright-report/
+test-results/
+.vitest/
+
+# Editores y sistema
+.DS_Store
+.idea/
+.vscode/*
+!.vscode/extensions.json
+
+# Datos locales de infraestructura
+infra/data/
