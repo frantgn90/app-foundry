@@ -52,6 +52,87 @@ services:
       timeout: 3s
       retries: 10
 
+  # ---------------------------------------------------------------------------
+  # Observabilidad (perfil `obs`)
+  # ---------------------------------------------------------------------------
+
+  otel-collector:
+    image: otel/opentelemetry-collector-contrib:0.159.0
+    profiles: ['obs']
+    restart: unless-stopped
+    command: ['--config=/etc/otel/config.yaml']
+    volumes:
+      - ./observability/otel-collector.yaml:/etc/otel/config.yaml:ro
+    ports:
+      - '4317:4317' # OTLP gRPC
+      - '4318:4318' # OTLP HTTP
+    depends_on:
+      - tempo
+      - loki
+
+  tempo:
+    image: grafana/tempo:2.9.5
+    profiles: ['obs']
+    restart: unless-stopped
+    command: ['-config.file=/etc/tempo/config.yaml']
+    volumes:
+      - ./observability/tempo.yaml:/etc/tempo/config.yaml:ro
+      - tempo_data:/var/tempo
+    ports:
+      - '3200:3200'
+
+  loki:
+    image: grafana/loki:3.7.7
+    profiles: ['obs']
+    restart: unless-stopped
+    command: ['-config.file=/etc/loki/config.yaml']
+    volumes:
+      - ./observability/loki.yaml:/etc/loki/config.yaml:ro
+      - loki_data:/loki
+    ports:
+      - '3100:3100'
+
+  prometheus:
+    image: prom/prometheus:v3.9.1
+    profiles: ['obs']
+    restart: unless-stopped
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      # Necesario para que Tempo pueda escribir las métricas RED que genera.
+      - '--web.enable-remote-write-receiver'
+      - '--enable-feature=exemplar-storage'
+    volumes:
+      - ./observability/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus_data:/prometheus
+    ports:
+      - '9090:9090'
+
+  grafana:
+    image: grafana/grafana:13.2.0
+    profiles: ['obs']
+    restart: unless-stopped
+    environment:
+      # Sin login en local: es un entorno de desarrollo y una contraseña más
+      # que teclear no aporta seguridad a nada.
+      GF_AUTH_ANONYMOUS_ENABLED: 'true'
+      GF_AUTH_ANONYMOUS_ORG_ROLE: 'Admin'
+      GF_AUTH_DISABLE_LOGIN_FORM: 'true'
+      GF_FEATURE_TOGGLES_ENABLE: 'traceqlEditor'
+    volumes:
+      - ./observability/grafana/datasources.yaml:/etc/grafana/provisioning/datasources/datasources.yaml:ro
+      - grafana_data:/var/lib/grafana
+    ports:
+      - '3000:3000'
+    depends_on:
+      - prometheus
+      - tempo
+      - loki
+
 volumes:
   postgres_data:
   redis_data:
+  tempo_data:
+  loki_data:
+  prometheus_data:
+  grafana_data:
