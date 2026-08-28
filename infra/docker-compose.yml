@@ -1,0 +1,57 @@
+# Infraestructura local de App Foundry.
+#
+# Por defecto levanta solo lo imprescindible para desarrollar: base de datos y
+# Redis. El stack de observabilidad vive en el perfil `obs` porque son cinco
+# contenedores más y no siempre hacen falta (TRD §18, riesgo del peso en una
+# máquina de desarrollo):
+#
+#   docker compose up -d                  # postgres + redis
+#   docker compose --profile obs up -d    # además, observabilidad completa
+name: app-foundry
+
+services:
+  postgres:
+    # Versión exacta y no la rama flotante: una actualización de imagen no debe
+    # cambiar el comportamiento entre dos ejecuciones (TRD T-15).
+    image: postgres:18.6-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: foundry_migrator
+      POSTGRES_PASSWORD: foundry_local_dev
+      POSTGRES_DB: app_foundry
+      # Checksums de página: detectan corrupción silenciosa. En local cuesta
+      # nada y hace que el entorno se parezca al de producción.
+      POSTGRES_INITDB_ARGS: '--data-checksums'
+    ports:
+      - '5432:5432'
+    volumes:
+      # En Postgres 18+ el montaje va en /var/lib/postgresql, no en .../data:
+      # la imagen guarda los datos en un subdirectorio por versión mayor para
+      # permitir pg_upgrade --link sin cruzar puntos de montaje.
+      - postgres_data:/var/lib/postgresql
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U foundry_migrator -d app_foundry']
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+
+  redis:
+    image: redis:8.8.2-alpine
+    restart: unless-stopped
+    # appendonly para que las sesiones y el rate limiting sobrevivan a un
+    # reinicio del contenedor durante el desarrollo.
+    command: ['redis-server', '--appendonly', 'yes']
+    ports:
+      - '6379:6379'
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ['CMD', 'redis-cli', 'ping']
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+volumes:
+  postgres_data:
+  redis_data:
