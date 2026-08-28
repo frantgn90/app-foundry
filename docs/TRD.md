@@ -27,7 +27,7 @@ carga.
 | T-2 | **PostgreSQL 18.6 con Row-Level Security** en todas las tablas de negocio | RLS parcial; aislamiento solo en repositorio; SQLite | RD-6 y RNF-103: el aislamiento entre workspaces lo garantiza el motor, no la disciplina del programador |
 | T-3 | **Drizzle ORM** | Prisma; Kysely; SQL a mano | SQL-first y tipado, convive con RLS y con SQL crudo (búsqueda full-text); sin motor de consultas intermedio |
 | T-4 | **OpenTelemetry** con stack Grafana (Prometheus + Tempo + Loki) en Compose | Sentry; solo Jaeger; solo logs | Trazas, métricas y logs correlacionados desde el día uno, con backend intercambiable |
-| T-5 | **Passport (`passport-github2`) + sesión opaca en base de datos** | Flujo propio con arctic; JWT + refresh | Integración estándar en Nest; la sesión en BD es lo único que cumple RF-110 (revocación inmediata) |
+| T-5 | **Passport (`passport-oauth2`) + sesión opaca en base de datos** | `passport-github2`; arctic; JWT + refresh | Integración estándar en Nest; la sesión en BD es lo único que cumple RF-110. Se usa la estrategia genérica apuntada a GitHub porque `passport-github2` lleva sin publicarse desde 2022 y es la puerta de entrada al producto |
 | T-6 | **SSE + Redis** para notificaciones, pub/sub, rate limiting y caché de sesión | Polling; WebSocket; SSE sin Redis | SSE es unidireccional y sobre HTTP normal, con reconexión nativa; Redis permite escalar a varias instancias sin romper el canal (RNF-109) |
 | T-7 | **CodeMirror 6 sobre markdown crudo**, render con remark/rehype, anclaje por cita con reanclaje difuso | TipTap/ProseMirror; comentarios por bloque | RF-502 y RF-512 exigen que el markdown sea la fuente de verdad, no una exportación con pérdidas |
 | T-8 | **REST + OpenAPI generado**, cliente TS derivado del contrato | tRPC; GraphQL | El contrato debe ser consumible por el MCP (fase 4) y por plugins externos (fase 2), no solo por un cliente TypeScript |
@@ -41,6 +41,8 @@ carga.
 | T-16 | **GitHub Actions desde H0** | CI más adelante; solo scripts locales | Las garantías que valen son las que corren solas; la suite de aislamiento (§14) pierde sentido si depende de que alguien la ejecute |
 | T-17 | **Sin datos sensibles en auditoría ni en telemetría** (RF-706, RNF-112) | Registrar IP y contexto completo | La auditoría dice qué pasó, no qué decía; sin alertas de seguridad en v1, guardar IPs es riesgo sin contrapartida |
 | T-18 | **`VISION.md` exportado con front-matter YAML** (RF-512) | Solo el contenido | Un documento exportado debe ser identificable fuera de la plataforma, y el front-matter no estorba a ningún lector de markdown |
+| T-19 | El login lee `users` a través de una función **`SECURITY DEFINER` acotada** | Rol `app_auth` aparte; política que permita leer sin contexto | Superficie mínima y auditable: no acepta filtros arbitrarios ni devuelve listados. Abrir la tabla cuando no hay identidad convertiría cualquier consulta sin contexto en una fuga |
+| T-20 | Los campos de perfil se protegen con **`GRANT UPDATE` por columna**, no solo con RLS | Trigger de validación; política adicional | RLS filtra filas, no columnas: sin esto un usuario puede modificar su propia fila entera y ascenderse a `ADMIN`. El permiso por columna lo impide en el motor |
 
 ---
 
@@ -322,6 +324,12 @@ filtro de filas.
 ---
 
 ## 7. Autenticación y sesión
+
+> **Acceso a `users` durante el login (T-19).** El login busca por `github_id` antes de que exista identidad,
+> y la política de `users` solo deja a cada uno verse a sí mismo. Se resuelve con una función
+> `SECURITY DEFINER` de superficie mínima —recibe un `github_id`, devuelve solo los campos que la
+> autenticación necesita— en lugar de abrir la tabla. No acepta filtros arbitrarios ni devuelve listados, así
+> que no sirve para enumerar usuarios aunque alguien la invoque.
 
 1. `GET /auth/github` → redirección a GitHub con `state` de un solo uso.
 2. `GET /auth/github/callback` → Passport valida, y en una transacción:
