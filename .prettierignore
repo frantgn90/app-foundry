@@ -3,3 +3,7 @@ dist/
 .turbo/
 coverage/
 pnpm-lock.yaml
+
+# Documentos escritos a mano con ancho fijo deliberado:
+# el reflow de Prettier solo añade ruido al diff.
+docs/
