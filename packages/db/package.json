@@ -1,0 +1,45 @@
+{
+  "name": "@app-foundry/db",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist",
+    "migrations"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "clean": "rm -rf dist .turbo",
+    "lint": "eslint src test",
+    "typecheck": "tsc -p tsconfig.json",
+    "test:integration": "vitest run",
+    "db:generate": "drizzle-kit generate",
+    "db:migrate": "tsx src/migrate.ts",
+    "db:studio": "drizzle-kit studio"
+  },
+  "dependencies": {
+    "@app-foundry/core": "workspace:*",
+    "drizzle-orm": "0.45.2",
+    "pg": "8.23.0"
+  },
+  "devDependencies": {
+    "@app-foundry/config": "workspace:*",
+    "@app-foundry/env": "workspace:*",
+    "@testcontainers/postgresql": "12.1.0",
+    "@types/node": "26.4.0",
+    "@types/pg": "8.23.1",
+    "drizzle-kit": "0.31.10",
+    "eslint": "10.9.1",
+    "tsx": "4.23.12",
+    "typescript": "6.0.3",
+    "vitest": "4.1.11"
+  }
+}

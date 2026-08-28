@@ -29,6 +29,9 @@ services:
       # la imagen guarda los datos en un subdirectorio por versión mayor para
       # permitir pg_upgrade --link sin cruzar puntos de montaje.
       - postgres_data:/var/lib/postgresql
+      # Solo se ejecuta al inicializar un volumen vacío: crea el rol de la
+      # aplicación con su contraseña de desarrollo.
+      - ./postgres/init:/docker-entrypoint-initdb.d:ro
     healthcheck:
       test: ['CMD-SHELL', 'pg_isready -U foundry_migrator -d app_foundry']
       interval: 5s
