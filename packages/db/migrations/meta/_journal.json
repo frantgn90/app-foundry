@@ -15,6 +15,27 @@
       "when": 1787951449914,
       "tag": "0001_rls_base",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1787960792406,
+      "tag": "0002_citext",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1787960793109,
+      "tag": "0003_petite_hawkeye",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1787960847203,
+      "tag": "0004_workspace_rls",
+      "breakpoints": true
     }
   ]
 }

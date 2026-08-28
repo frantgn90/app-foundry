@@ -2,6 +2,7 @@ import { sql } from 'drizzle-orm';
 import { bigint, index, pgTable, text, timestamp, uuid } from 'drizzle-orm/pg-core';
 
 import { platformRoleEnum, userStatusEnum } from './enums.js';
+import { citext } from './types.js';
 
 /**
  * Cuentas de la plataforma.
@@ -18,8 +19,8 @@ export const users = pgTable(
       .default(sql`uuidv7()`),
     githubId: bigint('github_id', { mode: 'number' }).notNull().unique(),
     /** Nombre de usuario de GitHub: único por construcción, usado en menciones. */
-    handle: text('handle').notNull().unique(),
-    email: text('email').notNull(),
+    handle: citext('handle').notNull().unique(),
+    email: citext('email').notNull(),
     displayName: text('display_name').notNull(),
     avatarUrl: text('avatar_url'),
     platformRole: platformRoleEnum('platform_role').notNull().default('MEMBER'),

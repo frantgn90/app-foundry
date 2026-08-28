@@ -142,28 +142,21 @@ describe('la política también protege las escrituras', () => {
     expect(siguenAmbas.map((s) => s.tokenHash).sort()).toEqual(['hash-de-ana', 'hash-de-bruno']);
   });
 
-  it('no se puede cambiar el rol de plataforma de otro usuario', async () => {
-    await asAppUser(testDb.db, ana, (tx) =>
-      tx.execute(sql`UPDATE users SET platform_role = 'ADMIN' WHERE id = ${bruno}`),
-    );
-    const [brunoDespues] = await testDb.db
-      .select({ role: users.platformRole })
-      .from(users)
-      .where(sql`${users.id} = ${bruno}`);
-    expect(brunoDespues?.role).toBe('MEMBER');
-  });
+  it('nadie puede tocar el rol de plataforma, ni el propio ni el ajeno', async () => {
+    // Desde H1 el permiso de UPDATE sobre users se concede por columna y no
+    // incluye platform_role, así que Postgres rechaza la sentencia entera.
+    // Los casos completos viven en workspace-rls.test.ts.
+    for (const objetivo of [ana, bruno]) {
+      const error = await asAppUser(testDb.db, ana, (tx) =>
+        tx.execute(sql`UPDATE users SET platform_role = 'ADMIN' WHERE id = ${objetivo}`).then(
+          () => null,
+          (e: unknown) => e,
+        ),
+      );
+      expect(sqlstateDe(error)).toBe('42501');
+    }
 
-  it('ni siquiera el propio usuario puede autoascenderse a ADMIN', async () => {
-    await asAppUser(testDb.db, ana, (tx) =>
-      tx.execute(sql`UPDATE users SET platform_role = 'ADMIN' WHERE id = ${ana}`),
-    );
-    const [anaDespues] = await testDb.db
-      .select({ role: users.platformRole })
-      .from(users)
-      .where(sql`${users.id} = ${ana}`);
-    // Documenta el estado actual: la política de UPDATE permite al usuario
-    // modificar su propia fila, así que este ascenso SÍ ocurre. La restricción
-    // por columna llega en H1, cuando exista la administración de plataforma.
-    expect(anaDespues?.role).toBe('ADMIN');
+    const roles = await testDb.db.select({ role: users.platformRole }).from(users);
+    expect(roles.every((r) => r.role === 'MEMBER')).toBe(true);
   });
 });

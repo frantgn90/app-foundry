@@ -1,12 +1,8 @@
 import { sql } from 'drizzle-orm';
-import { customType, index, pgTable, text, timestamp, uuid } from 'drizzle-orm/pg-core';
+import { index, pgTable, text, timestamp, uuid } from 'drizzle-orm/pg-core';
 
+import { inet } from './types.js';
 import { users } from './users.js';
-
-/** `inet` de Postgres: Drizzle no lo trae de serie. */
-const inet = customType<{ data: string; driverData: string }>({
-  dataType: () => 'inet',
-});
 
 /**
  * Sesiones opacas respaldadas por la base de datos.
