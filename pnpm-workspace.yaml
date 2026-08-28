@@ -1,5 +1,23 @@
 packages:
   - 'apps/*'
   - 'packages/*'
-minimumReleaseAgeExclude:
-  - zod@4.5.1
+
+# Scripts de instalación: se decide uno a uno, no en bloque.
+#
+# esbuild necesita enlazar su binario nativo y lo usan tsx, vitest y
+# drizzle-kit; protobufjs genera código al instalarse. cpu-features y ssh2 son
+# optimizaciones nativas opcionales de testcontainers: sin sus scripts funcionan
+# igual, en JavaScript puro. Cuantos menos scripts se ejecuten al instalar,
+# menos superficie de cadena de suministro.
+allowBuilds:
+  cpu-features: false
+  esbuild: true
+  protobufjs: true
+  ssh2: false
+
+# pnpm rechaza paquetes publicados hace menos de un día y alguna dependencia
+# transitiva arrastra la última versión de zod el mismo día de su publicación.
+# Fijarla es más honesto que relajar la política: una salvaguarda de cadena de
+# suministro no se desactiva para salir del paso.
+overrides:
+  zod: 4.4.3
