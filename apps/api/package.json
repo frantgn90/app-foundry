@@ -9,7 +9,8 @@
     "dev": "tsc -p tsconfig.build.json --watch --preserveWatchOutput & node --watch --import ./dist/observability/telemetry.js dist/main.js",
     "start": "node --import ./dist/observability/telemetry.js dist/main.js",
     "lint": "eslint src",
-    "typecheck": "tsc -p tsconfig.json"
+    "typecheck": "tsc -p tsconfig.json",
+    "openapi:export": "node dist/openapi.js"
   },
   "dependencies": {
     "@app-foundry/core": "workspace:*",

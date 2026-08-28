@@ -17,6 +17,10 @@ allowBuilds:
   protobufjs: true
   ssh2: false
 
+minimumReleaseAgeExclude:
+  - '@vitejs/plugin-react@6.1.1'
+  - react-router@8.3.1
+
 # pnpm rechaza paquetes publicados hace menos de un día. Cuando uno cae dentro
 # de esa ventana se baja a la versión anterior en lugar de excluirlo de la
 # política: una salvaguarda de cadena de suministro no se relaja para salir del

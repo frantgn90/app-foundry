@@ -1,0 +1,56 @@
+@import 'tailwindcss';
+
+/*
+ * Tema del producto.
+ *
+ * Los colores se declaran como variables y el modo oscuro cambia sus valores,
+ * no las clases de cada componente: así un componente nuevo hereda el tema sin
+ * que nadie tenga que acordarse de añadirle variantes (RF-609).
+ *
+ * `@theme` genera las variables y las utilidades de Tailwind; el modo oscuro se
+ * hace sobrescribiendo esas mismas variables con CSS estándar, porque `@theme`
+ * no puede anidarse dentro de una media query.
+ */
+@theme {
+  --color-fondo: oklch(99% 0.005 265);
+  --color-superficie: oklch(100% 0 0);
+  --color-borde: oklch(92% 0.008 265);
+  --color-texto: oklch(25% 0.015 265);
+  --color-texto-suave: oklch(52% 0.015 265);
+  --color-acento: oklch(58% 0.19 265);
+  --color-acento-texto: oklch(99% 0 0);
+  --color-ok: oklch(62% 0.16 155);
+  --color-fallo: oklch(60% 0.2 25);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --color-fondo: oklch(17% 0.015 265);
+    --color-superficie: oklch(21% 0.018 265);
+    --color-borde: oklch(28% 0.02 265);
+    --color-texto: oklch(94% 0.008 265);
+    --color-texto-suave: oklch(70% 0.015 265);
+    --color-acento: oklch(70% 0.17 265);
+    --color-acento-texto: oklch(17% 0.015 265);
+  }
+}
+
+@layer base {
+  :root {
+    color-scheme: light dark;
+  }
+
+  body {
+    background-color: var(--color-fondo);
+    color: var(--color-texto);
+    font-family:
+      ui-sans-serif,
+      system-ui,
+      -apple-system,
+      'Segoe UI',
+      Roboto,
+      'Helvetica Neue',
+      sans-serif;
+    -webkit-font-smoothing: antialiased;
+  }
+}

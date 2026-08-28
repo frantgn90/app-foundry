@@ -48,7 +48,16 @@ export class HealthService {
 
   private async checkRedis(): Promise<DependencyCheck> {
     return this.time(async () => {
-      await this.redis.ping();
+      // Con cola de espera activada, un Redis caído dejaría el ping colgado
+      // hasta agotar reintentos. La salud debe responder rápido siempre.
+      await Promise.race([
+        this.redis.ping(),
+        new Promise((_, reject) =>
+          setTimeout(() => {
+            reject(new Error('Redis no respondió en 2 s'));
+          }, 2_000),
+        ),
+      ]);
     });
   }
 

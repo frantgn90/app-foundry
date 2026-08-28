@@ -1,0 +1,114 @@
+{
+  "openapi": "3.0.0",
+  "paths": {
+    "/health/live": {
+      "get": {
+        "operationId": "HealthController_live",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LivenessDto"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Liveness: el proceso responde",
+        "tags": ["health"]
+      }
+    },
+    "/health/ready": {
+      "get": {
+        "operationId": "HealthController_ready",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReadinessReportDto"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Alguna dependencia falla",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReadinessReportDto"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Readiness: las dependencias responden",
+        "tags": ["health"]
+      }
+    }
+  },
+  "info": {
+    "title": "App Foundry API",
+    "description": "Un espacio para pensar, definir y traquear ideas de aplicaciones",
+    "version": "1.0",
+    "contact": {}
+  },
+  "tags": [],
+  "servers": [],
+  "components": {
+    "schemas": {
+      "DependencyCheckDto": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "string",
+            "enum": ["up", "down"],
+            "description": "Estado de la dependencia"
+          },
+          "latencyMs": {
+            "type": "number",
+            "description": "Tiempo de respuesta en milisegundos",
+            "example": 12
+          },
+          "error": {
+            "type": "string",
+            "description": "Motivo del fallo, si lo hubo"
+          }
+        },
+        "required": ["status", "latencyMs"]
+      },
+      "LivenessDto": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "string",
+            "enum": ["ok"]
+          }
+        },
+        "required": ["status"]
+      },
+      "ReadinessReportDto": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "string",
+            "enum": ["ok", "degraded"]
+          },
+          "checks": {
+            "type": "object",
+            "additionalProperties": {
+              "$ref": "#/components/schemas/DependencyCheckDto"
+            },
+            "description": "Una entrada por dependencia comprobada"
+          }
+        },
+        "required": ["status", "checks"]
+      }
+    }
+  }
+}

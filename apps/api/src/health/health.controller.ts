@@ -1,9 +1,19 @@
 import { Controller, Get, HttpCode, HttpStatus, Res } from '@nestjs/common';
-import { ApiOperation, ApiTags } from '@nestjs/swagger';
+import {
+  ApiExtraModels,
+  ApiOkResponse,
+  ApiOperation,
+  ApiServiceUnavailableResponse,
+  ApiTags,
+} from '@nestjs/swagger';
 import type { Response } from 'express';
 
-import { HealthService, type ReadinessReport } from './health.service.js';
+import { DependencyCheckDto, LivenessDto, ReadinessReportDto } from './health.dto.js';
+import { HealthService } from './health.service.js';
 
+// DependencyCheckDto solo aparece dentro de un mapa, así que hay que
+// registrarlo a mano para que llegue al contrato.
+@ApiExtraModels(DependencyCheckDto)
 @ApiTags('health')
 @Controller('health')
 export class HealthController {
@@ -19,14 +29,20 @@ export class HealthController {
   @Get('live')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Liveness: el proceso responde' })
-  live(): { status: 'ok' } {
+  @ApiOkResponse({ type: LivenessDto })
+  live(): LivenessDto {
     return { status: 'ok' };
   }
 
   /** ¿Puede atender peticiones? Aquí sí se comprueban Postgres y Redis. */
   @Get('ready')
   @ApiOperation({ summary: 'Readiness: las dependencias responden' })
-  async ready(@Res({ passthrough: true }) res: Response): Promise<ReadinessReport> {
+  @ApiOkResponse({ type: ReadinessReportDto })
+  @ApiServiceUnavailableResponse({
+    type: ReadinessReportDto,
+    description: 'Alguna dependencia falla',
+  })
+  async ready(@Res({ passthrough: true }) res: Response): Promise<ReadinessReportDto> {
     const report = await this.health.check();
     // 503 cuando algo está caído: un balanceador debe poder decidir mirando el
     // código de estado, sin interpretar el cuerpo.

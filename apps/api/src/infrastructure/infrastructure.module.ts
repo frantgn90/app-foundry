@@ -37,10 +37,12 @@ import { DATABASE, DB_HANDLE, ENV, REDIS } from './tokens.js';
       inject: [ENV],
       useFactory: (env: Env) =>
         new Redis(env.REDIS_URL, {
-          maxRetriesPerRequest: 3,
-          // Que un Redis caído no bloquee el arranque: la salud lo reportará.
-          lazyConnect: false,
-          enableOfflineQueue: false,
+          maxRetriesPerRequest: 2,
+          connectTimeout: 3_000,
+          // Conexión perezosa: la API arranca aunque Redis no esté, y la
+          // comprobación de salud lo reporta en lugar de impedir el arranque.
+          // También permite exportar el contrato OpenAPI sin infraestructura.
+          lazyConnect: true,
         }),
     },
   ],
