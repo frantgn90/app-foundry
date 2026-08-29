@@ -472,3 +472,143 @@ export function useTransferPrecursor(appId: string) {
     },
   });
 }
+
+export interface Comment {
+  id: string;
+  parentId: string | null;
+  body: string;
+  authorHandle: string;
+  authorDisplayName: string;
+  authorAvatarUrl: string | null;
+  isMine: boolean;
+  isDeleted: boolean;
+  isEdited: boolean;
+  mentions: string[];
+  createdAt: string;
+}
+
+export interface Thread {
+  id: string;
+  kind: 'GENERAL' | 'INLINE';
+  status: 'OPEN' | 'RESOLVED';
+  anchorStatus: 'ANCHORED' | 'ORPHANED' | null;
+  anchorQuote: string | null;
+  anchorStart: number | null;
+  anchorEnd: number | null;
+  resolvedByHandle: string | null;
+  canDelete: boolean;
+  comments: Comment[];
+  createdAt: string;
+}
+
+export interface MentionableUser {
+  userId: string;
+  handle: string;
+  displayName: string;
+  avatarUrl: string | null;
+}
+
+export function useThreads(appId: string) {
+  return useQuery<Thread[]>({
+    queryKey: ['threads', appId],
+    queryFn: async () => {
+      const { data, error } = await api.GET('/api/v1/apps/{appId}/threads', {
+        params: { path: { appId } },
+      });
+      if (error || !data) throw new Error('Could not load comments');
+      return data;
+    },
+  });
+}
+
+export function useMentionable(appId: string) {
+  return useQuery<MentionableUser[]>({
+    queryKey: ['mentionable', appId],
+    // La lista es corta y cambia poco: se filtra en el cliente al escribir.
+    staleTime: 5 * 60_000,
+    queryFn: async () => {
+      const { data, error } = await api.GET('/api/v1/apps/{appId}/mentionable', {
+        params: { path: { appId } },
+      });
+      if (error || !data) throw new Error('Could not load people');
+      return data;
+    },
+  });
+}
+
+interface NewThread {
+  body: string;
+  quote?: string;
+  start?: number;
+  end?: number;
+}
+
+export function useCreateThread(appId: string) {
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: async (input: NewThread) => {
+      const { data, error } = await api.POST('/api/v1/apps/{appId}/threads', {
+        params: { path: { appId } },
+        body: input,
+      });
+      if (error || !data) throw new Error('Could not post that comment');
+      return data;
+    },
+    onSuccess: () => client.invalidateQueries({ queryKey: ['threads', appId] }),
+  });
+}
+
+export function useReply(appId: string) {
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: async (input: { threadId: string; body: string; parentId?: string }) => {
+      const { data, error } = await api.POST('/api/v1/threads/{threadId}/comments', {
+        params: { path: { threadId: input.threadId } },
+        body: { body: input.body, ...(input.parentId ? { parentId: input.parentId } : {}) },
+      });
+      if (error || !data) throw new Error('Could not post that reply');
+      return data;
+    },
+    onSuccess: () => client.invalidateQueries({ queryKey: ['threads', appId] }),
+  });
+}
+
+export function useResolveThread(appId: string) {
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: async (input: { threadId: string; resolved: boolean }) => {
+      const path = input.resolved
+        ? '/api/v1/threads/{threadId}/resolve'
+        : '/api/v1/threads/{threadId}/reopen';
+      const { error } = await api.POST(path, { params: { path: { threadId: input.threadId } } });
+      if (error) throw new Error('Could not change that thread');
+    },
+    onSuccess: () => client.invalidateQueries({ queryKey: ['threads', appId] }),
+  });
+}
+
+export function useDeleteThread(appId: string) {
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: async (threadId: string) => {
+      const { error } = await api.DELETE('/api/v1/threads/{threadId}', {
+        params: { path: { threadId } },
+      });
+      if (error) throw new Error('Could not delete that thread');
+    },
+    onSuccess: () => client.invalidateQueries({ queryKey: ['threads', appId] }),
+  });
+}
+
+export function useDeleteComment(appId: string) {
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: async (commentId: string) => {
+      const { error } = await api.DELETE('/api/v1/comments/{commentId}', {
+        params: { path: { commentId } },
+      });
+      if (error) throw new Error('Could not delete that comment');
+    },
+    onSuccess: () => client.invalidateQueries({ queryKey: ['threads', appId] }),
+  });
+}

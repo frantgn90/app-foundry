@@ -219,6 +219,9 @@ importers:
       unified:
         specifier: 11.0.5
         version: 11.0.5
+      unist-util-visit:
+        specifier: 5.1.0
+        version: 5.1.0
     devDependencies:
       '@app-foundry/config':
         specifier: workspace:*
@@ -229,6 +232,9 @@ importers:
       '@types/diff':
         specifier: 8.0.0
         version: 8.0.0
+      '@types/hast':
+        specifier: 3.0.5
+        version: 3.0.5
       '@types/react':
         specifier: 19.2.18
         version: 19.2.18

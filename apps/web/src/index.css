@@ -115,3 +115,14 @@
     color: var(--color-texto-suave);
   }
 }
+
+/*
+ * Fragmento resaltado al elegir un comentario en el panel.
+ *
+ * `::highlight` pinta sobre el texto sin tocar el DOM, así que el markdown
+ * renderizado se queda exactamente como estaba.
+ */
+::highlight(foundry-anchor) {
+  background-color: color-mix(in oklab, var(--color-acento) 28%, transparent);
+  color: var(--color-texto);
+}

@@ -1,0 +1,121 @@
+import { useState } from 'react';
+
+import type { MentionableUser, Thread } from '../lib/api.js';
+import { CommentThread } from './comment-thread.js';
+import { MentionInput } from './mention-input.js';
+import { Button } from './ui/button.js';
+import { cn } from '../lib/utils.js';
+
+interface Props {
+  threads: Thread[];
+  people: MentionableUser[];
+  selectedId: string | null;
+  onSelect: (threadId: string | null) => void;
+  onNewGeneral: (body: string) => void;
+  onReply: (threadId: string, body: string) => void;
+  onResolve: (threadId: string, resolved: boolean) => void;
+  onDeleteThread: (threadId: string) => void;
+  onDeleteComment: (commentId: string) => void;
+}
+
+/**
+ * Panel lateral con toda la conversación (RF-810).
+ *
+ * Los resueltos se ocultan por defecto pero no desaparecen: una discusión
+ * cerrada sigue explicando por qué el documento dice lo que dice. Los huérfanos
+ * se quedan a la vista con su cita, que es lo único que los hace recuperables.
+ */
+export function CommentsPanel({
+  threads,
+  people,
+  selectedId,
+  onSelect,
+  onNewGeneral,
+  onReply,
+  onResolve,
+  onDeleteThread,
+  onDeleteComment,
+}: Props) {
+  const [showResolved, setShowResolved] = useState(false);
+  const [draft, setDraft] = useState('');
+
+  const open = threads.filter((t) => t.status === 'OPEN');
+  const resolved = threads.filter((t) => t.status === 'RESOLVED');
+  const visible = showResolved ? threads : open;
+
+  function post() {
+    if (!draft.trim()) return;
+    onNewGeneral(draft.trim());
+    setDraft('');
+  }
+
+  return (
+    <aside className="flex flex-col gap-3">
+      <header className="flex items-center justify-between gap-2">
+        <h2 className="text-sm font-medium">
+          Conversation
+          {open.length > 0 && (
+            <span className="ml-1.5 text-[var(--color-texto-suave)]">({open.length})</span>
+          )}
+        </h2>
+        {resolved.length > 0 && (
+          <Button
+            variant="ghost"
+            className="px-2 py-1 text-xs"
+            onClick={() => {
+              setShowResolved((v) => !v);
+            }}
+          >
+            {showResolved ? 'Hide resolved' : `Show resolved (${String(resolved.length)})`}
+          </Button>
+        )}
+      </header>
+
+      {visible.length === 0 && (
+        <p className="text-xs text-[var(--color-texto-suave)]">
+          Nothing yet. Select any text in the document to comment on it, or leave a general note
+          below.
+        </p>
+      )}
+
+      <div
+        className={cn('flex flex-col gap-2', visible.length > 0 && 'max-h-[32rem] overflow-y-auto')}
+      >
+        {visible.map((thread) => (
+          <CommentThread
+            key={thread.id}
+            thread={thread}
+            people={people}
+            isSelected={thread.id === selectedId}
+            onSelect={() => {
+              onSelect(thread.id === selectedId ? null : thread.id);
+            }}
+            onReply={(body) => {
+              onReply(thread.id, body);
+            }}
+            onResolve={(resolvedNow) => {
+              onResolve(thread.id, resolvedNow);
+            }}
+            onDelete={() => {
+              onDeleteThread(thread.id);
+            }}
+            onDeleteComment={onDeleteComment}
+          />
+        ))}
+      </div>
+
+      <div className="flex flex-col gap-2 border-t border-[var(--color-borde)] pt-3">
+        <MentionInput
+          value={draft}
+          onChange={setDraft}
+          onSubmit={post}
+          people={people}
+          placeholder="Leave a general comment…"
+        />
+        <Button className="self-start" onClick={post} disabled={!draft.trim()}>
+          Comment
+        </Button>
+      </div>
+    </aside>
+  );
+}

@@ -1,15 +1,26 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 
 import {
   ConflictError,
   type SaveConflict,
   useApp,
+  useCreateThread,
+  useDeleteComment,
+  useDeleteThread,
   useDocument,
+  useMentionable,
+  useReply,
+  useResolveThread,
   useRestoreVersion,
   useSaveDocument,
+  useThreads,
   useVersionContent,
   useVersions,
 } from '../lib/api.js';
+import { CommentsPanel } from '../components/comments-panel.js';
+import { highlightAnchor } from '../lib/highlight.js';
+import { resolveSelection, type SourceSelection } from '../lib/selection.js';
+import { MentionInput } from '../components/mention-input.js';
 import { AppSettingsPage } from './app-settings.js';
 import { DiffView } from '../components/diff-view.js';
 import { MarkdownEditor } from '../components/editor.js';
@@ -43,8 +54,32 @@ export function AppDetailPage({
   const [draft, setDraft] = useState<string | null>(null);
   const [conflict, setConflict] = useState<SaveConflict | null>(null);
   const [comparing, setComparing] = useState<string | null>(null);
+  const [selectedThread, setSelectedThread] = useState<string | null>(null);
+  const [pendingSelection, setPendingSelection] = useState<SourceSelection | null>(null);
+  const [selectionDraft, setSelectionDraft] = useState('');
+  const readingRef = useRef<HTMLDivElement>(null);
 
   const comparison = useVersionContent(appId, comparing);
+  const threads = useThreads(appId);
+  const people = useMentionable(appId);
+  const createThread = useCreateThread(appId);
+  const reply = useReply(appId);
+  const resolveThread = useResolveThread(appId);
+  const deleteThread = useDeleteThread(appId);
+  const deleteComment = useDeleteComment(appId);
+
+  // Al elegir un hilo se resalta su fragmento en el documento y se lleva a la
+  // vista: es la mitad de la navegación entre panel y texto (RF-810).
+  useEffect(() => {
+    const thread = (threads.data ?? []).find((t) => t.id === selectedThread);
+    const anchored =
+      thread?.anchorStatus === 'ANCHORED' &&
+      thread.anchorStart !== null &&
+      thread.anchorEnd !== null
+        ? { start: thread.anchorStart, end: thread.anchorEnd }
+        : null;
+    highlightAnchor(readingRef.current, anchored);
+  }, [selectedThread, threads.data, tab]);
 
   // Borrador local: cerrar la pestaña a media edición no debería perder el
   // texto. No genera versiones, solo sobrevive a un accidente (RF-506).
@@ -72,7 +107,26 @@ export function AppDetailPage({
   }
 
   const content = draft ?? document.data.content;
+  const openThreads = (threads.data ?? []).filter((t) => t.status === 'OPEN').length;
   const hasUnsavedChanges = content !== document.data.content;
+
+  function postInlineComment() {
+    if (!pendingSelection || !selectionDraft.trim()) return;
+    createThread.mutate(
+      {
+        body: selectionDraft.trim(),
+        quote: pendingSelection.quote,
+        start: pendingSelection.start,
+        end: pendingSelection.end,
+      },
+      {
+        onSuccess: () => {
+          setPendingSelection(null);
+          setSelectionDraft('');
+        },
+      },
+    );
+  }
 
   function onSave() {
     if (!document.data) return;
@@ -114,6 +168,8 @@ export function AppDetailPage({
             <TagList tags={app.data.tags} />
             <span className="text-xs text-[var(--color-texto-suave)]">
               v{document.data.versionNo} · started by @{app.data.precursorHandle}
+              {openThreads > 0 &&
+                ` · ${String(openThreads)} open comment${openThreads === 1 ? '' : 's'}`}
             </span>
           </div>
         </div>
@@ -162,9 +218,79 @@ export function AppDetailPage({
       )}
 
       {tab === 'read' && (
-        <Card className="p-6">
-          <Markdown content={document.data.content} />
-        </Card>
+        <div className="grid gap-6 lg:grid-cols-[1fr_20rem]">
+          <div className="flex flex-col gap-3">
+            {/*
+              Al soltar el ratón se mira si hay una selección utilizable. Si no
+              se puede resolver a una posición del markdown, no se ofrece
+              comentar: mejor no ofrecerlo que anclar en un sitio inventado.
+            */}
+            <Card
+              className="p-6"
+              ref={readingRef}
+              onMouseUp={() => {
+                if (!document.data || !readingRef.current) return;
+                setPendingSelection(resolveSelection(document.data.content, readingRef.current));
+              }}
+            >
+              <Markdown content={document.data.content} />
+            </Card>
+
+            {pendingSelection && (
+              <Card className="flex flex-col gap-2 border-[var(--color-acento)]/40 p-4">
+                <p className="text-xs text-[var(--color-texto-suave)]">Commenting on:</p>
+                <blockquote className="border-l-2 border-[var(--color-acento)]/50 pl-2 text-sm italic">
+                  {pendingSelection.quote}
+                </blockquote>
+                <MentionInput
+                  value={selectionDraft}
+                  onChange={setSelectionDraft}
+                  onSubmit={() => {
+                    postInlineComment();
+                  }}
+                  people={people.data ?? []}
+                  autoFocus
+                />
+                <div className="flex gap-2">
+                  <Button onClick={postInlineComment} disabled={!selectionDraft.trim()}>
+                    Comment
+                  </Button>
+                  <Button
+                    variant="secondary"
+                    onClick={() => {
+                      setPendingSelection(null);
+                      setSelectionDraft('');
+                    }}
+                  >
+                    Cancel
+                  </Button>
+                </div>
+              </Card>
+            )}
+          </div>
+
+          <CommentsPanel
+            threads={threads.data ?? []}
+            people={people.data ?? []}
+            selectedId={selectedThread}
+            onSelect={setSelectedThread}
+            onNewGeneral={(body) => {
+              createThread.mutate({ body });
+            }}
+            onReply={(threadId, body) => {
+              reply.mutate({ threadId, body });
+            }}
+            onResolve={(threadId, resolved) => {
+              resolveThread.mutate({ threadId, resolved });
+            }}
+            onDeleteThread={(threadId) => {
+              deleteThread.mutate(threadId);
+            }}
+            onDeleteComment={(commentId) => {
+              deleteComment.mutate(commentId);
+            }}
+          />
+        </div>
       )}
 
       {tab === 'edit' && document.data.canEdit && (
