@@ -4,7 +4,6 @@ import type { MentionableUser, Thread } from '../lib/api.js';
 import { CommentThread } from './comment-thread.js';
 import { MentionInput } from './mention-input.js';
 import { Button } from './ui/button.js';
-import { cn } from '../lib/utils.js';
 
 interface Props {
   threads: Thread[];
@@ -38,6 +37,7 @@ export function CommentsPanel({
 }: Props) {
   const [showResolved, setShowResolved] = useState(false);
   const [draft, setDraft] = useState('');
+  const [composing, setComposing] = useState(false);
 
   const open = threads.filter((t) => t.status === 'OPEN');
   const resolved = threads.filter((t) => t.status === 'RESOLVED');
@@ -47,6 +47,7 @@ export function CommentsPanel({
     if (!draft.trim()) return;
     onNewGeneral(draft.trim());
     setDraft('');
+    setComposing(false);
   }
 
   return (
@@ -78,9 +79,12 @@ export function CommentsPanel({
         </p>
       )}
 
-      <div
-        className={cn('flex flex-col gap-2', visible.length > 0 && 'max-h-[32rem] overflow-y-auto')}
-      >
+      {/*
+        Sin altura fija: el panel crece con la conversación y es la página la que
+        hace scroll, en lugar de un recuadro con scroll propio dentro de otro que
+        también lo tiene.
+      */}
+      <div className="flex flex-col gap-2">
         {visible.map((thread) => (
           <CommentThread
             key={thread.id}
@@ -105,16 +109,42 @@ export function CommentsPanel({
       </div>
 
       <div className="flex flex-col gap-2 border-t border-[var(--color-borde)] pt-3">
-        <MentionInput
-          value={draft}
-          onChange={setDraft}
-          onSubmit={post}
-          people={people}
-          placeholder="Leave a general comment…"
-        />
-        <Button className="self-start" onClick={post} disabled={!draft.trim()}>
-          Comment
-        </Button>
+        {composing ? (
+          <>
+            <MentionInput
+              value={draft}
+              onChange={setDraft}
+              onSubmit={post}
+              people={people}
+              placeholder="Leave a general comment…"
+              autoFocus
+            />
+            <div className="flex gap-2">
+              <Button onClick={post} disabled={!draft.trim()}>
+                Comment
+              </Button>
+              <Button
+                variant="secondary"
+                onClick={() => {
+                  setComposing(false);
+                  setDraft('');
+                }}
+              >
+                Cancel
+              </Button>
+            </div>
+          </>
+        ) : (
+          <Button
+            variant="secondary"
+            className="self-start"
+            onClick={() => {
+              setComposing(true);
+            }}
+          >
+            Add a general comment
+          </Button>
+        )}
       </div>
     </aside>
   );

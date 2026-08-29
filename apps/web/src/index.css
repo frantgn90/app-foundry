@@ -117,12 +117,25 @@
 }
 
 /*
- * Fragmento resaltado al elegir un comentario en el panel.
+ * Fragmentos con conversación.
  *
  * `::highlight` pinta sobre el texto sin tocar el DOM, así que el markdown
  * renderizado se queda exactamente como estaba.
+ *
+ * El amarillo es el color con el que todo el mundo asocia «esto está marcado»,
+ * y en un tono suave no compite con la lectura. El hilo seleccionado sube de
+ * intensidad y añade un subrayado, para que se distinga del resto sin depender
+ * solo del color.
  */
-::highlight(foundry-anchor) {
-  background-color: color-mix(in oklab, var(--color-acento) 28%, transparent);
+::highlight(foundry-anchors) {
+  background-color: color-mix(in oklab, #facc15 32%, transparent);
   color: var(--color-texto);
+}
+
+::highlight(foundry-anchor-active) {
+  background-color: color-mix(in oklab, #facc15 62%, transparent);
+  color: var(--color-texto);
+  text-decoration: underline;
+  text-decoration-color: color-mix(in oklab, #a16207 70%, transparent);
+  text-underline-offset: 3px;
 }

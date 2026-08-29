@@ -29,12 +29,16 @@ export function CommentThread({
   onDeleteComment,
 }: Props) {
   const [draft, setDraft] = useState('');
+  // El campo de respuesta ocupa dos líneas en cada hilo y casi nunca se usa a la
+  // vez en todos. Aparece bajo demanda para que quepan más hilos sin scroll.
+  const [replying, setReplying] = useState(false);
   const isOrphan = thread.anchorStatus === 'ORPHANED';
 
   function send() {
     if (!draft.trim()) return;
     onReply(draft.trim());
     setDraft('');
+    setReplying(false);
   }
 
   return (
@@ -84,7 +88,18 @@ export function CommentThread({
         ))}
       </div>
 
-      <div className="flex items-center gap-2">
+      <div className="flex flex-wrap items-center gap-2">
+        {thread.status === 'OPEN' && !replying && (
+          <Button
+            variant="ghost"
+            className="px-2 py-1 text-xs"
+            onClick={() => {
+              setReplying(true);
+            }}
+          >
+            Reply
+          </Button>
+        )}
         {thread.status === 'RESOLVED' ? (
           <>
             <Badge tone="ok">
@@ -118,14 +133,32 @@ export function CommentThread({
         )}
       </div>
 
-      {thread.status === 'OPEN' && (
-        <MentionInput
-          value={draft}
-          onChange={setDraft}
-          onSubmit={send}
-          people={people}
-          placeholder="Reply…"
-        />
+      {thread.status === 'OPEN' && replying && (
+        <div className="flex flex-col gap-2">
+          <MentionInput
+            value={draft}
+            onChange={setDraft}
+            onSubmit={send}
+            people={people}
+            placeholder="Reply…"
+            autoFocus
+          />
+          <div className="flex gap-2">
+            <Button className="px-2 py-1 text-xs" onClick={send} disabled={!draft.trim()}>
+              Send
+            </Button>
+            <Button
+              variant="ghost"
+              className="px-2 py-1 text-xs"
+              onClick={() => {
+                setReplying(false);
+                setDraft('');
+              }}
+            >
+              Cancel
+            </Button>
+          </div>
+        </div>
       )}
     </article>
   );

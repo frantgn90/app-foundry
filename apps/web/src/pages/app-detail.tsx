@@ -18,7 +18,8 @@ import {
   useVersions,
 } from '../lib/api.js';
 import { CommentsPanel } from '../components/comments-panel.js';
-import { highlightAnchor } from '../lib/highlight.js';
+import { type AnchorRange, paintAnchors, sourceOffsetAt } from '../lib/highlight.js';
+import { SelectionMenu } from '../components/selection-menu.js';
 import { resolveSelection, type SourceSelection } from '../lib/selection.js';
 import { MentionInput } from '../components/mention-input.js';
 import { AppSettingsPage } from './app-settings.js';
@@ -55,7 +56,15 @@ export function AppDetailPage({
   const [conflict, setConflict] = useState<SaveConflict | null>(null);
   const [comparing, setComparing] = useState<string | null>(null);
   const [selectedThread, setSelectedThread] = useState<string | null>(null);
+  // Solo se hace scroll cuando el hilo se elige desde el panel; al pinchar en el
+  // texto ya se está mirando el sitio.
+  const [scrollToThread, setScrollToThread] = useState(false);
+  // La selección pendiente se guarda al soltar el ratón, pero el formulario no
+  // se abre hasta que se pulsa el botón del menú: seleccionar texto no es
+  // decidir comentarlo.
   const [pendingSelection, setPendingSelection] = useState<SourceSelection | null>(null);
+  const [menuAt, setMenuAt] = useState<{ top: number; left: number } | null>(null);
+  const [composing, setComposing] = useState(false);
   const [selectionDraft, setSelectionDraft] = useState('');
   const readingRef = useRef<HTMLDivElement>(null);
 
@@ -70,16 +79,21 @@ export function AppDetailPage({
 
   // Al elegir un hilo se resalta su fragmento en el documento y se lleva a la
   // vista: es la mitad de la navegación entre panel y texto (RF-810).
+  // Todos los fragmentos con conversación se pintan, no solo el elegido: si no,
+  // la conversación existente sería invisible hasta abrir el panel (RF-810).
+  const anchorRanges: AnchorRange[] = (threads.data ?? [])
+    .filter((t) => t.anchorStatus === 'ANCHORED' && t.anchorStart !== null && t.anchorEnd !== null)
+    .map((t) => ({ threadId: t.id, start: t.anchorStart ?? 0, end: t.anchorEnd ?? 0 }));
+
+  const anchorsKey = anchorRanges.map((a) => `${a.threadId}:${String(a.start)}`).join('|');
+
   useEffect(() => {
-    const thread = (threads.data ?? []).find((t) => t.id === selectedThread);
-    const anchored =
-      thread?.anchorStatus === 'ANCHORED' &&
-      thread.anchorStart !== null &&
-      thread.anchorEnd !== null
-        ? { start: thread.anchorStart, end: thread.anchorEnd }
-        : null;
-    highlightAnchor(readingRef.current, anchored);
-  }, [selectedThread, threads.data, tab]);
+    paintAnchors(readingRef.current, anchorRanges, selectedThread, {
+      scrollToActive: scrollToThread,
+    });
+    if (scrollToThread) setScrollToThread(false);
+    // `anchorsKey` resume la lista, que se reconstruye en cada render.
+  }, [anchorsKey, selectedThread, tab, scrollToThread]);
 
   // Borrador local: cerrar la pestaña a media edición no debería perder el
   // texto. No genera versiones, solo sobrevive a un accidente (RF-506).
@@ -123,6 +137,7 @@ export function AppDetailPage({
         onSuccess: () => {
           setPendingSelection(null);
           setSelectionDraft('');
+          setComposing(false);
         },
       },
     );
@@ -228,15 +243,42 @@ export function AppDetailPage({
             <Card
               className="p-6"
               ref={readingRef}
-              onMouseUp={() => {
+              onMouseUp={(event) => {
                 if (!document.data || !readingRef.current) return;
-                setPendingSelection(resolveSelection(document.data.content, readingRef.current));
+
+                const selection = resolveSelection(document.data.content, readingRef.current);
+                if (selection) {
+                  setPendingSelection(selection);
+                  setMenuAt({ top: event.clientY, left: event.clientX });
+                  return;
+                }
+
+                // Sin selección, un clic sobre un fragmento comentado lleva a su
+                // hilo: es el camino inverso al del resaltado.
+                setPendingSelection(null);
+                setMenuAt(null);
+                const offset = sourceOffsetAt(readingRef.current, event.clientX, event.clientY);
+                const hit =
+                  offset === null
+                    ? undefined
+                    : anchorRanges.find((a) => offset >= a.start && offset <= a.end);
+                if (hit) setSelectedThread(hit.threadId);
               }}
             >
               <Markdown content={document.data.content} />
             </Card>
 
-            {pendingSelection && (
+            {menuAt && pendingSelection && !composing && (
+              <SelectionMenu
+                position={menuAt}
+                onComment={() => {
+                  setComposing(true);
+                  setMenuAt(null);
+                }}
+              />
+            )}
+
+            {composing && pendingSelection && (
               <Card className="flex flex-col gap-2 border-[var(--color-acento)]/40 p-4">
                 <p className="text-xs text-[var(--color-texto-suave)]">Commenting on:</p>
                 <blockquote className="border-l-2 border-[var(--color-acento)]/50 pl-2 text-sm italic">
@@ -260,6 +302,7 @@ export function AppDetailPage({
                     onClick={() => {
                       setPendingSelection(null);
                       setSelectionDraft('');
+                      setComposing(false);
                     }}
                   >
                     Cancel
@@ -273,7 +316,10 @@ export function AppDetailPage({
             threads={threads.data ?? []}
             people={people.data ?? []}
             selectedId={selectedThread}
-            onSelect={setSelectedThread}
+            onSelect={(id) => {
+              setSelectedThread(id);
+              setScrollToThread(id !== null);
+            }}
             onNewGeneral={(body) => {
               createThread.mutate({ body });
             }}
