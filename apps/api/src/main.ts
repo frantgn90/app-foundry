@@ -8,6 +8,7 @@ import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { loadEnv } from '@app-foundry/env';
 
 import { AppModule } from './app.module.js';
+import { DatabaseExceptionFilter } from './database/database-exception.filter.js';
 import { createLogger, PinoNestLogger } from './observability/logger.js';
 
 async function bootstrap(): Promise<void> {
@@ -37,6 +38,7 @@ async function bootstrap(): Promise<void> {
 
   app.use(cookieParser(env.SESSION_SECRET));
   app.enableCors({ origin: env.WEB_ORIGIN, credentials: true });
+  app.useGlobalFilters(new DatabaseExceptionFilter());
   app.enableShutdownHooks();
 
   const document = SwaggerModule.createDocument(

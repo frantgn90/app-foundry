@@ -307,6 +307,316 @@
         ]
       }
     },
+    "/api/v1/workspaces/{workspaceId}/apps": {
+      "post": {
+        "description": "Nace con su documento de visión listo. Lo que crea un invitado en un workspace ajeno queda en WORKSPACE_WRITE.",
+        "operationId": "AppsController_create",
+        "parameters": [
+          {
+            "name": "workspaceId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateAppDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AppSummaryDto"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Crear una app",
+        "tags": [
+          "apps"
+        ]
+      },
+      "get": {
+        "operationId": "AppsController_list",
+        "parameters": [
+          {
+            "name": "workspaceId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/AppSummaryDto"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "summary": "Apps visibles del workspace",
+        "tags": [
+          "apps"
+        ]
+      }
+    },
+    "/api/v1/apps/{id}": {
+      "get": {
+        "operationId": "AppsController_get",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AppSummaryDto"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Ficha de una app",
+        "tags": [
+          "apps"
+        ]
+      },
+      "patch": {
+        "operationId": "AppsController_update",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateAppDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AppSummaryDto"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Editar metadatos",
+        "tags": [
+          "apps"
+        ]
+      },
+      "delete": {
+        "operationId": "AppsController_remove",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": ""
+          }
+        },
+        "summary": "Eliminar la app y todo su historial",
+        "tags": [
+          "apps"
+        ]
+      }
+    },
+    "/api/v1/apps/{id}/access-level": {
+      "patch": {
+        "operationId": "AppsController_changeAccessLevel",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ChangeAccessLevelDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AppSummaryDto"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Cambiar el nivel de acceso",
+        "tags": [
+          "apps"
+        ]
+      }
+    },
+    "/api/v1/apps/{id}/archive": {
+      "post": {
+        "operationId": "AppsController_archive",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AppSummaryDto"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Archivar",
+        "tags": [
+          "apps"
+        ]
+      }
+    },
+    "/api/v1/apps/{id}/unarchive": {
+      "post": {
+        "operationId": "AppsController_unarchive",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AppSummaryDto"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Desarchivar",
+        "tags": [
+          "apps"
+        ]
+      }
+    },
+    "/api/v1/apps/{id}/transfer-precursor": {
+      "post": {
+        "operationId": "AppsController_transfer",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TransferPrecursorDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AppSummaryDto"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Transferir el rol de precursor",
+        "tags": [
+          "apps"
+        ]
+      }
+    },
     "/health/live": {
       "get": {
         "operationId": "HealthController_live",
@@ -537,6 +847,263 @@
         },
         "required": [
           "email"
+        ]
+      },
+      "CreateAppDto": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 80
+          },
+          "shortDescription": {
+            "type": "string",
+            "maxLength": 160
+          },
+          "accessLevel": {
+            "type": "string",
+            "enum": [
+              "PRIVATE",
+              "WORKSPACE_READ",
+              "WORKSPACE_WRITE"
+            ],
+            "description": "Solo lo elige el dueño del workspace. Lo que crea un invitado queda en WORKSPACE_WRITE."
+          }
+        },
+        "required": [
+          "name"
+        ]
+      },
+      "AppIconDto": {
+        "type": "object",
+        "properties": {
+          "emoji": {
+            "type": "string",
+            "description": "Emoji de la selección curada"
+          },
+          "color": {
+            "type": "string",
+            "description": "Color de fondo de la paleta"
+          }
+        },
+        "required": [
+          "emoji",
+          "color"
+        ]
+      },
+      "AppSummaryDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "slug": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "shortDescription": {
+            "type": "string",
+            "nullable": true
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "IDEA",
+              "DEFINING",
+              "IN_DEVELOPMENT",
+              "PUBLISHED",
+              "PAUSED",
+              "ARCHIVED"
+            ]
+          },
+          "accessLevel": {
+            "type": "string",
+            "enum": [
+              "PRIVATE",
+              "WORKSPACE_READ",
+              "WORKSPACE_WRITE"
+            ]
+          },
+          "icon": {
+            "$ref": "#/components/schemas/AppIconDto"
+          },
+          "tags": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "repoUrl": {
+            "type": "string",
+            "nullable": true
+          },
+          "precursorHandle": {
+            "type": "string",
+            "description": "Handle de GitHub de quien la creó"
+          },
+          "isPrecursor": {
+            "type": "boolean",
+            "description": "Si quien consulta es su precursor"
+          },
+          "canEdit": {
+            "type": "boolean",
+            "description": "Si quien consulta puede editarla"
+          },
+          "isArchived": {
+            "type": "boolean"
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "id",
+          "slug",
+          "name",
+          "shortDescription",
+          "status",
+          "accessLevel",
+          "icon",
+          "tags",
+          "repoUrl",
+          "precursorHandle",
+          "isPrecursor",
+          "canEdit",
+          "isArchived",
+          "updatedAt"
+        ]
+      },
+      "UpdateAppDto": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 80
+          },
+          "shortDescription": {
+            "type": "string",
+            "maxLength": 160,
+            "nullable": true
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "IDEA",
+              "DEFINING",
+              "IN_DEVELOPMENT",
+              "PUBLISHED",
+              "PAUSED",
+              "ARCHIVED"
+            ]
+          },
+          "tags": {
+            "maxItems": 8,
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "repoUrl": {
+            "type": "string",
+            "description": "Enlace al repositorio. Informativo: no sincroniza nada todavía (RF-417)."
+          },
+          "iconEmoji": {
+            "type": "string",
+            "enum": [
+              "💡",
+              "✨",
+              "🌱",
+              "🔮",
+              "🚀",
+              "🧭",
+              "🛠️",
+              "⚙️",
+              "🧰",
+              "🔧",
+              "📐",
+              "🧪",
+              "📚",
+              "📝",
+              "🧠",
+              "🔍",
+              "🗺️",
+              "📊",
+              "💬",
+              "📣",
+              "📨",
+              "🤝",
+              "🎙️",
+              "📡",
+              "🏗️",
+              "🧱",
+              "🗂️",
+              "🎛️",
+              "🪟",
+              "🧩",
+              "🌊",
+              "🌲",
+              "⛰️",
+              "🌙",
+              "☀️",
+              "⏳",
+              "🎯",
+              "🎲",
+              "🎨",
+              "🎵",
+              "🏔️",
+              "🔥"
+            ]
+          },
+          "iconColor": {
+            "type": "string",
+            "enum": [
+              "amber",
+              "rose",
+              "violet",
+              "indigo",
+              "sky",
+              "teal",
+              "emerald",
+              "lime",
+              "orange",
+              "slate"
+            ]
+          }
+        }
+      },
+      "ChangeAccessLevelDto": {
+        "type": "object",
+        "properties": {
+          "accessLevel": {
+            "type": "string",
+            "enum": [
+              "PRIVATE",
+              "WORKSPACE_READ",
+              "WORKSPACE_WRITE"
+            ]
+          }
+        },
+        "required": [
+          "accessLevel"
+        ]
+      },
+      "TransferPrecursorDto": {
+        "type": "object",
+        "properties": {
+          "userId": {
+            "type": "string",
+            "format": "uuid",
+            "description": "Miembro del workspace que pasa a ser precursor"
+          }
+        },
+        "required": [
+          "userId"
         ]
       },
       "DependencyCheckDto": {

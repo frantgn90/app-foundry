@@ -233,6 +233,38 @@ describe('documentos y versiones', () => {
   });
 });
 
+describe('archivar es reversible (regresión)', () => {
+  it('el precursor puede desarchivar su app', async () => {
+    // La política de UPDATE exigía archived_at IS NULL para cualquier cambio,
+    // así que una app archivada quedaba congelada para siempre: ni su propio
+    // precursor podía revivirla. El síntoma era desconcertante, porque la
+    // sentencia no fallaba, simplemente no afectaba a ninguna fila.
+    await asAppUser(db.db, e.ana, (tx) =>
+      tx.execute(sql`UPDATE apps SET archived_at = now() WHERE id = ${appLectura}`),
+    );
+
+    const desarchivadas = await asAppUser(db.db, e.ana, (tx) =>
+      tx.execute(sql`UPDATE apps SET archived_at = NULL WHERE id = ${appLectura} RETURNING id`),
+    );
+    expect(desarchivadas.rows).toHaveLength(1);
+  });
+
+  it('mientras está archivada, no se puede cambiar nada más', async () => {
+    await asAppUser(db.db, e.ana, (tx) =>
+      tx.execute(sql`UPDATE apps SET archived_at = now() WHERE id = ${appLectura}`),
+    );
+
+    const error = await failure(() =>
+      asAppUser(db.db, e.ana, (tx) =>
+        tx.execute(sql`UPDATE apps SET name = 'Colado' WHERE id = ${appLectura}`),
+      ),
+    );
+    expect(sqlstateOf(error)).toBe('42501');
+
+    await db.db.execute(sql`UPDATE apps SET archived_at = NULL WHERE id = ${appLectura}`);
+  });
+});
+
 describe('herencia del precursor al salir del workspace (K6, D-10)', () => {
   it('las apps de quien se va se quedan y pasan al dueño', async () => {
     const antes = await db.db

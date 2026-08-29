@@ -6,13 +6,22 @@ import { currentTx } from '../database/request-context.js';
 
 /** Acciones registrables. Enumerarlas evita cadenas sueltas por el código. */
 export const AuditAction = {
-  SESSION_STARTED: 'sesion.iniciada',
-  USER_CREATED: 'usuario.alta',
-  WORKSPACE_RENAMED: 'workspace.renombrado',
-  INVITATION_CREATED: 'invitacion.creada',
-  INVITATION_REVOKED: 'invitacion.revocada',
-  MEMBER_REMOVED: 'miembro.expulsado',
-  MEMBER_LEFT: 'miembro.salida',
+  SESSION_STARTED: 'session.started',
+  USER_CREATED: 'user.created',
+  WORKSPACE_RENAMED: 'workspace.renamed',
+  INVITATION_CREATED: 'invitation.created',
+  INVITATION_REVOKED: 'invitation.revoked',
+  MEMBER_REMOVED: 'member.removed',
+  MEMBER_LEFT: 'member.left',
+  APP_CREATED: 'app.created',
+  APP_UPDATED: 'app.updated',
+  APP_ACCESS_LEVEL_CHANGED: 'app.access_level_changed',
+  APP_ARCHIVED: 'app.archived',
+  APP_UNARCHIVED: 'app.unarchived',
+  APP_DELETED: 'app.deleted',
+  APP_PRECURSOR_TRANSFERRED: 'app.precursor_transferred',
+  DOCUMENT_VERSION_CREATED: 'document.version_created',
+  DOCUMENT_RESTORED: 'document.restored',
 } as const;
 export type AuditAction = (typeof AuditAction)[keyof typeof AuditAction];
 

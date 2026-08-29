@@ -178,6 +178,114 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/workspaces/{workspaceId}/apps": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Apps visibles del workspace */
+        get: operations["AppsController_list"];
+        put?: never;
+        /**
+         * Crear una app
+         * @description Nace con su documento de visión listo. Lo que crea un invitado en un workspace ajeno queda en WORKSPACE_WRITE.
+         */
+        post: operations["AppsController_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/apps/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Ficha de una app */
+        get: operations["AppsController_get"];
+        put?: never;
+        post?: never;
+        /** Eliminar la app y todo su historial */
+        delete: operations["AppsController_remove"];
+        options?: never;
+        head?: never;
+        /** Editar metadatos */
+        patch: operations["AppsController_update"];
+        trace?: never;
+    };
+    "/api/v1/apps/{id}/access-level": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /** Cambiar el nivel de acceso */
+        patch: operations["AppsController_changeAccessLevel"];
+        trace?: never;
+    };
+    "/api/v1/apps/{id}/archive": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Archivar */
+        post: operations["AppsController_archive"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/apps/{id}/unarchive": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Desarchivar */
+        post: operations["AppsController_unarchive"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/apps/{id}/transfer-precursor": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Transferir el rol de precursor */
+        post: operations["AppsController_transfer"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/health/live": {
         parameters: {
             query?: never;
@@ -269,6 +377,68 @@ export interface components {
              * @description Email de la persona a invitar
              */
             email: string;
+        };
+        CreateAppDto: {
+            name: string;
+            shortDescription?: string;
+            /**
+             * @description Solo lo elige el dueño del workspace. Lo que crea un invitado queda en WORKSPACE_WRITE.
+             * @enum {string}
+             */
+            accessLevel?: "PRIVATE" | "WORKSPACE_READ" | "WORKSPACE_WRITE";
+        };
+        AppIconDto: {
+            /** @description Emoji de la selección curada */
+            emoji: string;
+            /** @description Color de fondo de la paleta */
+            color: string;
+        };
+        AppSummaryDto: {
+            /** Format: uuid */
+            id: string;
+            slug: string;
+            name: string;
+            shortDescription: string | null;
+            /** @enum {string} */
+            status: "IDEA" | "DEFINING" | "IN_DEVELOPMENT" | "PUBLISHED" | "PAUSED" | "ARCHIVED";
+            /** @enum {string} */
+            accessLevel: "PRIVATE" | "WORKSPACE_READ" | "WORKSPACE_WRITE";
+            icon: components["schemas"]["AppIconDto"];
+            tags: string[];
+            repoUrl: string | null;
+            /** @description Handle de GitHub de quien la creó */
+            precursorHandle: string;
+            /** @description Si quien consulta es su precursor */
+            isPrecursor: boolean;
+            /** @description Si quien consulta puede editarla */
+            canEdit: boolean;
+            isArchived: boolean;
+            /** Format: date-time */
+            updatedAt: string;
+        };
+        UpdateAppDto: {
+            name?: string;
+            shortDescription?: string | null;
+            /** @enum {string} */
+            status?: "IDEA" | "DEFINING" | "IN_DEVELOPMENT" | "PUBLISHED" | "PAUSED" | "ARCHIVED";
+            tags?: string[];
+            /** @description Enlace al repositorio. Informativo: no sincroniza nada todavía (RF-417). */
+            repoUrl?: string;
+            /** @enum {string} */
+            iconEmoji?: "💡" | "✨" | "🌱" | "🔮" | "🚀" | "🧭" | "🛠️" | "⚙️" | "🧰" | "🔧" | "📐" | "🧪" | "📚" | "📝" | "🧠" | "🔍" | "🗺️" | "📊" | "💬" | "📣" | "📨" | "🤝" | "🎙️" | "📡" | "🏗️" | "🧱" | "🗂️" | "🎛️" | "🪟" | "🧩" | "🌊" | "🌲" | "⛰️" | "🌙" | "☀️" | "⏳" | "🎯" | "🎲" | "🎨" | "🎵" | "🏔️" | "🔥";
+            /** @enum {string} */
+            iconColor?: "amber" | "rose" | "violet" | "indigo" | "sky" | "teal" | "emerald" | "lime" | "orange" | "slate";
+        };
+        ChangeAccessLevelDto: {
+            /** @enum {string} */
+            accessLevel: "PRIVATE" | "WORKSPACE_READ" | "WORKSPACE_WRITE";
+        };
+        TransferPrecursorDto: {
+            /**
+             * Format: uuid
+             * @description Miembro del workspace que pasa a ser precursor
+             */
+            userId: string;
         };
         DependencyCheckDto: {
             /**
@@ -524,6 +694,209 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+        };
+    };
+    AppsController_list: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                workspaceId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AppSummaryDto"][];
+                };
+            };
+        };
+    };
+    AppsController_create: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                workspaceId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateAppDto"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AppSummaryDto"];
+                };
+            };
+        };
+    };
+    AppsController_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AppSummaryDto"];
+                };
+            };
+        };
+    };
+    AppsController_remove: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    AppsController_update: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateAppDto"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AppSummaryDto"];
+                };
+            };
+        };
+    };
+    AppsController_changeAccessLevel: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ChangeAccessLevelDto"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AppSummaryDto"];
+                };
+            };
+        };
+    };
+    AppsController_archive: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AppSummaryDto"];
+                };
+            };
+        };
+    };
+    AppsController_unarchive: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AppSummaryDto"];
+                };
+            };
+        };
+    };
+    AppsController_transfer: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["TransferPrecursorDto"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AppSummaryDto"];
+                };
             };
         };
     };
