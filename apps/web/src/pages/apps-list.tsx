@@ -104,9 +104,24 @@ export function AppsListPage({
         />
       )}
 
-      <ul className="grid items-start gap-3 sm:grid-cols-2">
+      {/*
+        Columnas CSS en lugar de rejilla: cada tarjeta ocupa su altura y la
+        siguiente sube a llenar el hueco, sin espacios muertos.
+
+        El precio es que el orden visual pasa a ser por columna —arriba abajo, y
+        luego la siguiente— en vez de en zigzag. Se asume porque el listado va
+        ordenado por actividad reciente y lo más reciente sigue estando arriba
+        del todo a la izquierda, que es donde se mira primero.
+
+        El masonry nativo de CSS resolvería ambas cosas a la vez, pero ningún
+        navegador lo implementa todavía. El orden del DOM no cambia, así que la
+        navegación por teclado y los lectores de pantalla recorren las tarjetas
+        en su orden real.
+      */}
+      <ul className="columns-1 gap-3 sm:columns-2">
         {apps.data?.map((app) => (
-          <li key={app.id}>
+          // `break-inside-avoid` impide que una tarjeta se parta entre columnas.
+          <li key={app.id} className="mb-3 break-inside-avoid">
             <AppCard
               app={app}
               onOpen={() => {
