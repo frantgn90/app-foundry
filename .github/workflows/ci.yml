@@ -47,7 +47,7 @@ jobs:
   # Postgres real levantado por Testcontainers, con el rol de la aplicación.
   # Si esto se salta, el aislamiento entre workspaces deja de estar garantizado.
   integracion:
-    name: Tests de integración y aislamiento
+    name: Tests de integración, aislamiento y API
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
@@ -59,6 +59,10 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - run: pnpm build
       - run: pnpm test:integration
+      # Los mismos permisos, pero comprobados a través de HTTP: entre una
+      # política correcta y una respuesta correcta hay endpoints, guards e
+      # interceptores que también pueden equivocarse.
+      - run: pnpm test:api
 
   compilacion:
     name: Compilación

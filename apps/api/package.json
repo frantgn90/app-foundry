@@ -10,7 +10,8 @@
     "start": "node --import ./dist/observability/telemetry.js dist/main.js",
     "lint": "eslint src",
     "typecheck": "tsc -p tsconfig.json",
-    "openapi:export": "node dist/openapi.js"
+    "openapi:export": "node dist/openapi.js",
+    "test:api": "vitest run"
   },
   "dependencies": {
     "@app-foundry/core": "workspace:*",
@@ -48,11 +49,15 @@
   },
   "devDependencies": {
     "@app-foundry/config": "workspace:*",
+    "@nestjs/testing": "12.0.1",
+    "@testcontainers/postgresql": "12.1.0",
+    "@testcontainers/redis": "12.1.0",
     "@types/cookie-parser": "1.4.10",
     "@types/express": "5.0.6",
     "@types/node": "26.4.0",
     "@types/passport-oauth2": "1.8.0",
     "eslint": "10.9.1",
-    "typescript": "6.0.3"
+    "typescript": "6.0.3",
+    "vitest": "4.1.11"
   }
 }

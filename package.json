@@ -20,7 +20,9 @@
     "format:check": "prettier --check .",
     "infra:up": "docker compose -f infra/docker-compose.yml up -d",
     "infra:down": "docker compose -f infra/docker-compose.yml down",
-    "clean": "turbo run clean && rm -rf node_modules"
+    "clean": "turbo run clean && rm -rf node_modules",
+    "test:api": "turbo run test:api",
+    "db:seed": "pnpm --filter @app-foundry/db db:seed"
   },
   "devDependencies": {
     "@app-foundry/config": "workspace:*",

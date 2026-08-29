@@ -1,4 +1,9 @@
-import { ConflictException, Injectable, NotFoundException } from '@nestjs/common';
+import {
+  ConflictException,
+  ForbiddenException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { and, desc, eq, sql } from 'drizzle-orm';
 
 import { apps, documents, documentVersions, users } from '@app-foundry/db';
@@ -61,6 +66,15 @@ export class DocumentsService {
   async save(appId: string, body: SaveDocumentDto, userId: string): Promise<DocumentDto> {
     const tx = currentTx();
 
+    // Se comprueba primero con permiso de lectura para poder distinguir «esto no
+    // existe» de «esto existe pero no puedes escribirlo». Sin esta distinción,
+    // a quien tiene la app en solo lectura se le respondería que su documento no
+    // existe, cuando lo está viendo en pantalla.
+    const readable = await this.get(appId, userId);
+    if (!readable.canEdit) {
+      throw new ForbiddenException('You can read this app but not edit it');
+    }
+
     const [document] = await tx
       .select()
       .from(documents)
@@ -120,7 +134,12 @@ export class DocumentsService {
   }
 
   /** Historial completo, del más reciente al más antiguo (RF-507). */
-  async versions(appId: string): Promise<VersionSummaryDto[]> {
+  async versions(appId: string, userId: string): Promise<VersionSummaryDto[]> {
+    // Se comprueba la visibilidad de la app para responder 404 igual que el
+    // resto de rutas. Sin esto devolvería 200 con una lista vacía, y esa
+    // diferencia de códigos entre rutas hermanas ya dice si algo existe.
+    await this.get(appId, userId);
+
     const rows = await currentTx()
       .select({
         id: documentVersions.id,
@@ -183,6 +202,7 @@ export class DocumentsService {
    * del servidor en algo que el navegador resuelve al instante (TRD §10).
    */
   async diff(appId: string, from: string, to: string): Promise<DiffDto> {
+    // `version` ya comprueba pertenencia, así que basta con delegar.
     return {
       from: await this.version(appId, from),
       to: await this.version(appId, to),
@@ -227,7 +247,9 @@ export class DocumentsService {
    * No se conceden: es contribuidor quien ha escrito. El precursor queda fuera
    * porque ya se muestra aparte.
    */
-  async contributors(appId: string): Promise<ContributorDto[]> {
+  async contributors(appId: string, userId: string): Promise<ContributorDto[]> {
+    await this.get(appId, userId);
+
     const rows = await currentTx()
       .select({
         userId: users.id,

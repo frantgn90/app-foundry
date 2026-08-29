@@ -56,8 +56,11 @@ export class DocumentsController {
   @Get('versions')
   @ApiOperation({ summary: 'Historial de versiones' })
   @ApiOkResponse({ type: [VersionSummaryDto] })
-  versions(@Param('appId', ParseUUIDPipe) appId: string): Promise<VersionSummaryDto[]> {
-    return this.documents.versions(appId);
+  versions(
+    @Param('appId', ParseUUIDPipe) appId: string,
+    @CurrentUserId() userId: string,
+  ): Promise<VersionSummaryDto[]> {
+    return this.documents.versions(appId, userId);
   }
 
   @Get('versions/:versionId')
@@ -103,8 +106,11 @@ export class DocumentsController {
   @Get('contributors')
   @ApiOperation({ summary: 'Quiénes han escrito en esta visión' })
   @ApiOkResponse({ type: [ContributorDto] })
-  contributors(@Param('appId', ParseUUIDPipe) appId: string): Promise<ContributorDto[]> {
-    return this.documents.contributors(appId);
+  contributors(
+    @Param('appId', ParseUUIDPipe) appId: string,
+    @CurrentUserId() userId: string,
+  ): Promise<ContributorDto[]> {
+    return this.documents.contributors(appId, userId);
   }
 
   @Get('export')

@@ -26,6 +26,10 @@
     },
     "clean": {
       "cache": false
+    },
+    "test:api": {
+      "dependsOn": ["^build"],
+      "cache": false
     }
   }
 }
