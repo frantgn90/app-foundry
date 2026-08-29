@@ -14,7 +14,7 @@ import { AppSettingsPage } from './app-settings.js';
 import { DiffView } from '../components/diff-view.js';
 import { MarkdownEditor } from '../components/editor.js';
 import { Markdown } from '../components/markdown.js';
-import { Badge } from '../components/ui/badge.js';
+import { StatusPill, TagList, VisibilityMark } from '../components/app-status.js';
 import { Button } from '../components/ui/button.js';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card.js';
 import { cn } from '../lib/utils.js';
@@ -105,16 +105,16 @@ export function AppDetailPage({
           <span className="text-2xl" aria-hidden>
             {app.data.icon.emoji}
           </span>
-          <div className="flex flex-col gap-1">
-            <h1 className="text-2xl font-semibold tracking-tight">{app.data.name}</h1>
-            <div className="flex flex-wrap items-center gap-1.5">
-              <Badge>{app.data.status.replace('_', ' ').toLowerCase()}</Badge>
-              {app.data.accessLevel === 'PRIVATE' && <Badge>private</Badge>}
-              {app.data.isArchived && <Badge tone="warning">archived</Badge>}
-              <span className="text-xs text-[var(--color-texto-suave)]">
-                v{document.data.versionNo} · @{app.data.precursorHandle}
-              </span>
+          <div className="flex flex-col gap-1.5">
+            <div className="flex flex-wrap items-center gap-2.5">
+              <h1 className="text-2xl font-semibold tracking-tight">{app.data.name}</h1>
+              <StatusPill status={app.data.isArchived ? 'ARCHIVED' : app.data.status} />
+              <VisibilityMark accessLevel={app.data.accessLevel} />
             </div>
+            <TagList tags={app.data.tags} />
+            <span className="text-xs text-[var(--color-texto-suave)]">
+              v{document.data.versionNo} · started by @{app.data.precursorHandle}
+            </span>
           </div>
         </div>
 

@@ -14,6 +14,7 @@ import { and, eq, sql } from 'drizzle-orm';
 import { createDb, type Database } from './client.js';
 import {
   apps,
+  appTags,
   documents,
   documentVersions,
   users,
@@ -100,7 +101,8 @@ async function createApp(
     name: string;
     description: string;
     accessLevel: 'PRIVATE' | 'WORKSPACE_READ' | 'WORKSPACE_WRITE';
-    status: 'IDEA' | 'DEFINING' | 'IN_DEVELOPMENT';
+    status: 'IDEA' | 'DEFINING' | 'IN_DEVELOPMENT' | 'PUBLISHED' | 'PAUSED';
+    tags?: string[];
     emoji: string;
     color: string;
     vision: string;
@@ -151,6 +153,10 @@ async function createApp(
     .update(documents)
     .set({ currentVersionId: version!.id })
     .where(eq(documents.id, document!.id));
+
+  if (input.tags?.length) {
+    await db.insert(appTags).values(input.tags.map((tag) => ({ appId: app!.id, tag })));
+  }
 }
 
 export async function seed(connectionString: string): Promise<void> {
@@ -178,6 +184,7 @@ export async function seed(connectionString: string): Promise<void> {
       status: 'DEFINING',
       emoji: '📚',
       color: 'teal',
+      tags: ['reading', 'personal'],
       vision: VISION_ANA,
     });
 
@@ -188,9 +195,10 @@ export async function seed(connectionString: string): Promise<void> {
       name: 'Idea Board',
       description: 'Where the team decides what to build next',
       accessLevel: 'WORKSPACE_WRITE',
-      status: 'IDEA',
+      status: 'IN_DEVELOPMENT',
       emoji: '💡',
       color: 'amber',
+      tags: ['team', 'planning'],
       vision: VISION_COMPARTIDA,
     });
 
@@ -200,10 +208,11 @@ export async function seed(connectionString: string): Promise<void> {
       slug: 'de-bruno',
       name: 'Release Notes',
       description: 'Created by a guest, so it is shared by construction',
-      accessLevel: 'WORKSPACE_WRITE',
-      status: 'IDEA',
+      accessLevel: 'WORKSPACE_READ',
+      status: 'PAUSED',
       emoji: '📣',
       color: 'rose',
+      tags: ['docs'],
       vision: '# The problem\n\nNobody reads release notes because nobody writes them.\n',
     });
 

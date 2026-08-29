@@ -1,7 +1,7 @@
 import { type FormEvent, useState } from 'react';
 
 import { type App, useApps, useCreateApp, type Workspace } from '../lib/api.js';
-import { Badge } from '../components/ui/badge.js';
+import { StatusPill, TagList, VisibilityMark } from '../components/app-status.js';
 import { Button } from '../components/ui/button.js';
 import { Card } from '../components/ui/card.js';
 import { Input } from '../components/ui/input.js';
@@ -148,8 +148,15 @@ function AppCard({ app, onOpen }: { app: App; onOpen: () => void }) {
         >
           {app.icon.emoji}
         </span>
+
         <span className="min-w-0 flex-1">
-          <span className="block truncate font-medium">{app.name}</span>
+          {/* El nombre manda y el estado le acompaña a la derecha; la
+              visibilidad, más discreta, cierra la línea. */}
+          <span className="flex items-center gap-2">
+            <span className="min-w-0 truncate font-medium">{app.name}</span>
+            <StatusPill status={app.isArchived ? 'ARCHIVED' : app.status} />
+            <VisibilityMark accessLevel={app.accessLevel} />
+          </span>
           <span className="block truncate text-xs text-[var(--color-texto-suave)]">
             @{app.precursorHandle}
           </span>
@@ -162,13 +169,10 @@ function AppCard({ app, onOpen }: { app: App; onOpen: () => void }) {
         </p>
       )}
 
-      <div className="mt-auto flex flex-wrap items-center gap-1.5">
-        <Badge>{app.status.replace('_', ' ').toLowerCase()}</Badge>
-        {app.accessLevel === 'PRIVATE' && <Badge>private</Badge>}
-        {app.isArchived && <Badge tone="warning">archived</Badge>}
-        {app.tags.map((tag) => (
-          <Badge key={tag}>{tag}</Badge>
-        ))}
+      {/* Las etiquetas van al pie y en tono apagado: son clasificación de quien
+          escribe, no información del sistema. */}
+      <div className="mt-auto">
+        <TagList tags={app.tags} />
       </div>
     </Card>
   );
