@@ -5,6 +5,7 @@ export * from './apps/icon.js';
 export * from './apps/slug.js';
 export * from './apps/template.js';
 export * from './workspaces/appearance.js';
+export * from './anchoring/anchor.js';
 export * from './entities.js';
 export * from './authorization/result.js';
 export * from './authorization/context.js';
