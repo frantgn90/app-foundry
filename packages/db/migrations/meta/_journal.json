@@ -78,6 +78,20 @@
       "when": 1787962843788,
       "tag": "0010_invitation_apply",
       "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "7",
+      "when": 1787965772310,
+      "tag": "0011_last_arachne",
+      "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "7",
+      "when": 1787965823582,
+      "tag": "0012_apps_rls",
+      "breakpoints": true
     }
   ]
 }

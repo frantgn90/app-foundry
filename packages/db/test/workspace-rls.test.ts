@@ -2,7 +2,7 @@ import { sql } from 'drizzle-orm';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
 import { users, workspaceInvitations, workspaceMembers, workspaces } from '../src/index.js';
-import { type Scenario, seed } from './escenario.js';
+import { type Scenario, seed } from './scenario.js';
 import { asAppUser, startTestDb, type TestDb } from './helpers.js';
 
 let db: TestDb;
