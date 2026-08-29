@@ -57,6 +57,27 @@
       "when": 1787961955405,
       "tag": "0007_workspace_owner_visibility",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1787962782995,
+      "tag": "0008_mushy_hulk",
+      "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1787962790094,
+      "tag": "0009_audit_rls",
+      "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1787962843788,
+      "tag": "0010_invitation_apply",
+      "breakpoints": true
     }
   ]
 }

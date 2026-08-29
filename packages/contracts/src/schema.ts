@@ -55,6 +55,129 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/workspaces": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Workspaces a los que pertenezco */
+        get: operations["WorkspacesController_listar"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/workspaces/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /** Renombrar un workspace propio */
+        patch: operations["WorkspacesController_renombrar"];
+        trace?: never;
+    };
+    "/api/v1/workspaces/{id}/members": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Miembros del workspace */
+        get: operations["WorkspacesController_miembros"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/workspaces/{id}/members/{userId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Expulsar a un miembro */
+        delete: operations["WorkspacesController_expulsar"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/workspaces/{id}/leave": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Abandonar un workspace ajeno */
+        post: operations["WorkspacesController_abandonar"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/workspaces/{id}/invitations": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Invitaciones del workspace */
+        get: operations["WorkspacesController_invitaciones"];
+        put?: never;
+        /**
+         * Invitar por email
+         * @description La respuesta es idéntica exista o no una cuenta con ese email: invitar no sirve para averiguar quién usa la plataforma.
+         */
+        post: operations["WorkspacesController_invitar"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/workspaces/invitations/{invitationId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Revocar una invitación */
+        delete: operations["WorkspacesController_revocar"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/health/live": {
         parameters: {
             query?: never;
@@ -103,6 +226,49 @@ export interface components {
             avatarUrl: string | null;
             /** @enum {string} */
             platformRole: "ADMIN" | "MEMBER";
+        };
+        WorkspaceDto: {
+            /** Format: uuid */
+            id: string;
+            name: string;
+            slug: string;
+            /**
+             * @description Rol de quien consulta en este workspace
+             * @enum {string}
+             */
+            role: "OWNER" | "MEMBER";
+            /** @description Si es el workspace personal de su dueño */
+            isPersonal: boolean;
+        };
+        RenombrarWorkspaceDto: {
+            name: string;
+        };
+        MiembroDto: {
+            /** Format: uuid */
+            userId: string;
+            handle: string;
+            displayName: string;
+            avatarUrl: string | null;
+            /** @enum {string} */
+            role: "OWNER" | "MEMBER";
+        };
+        InvitacionDto: {
+            /** Format: uuid */
+            id: string;
+            email: string;
+            /** @enum {string} */
+            status: "PENDING" | "ACCEPTED" | "REVOKED" | "EXPIRED";
+            /** Format: date-time */
+            expiresAt: string;
+            /** Format: date-time */
+            createdAt: string;
+        };
+        InvitarDto: {
+            /**
+             * Format: email
+             * @description Email de la persona a invitar
+             */
+            email: string;
         };
         DependencyCheckDto: {
             /**
@@ -189,6 +355,175 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["UsuarioActualDto"];
                 };
+            };
+        };
+    };
+    WorkspacesController_listar: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WorkspaceDto"][];
+                };
+            };
+        };
+    };
+    WorkspacesController_renombrar: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RenombrarWorkspaceDto"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WorkspaceDto"];
+                };
+            };
+        };
+    };
+    WorkspacesController_miembros: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MiembroDto"][];
+                };
+            };
+        };
+    };
+    WorkspacesController_expulsar: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+                userId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    WorkspacesController_abandonar: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    WorkspacesController_invitaciones: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InvitacionDto"][];
+                };
+            };
+        };
+    };
+    WorkspacesController_invitar: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["InvitarDto"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InvitacionDto"];
+                };
+            };
+        };
+    };
+    WorkspacesController_revocar: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                invitationId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
         };
     };

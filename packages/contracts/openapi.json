@@ -53,6 +53,260 @@
         ]
       }
     },
+    "/api/v1/workspaces": {
+      "get": {
+        "operationId": "WorkspacesController_listar",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/WorkspaceDto"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "summary": "Workspaces a los que pertenezco",
+        "tags": [
+          "workspaces"
+        ]
+      }
+    },
+    "/api/v1/workspaces/{id}": {
+      "patch": {
+        "operationId": "WorkspacesController_renombrar",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RenombrarWorkspaceDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WorkspaceDto"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Renombrar un workspace propio",
+        "tags": [
+          "workspaces"
+        ]
+      }
+    },
+    "/api/v1/workspaces/{id}/members": {
+      "get": {
+        "operationId": "WorkspacesController_miembros",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/MiembroDto"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "summary": "Miembros del workspace",
+        "tags": [
+          "workspaces"
+        ]
+      }
+    },
+    "/api/v1/workspaces/{id}/members/{userId}": {
+      "delete": {
+        "operationId": "WorkspacesController_expulsar",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "userId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": ""
+          }
+        },
+        "summary": "Expulsar a un miembro",
+        "tags": [
+          "workspaces"
+        ]
+      }
+    },
+    "/api/v1/workspaces/{id}/leave": {
+      "post": {
+        "operationId": "WorkspacesController_abandonar",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": ""
+          }
+        },
+        "summary": "Abandonar un workspace ajeno",
+        "tags": [
+          "workspaces"
+        ]
+      }
+    },
+    "/api/v1/workspaces/{id}/invitations": {
+      "get": {
+        "operationId": "WorkspacesController_invitaciones",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/InvitacionDto"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "summary": "Invitaciones del workspace",
+        "tags": [
+          "workspaces"
+        ]
+      },
+      "post": {
+        "description": "La respuesta es idéntica exista o no una cuenta con ese email: invitar no sirve para averiguar quién usa la plataforma.",
+        "operationId": "WorkspacesController_invitar",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/InvitarDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InvitacionDto"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Invitar por email",
+        "tags": [
+          "workspaces"
+        ]
+      }
+    },
+    "/api/v1/workspaces/invitations/{invitationId}": {
+      "delete": {
+        "operationId": "WorkspacesController_revocar",
+        "parameters": [
+          {
+            "name": "invitationId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": ""
+          }
+        },
+        "summary": "Revocar una invitación",
+        "tags": [
+          "workspaces"
+        ]
+      }
+    },
     "/health/live": {
       "get": {
         "operationId": "HealthController_live",
@@ -154,6 +408,135 @@
           "displayName",
           "avatarUrl",
           "platformRole"
+        ]
+      },
+      "WorkspaceDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "name": {
+            "type": "string"
+          },
+          "slug": {
+            "type": "string"
+          },
+          "role": {
+            "type": "string",
+            "description": "Rol de quien consulta en este workspace",
+            "enum": [
+              "OWNER",
+              "MEMBER"
+            ]
+          },
+          "isPersonal": {
+            "type": "boolean",
+            "description": "Si es el workspace personal de su dueño"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "slug",
+          "role",
+          "isPersonal"
+        ]
+      },
+      "RenombrarWorkspaceDto": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 80
+          }
+        },
+        "required": [
+          "name"
+        ]
+      },
+      "MiembroDto": {
+        "type": "object",
+        "properties": {
+          "userId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "handle": {
+            "type": "string"
+          },
+          "displayName": {
+            "type": "string"
+          },
+          "avatarUrl": {
+            "type": "string",
+            "nullable": true
+          },
+          "role": {
+            "type": "string",
+            "enum": [
+              "OWNER",
+              "MEMBER"
+            ]
+          }
+        },
+        "required": [
+          "userId",
+          "handle",
+          "displayName",
+          "avatarUrl",
+          "role"
+        ]
+      },
+      "InvitacionDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "email": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "PENDING",
+              "ACCEPTED",
+              "REVOKED",
+              "EXPIRED"
+            ]
+          },
+          "expiresAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "id",
+          "email",
+          "status",
+          "expiresAt",
+          "createdAt"
+        ]
+      },
+      "InvitarDto": {
+        "type": "object",
+        "properties": {
+          "email": {
+            "type": "string",
+            "format": "email",
+            "description": "Email de la persona a invitar"
+          }
+        },
+        "required": [
+          "email"
         ]
       },
       "DependencyCheckDto": {

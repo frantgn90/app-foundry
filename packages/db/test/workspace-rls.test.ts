@@ -242,3 +242,53 @@ describe('la función de login', () => {
     expect(filas.rows).toHaveLength(0);
   });
 });
+
+describe('registro de auditoría', () => {
+  it('cada uno solo puede registrar acciones a su propio nombre', async () => {
+    const error = await fallo(() =>
+      asAppUser(db.db, e.bruno, (tx) =>
+        tx.execute(
+          sql`INSERT INTO audit_log (actor_id, action) VALUES (${e.ana}, 'accion.falsificada')`,
+        ),
+      ),
+    );
+    // Sin esto, cualquiera podría fabricar entradas atribuidas a otro, que es
+    // lo único que haría inútil un registro de auditoría.
+    expect(sqlstateDe(error)).toBe('42501');
+  });
+
+  it('la auditoría no se puede modificar ni borrar desde la aplicación', async () => {
+    await asAppUser(db.db, e.ana, (tx) =>
+      tx.execute(sql`INSERT INTO audit_log (actor_id, action, workspace_id)
+                     VALUES (${e.ana}, 'workspace.renombrado', ${e.wsAna})`),
+    );
+
+    for (const sentencia of [
+      sql`DELETE FROM audit_log`,
+      sql`UPDATE audit_log SET action = 'otra'`,
+    ]) {
+      const error = await fallo(() => asAppUser(db.db, e.ana, (tx) => tx.execute(sentencia)));
+      expect(sqlstateDe(error)).toBe('42501');
+    }
+  });
+
+  it('el dueño ve la actividad de su workspace y no la de otros', async () => {
+    await asAppUser(db.db, e.bruno, (tx) =>
+      tx.execute(sql`INSERT INTO audit_log (actor_id, action, workspace_id)
+                     VALUES (${e.bruno}, 'invitacion.creada', ${e.wsBruno})`),
+    );
+
+    const deAna = await asAppUser(db.db, e.ana, (tx) =>
+      tx.execute<{ workspace_id: string }>(sql`SELECT workspace_id FROM audit_log`),
+    );
+    expect(deAna.rows.every((f) => f.workspace_id === e.wsAna)).toBe(true);
+  });
+
+  it('un invitado no ve la actividad del workspace en el que colabora', async () => {
+    const deBruno = await asAppUser(db.db, e.bruno, (tx) =>
+      tx.execute<{ workspace_id: string }>(sql`SELECT workspace_id FROM audit_log`),
+    );
+    // Bruno es miembro del workspace de Ana, pero la actividad es cosa del dueño.
+    expect(deBruno.rows.every((f) => f.workspace_id === e.wsBruno)).toBe(true);
+  });
+});
