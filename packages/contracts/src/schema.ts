@@ -4,6 +4,50 @@
  */
 
 export interface paths {
+    "/api/v1/notifications": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Avisos del usuario
+         * @description Los más recientes primero. El contador de pendientes viene aparte, porque no depende de cuántos se hayan pedido.
+         */
+        get: operations["NotificationsController_list"];
+        put?: never;
+        post?: never;
+        /**
+         * Purgar
+         * @description Sin identificadores, vacía todos los leídos. Borrar un aviso no toca el comentario ni la versión a la que apuntaba (RF-909, RF-911).
+         */
+        delete: operations["NotificationsController_purge"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/notifications/read": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Marcar como leídos
+         * @description Sin cuerpo, marca todos los pendientes (RF-903).
+         */
+        post: operations["NotificationsController_markRead"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/auth/github": {
         parameters: {
             query?: never;
@@ -586,6 +630,35 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        NotificationDto: {
+            /** Format: uuid */
+            id: string;
+            /** @enum {string} */
+            type: "WORKSPACE_INVITED" | "APP_COMMENTED" | "THREAD_REPLIED" | "THREAD_RESOLVED" | "MENTIONED" | "DOCUMENT_VERSION_SAVED" | "PRECURSOR_TRANSFERRED" | "APPS_INHERITED";
+            /** @description Lo necesario para pintar el aviso sin más consultas. Es una foto del momento: si el comentario se borra después, el aviso sigue leyéndose. */
+            payload: {
+                [key: string]: unknown;
+            };
+            /** Format: uuid */
+            workspaceId: string;
+            /** Format: uuid */
+            appId: string | null;
+            /** Format: uuid */
+            threadId: string | null;
+            /** Format: date-time */
+            readAt: string | null;
+            /** Format: date-time */
+            createdAt: string;
+        };
+        NotificationListDto: {
+            items: components["schemas"]["NotificationDto"][];
+            /** @description Sin leer. Es el número del contador, y no depende de cuántas se hayan pedido. */
+            unread: number;
+        };
+        MarkReadDto: {
+            /** @description Cuáles marcar. Si se omite, se marcan todas las pendientes. */
+            ids?: string[];
+        };
         CurrentUserDto: {
             /** Format: uuid */
             id: string;
@@ -890,6 +963,73 @@ export interface components {
 }
 export type $defs = Record<string, never>;
 export interface operations {
+    NotificationsController_list: {
+        parameters: {
+            query: {
+                limit: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["NotificationListDto"];
+                };
+            };
+        };
+    };
+    NotificationsController_purge: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["MarkReadDto"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["NotificationListDto"];
+                };
+            };
+        };
+    };
+    NotificationsController_markRead: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["MarkReadDto"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["NotificationListDto"];
+                };
+            };
+        };
+    };
     AuthController_signIn: {
         parameters: {
             query?: never;
