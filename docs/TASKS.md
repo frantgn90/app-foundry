@@ -116,6 +116,65 @@
 
 ---
 
+## H2 — Pensar solo
+
+> Objetivo: que el producto sirva para lo que existe. Crear una app, escribir su visión, refinarla y ver
+> cómo ha ido cambiando. Al terminar H2 una persona puede usar App Foundry de principio a fin **por su
+> cuenta**; compartirlo con otros es lo que ya permitió H1 y lo que afinará H3.
+>
+> Alcance: el listado de apps entra, pero básico. Filtros, búsqueda y selector de iconos son H6. Los
+> comentarios, con su anclaje al texto, son H4.
+
+### Bloque K — Modelo de apps y documentos
+
+| # | Tarea | Verificación | Traza | Estado |
+|---|---|---|---|---|
+| K1 | Tablas `apps` y `app_tags` con sus índices | El esquema declarado coincide con el aplicado | §5.3, RF-403 | ⬜ |
+| K2 | Tablas `documents` y `document_versions`, con el contenido actual desnormalizado | Guardar una versión actualiza ambas en la misma transacción | §5.3, RF-505 | ⬜ |
+| K3 | Políticas RLS de apps según su nivel de acceso | Privada solo para su precursor; lectura y edición según corresponda | RF-405, §3.6 | ⬜ |
+| K4 | Políticas de documentos y versiones, heredadas de su app | Quien no ve la app no ve su historial | RNF-103 | ⬜ |
+| K5 | El nivel de acceso de una app creada por un invitado queda fijado | Ni su precursor ni el dueño del workspace pueden cambiarlo | RF-406, D-9 | ⬜ |
+| K6 | Herencia del rol de precursor al salir alguien del workspace | Sus apps se quedan y pasan al dueño, con la autoría del historial intacta | RF-413, D-10 | ⬜ |
+| K7 | Ampliar la suite de aislamiento a apps y documentos | Un test negativo por cada celda de la matriz §3.7 expresable en RLS | RNF-401 | ⬜ |
+
+### Bloque L — API de apps
+
+| # | Tarea | Verificación | Traza | Estado |
+|---|---|---|---|---|
+| L1 | Crear app con su visión inicial y su icono por defecto | Cualquier miembro del workspace puede crear; el icono es distinto del de sus vecinas | RF-401, RF-402, RF-415 | ⬜ |
+| L2 | Listar las apps visibles de un workspace | Un invitado no ve las privadas ajenas | RF-601 | ⬜ |
+| L3 | Ver y editar metadatos: nombre, descripción, estado, etiquetas, enlace al repositorio | El enlace a GitHub se valida en formato y no trae ningún dato | RF-403, RF-404, RF-417 | ⬜ |
+| L4 | Cambiar el nivel de acceso | Solo el precursor que además es dueño del workspace | RF-406 | ⬜ |
+| L5 | Archivar, desarchivar y eliminar | Archivada queda en solo lectura; eliminar exige confirmación explícita | RF-409, RF-410, RF-411 | ⬜ |
+| L6 | Transferir el rol de precursor | Recibirlo no otorga permiso para crear apps nuevas | RF-408 | ⬜ |
+| L7 | Auditoría de todo lo anterior | Cada acción queda registrada sin contenido de documentos | RF-701, RF-706 | ⬜ |
+
+### Bloque M — API del documento de visión
+
+| # | Tarea | Verificación | Traza | Estado |
+|---|---|---|---|---|
+| M1 | Leer el documento y guardar una versión nueva | Cada guardado explícito crea una versión inmutable con autor y mensaje | RF-501, RF-505 | ⬜ |
+| M2 | Detección de conflictos por versión base | Dos ediciones simultáneas: la segunda recibe 409 y no sobrescribe | RF-511 | ⬜ |
+| M3 | Historial de versiones con su autoría | Los contribuidores se derivan del historial, sin concederlos a nadie | RF-507, RF-509 | ⬜ |
+| M4 | Diferencias entre dos versiones cualesquiera | El diff es correcto en ambos sentidos | RF-508 | ⬜ |
+| M5 | Restaurar una versión anterior | Crea una versión nueva y no borra nada | RF-510 | ⬜ |
+| M6 | Exportar como `VISION.md` con su cabecera de metadatos | El fichero es identificable fuera de la plataforma | RF-512, T-18 | ⬜ |
+| M7 | Plantilla de visión para las apps nuevas | Una app recién creada arranca con sus secciones guía | RF-503 | ⬜ |
+
+### Bloque N — Editor e interfaz
+
+| # | Tarea | Verificación | Traza | Estado |
+|---|---|---|---|---|
+| N1 | Listado de apps del workspace, con su icono, estado y precursor | Se distingue de un vistazo qué es tuyo y qué está compartido | RF-601 | ⬜ |
+| N2 | Crear app desde la interfaz, en menos de un minuto | El botón de nueva app es el elemento más visible | RF-402, RF-605 | ⬜ |
+| N3 | Ficha de app: visión renderizada, metadatos, precursor y contribuidores | Todo en una pantalla | RF-607 | ⬜ |
+| N4 | Editor CodeMirror con previsualización y borrador local | Cerrar la pestaña a media edición no pierde el texto | RF-504, RF-506, T-7 | ⬜ |
+| N5 | Markdown saneado al renderizar | Un documento con HTML o scripts no ejecuta nada | RF-513 | ⬜ |
+| N6 | Historial con diferencias y restauración desde la interfaz | Comparar dos versiones y volver a una anterior | RF-507, RF-508, RF-510 | ⬜ |
+| N7 | Estados vacíos y aviso de conflicto con sentido | Un workspace sin apps orienta; un conflicto explica qué hacer | RF-610, RF-511 | ⬜ |
+
+---
+
 ## Hitos siguientes (a grano grueso)
 
 Se desglosarán al cerrar el hito anterior.
