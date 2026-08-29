@@ -12,7 +12,7 @@ export interface paths {
             cookie?: never;
         };
         /** Iniciar sesión con GitHub */
-        get: operations["AuthController_iniciar"];
+        get: operations["AuthController_signIn"];
         put?: never;
         post?: never;
         delete?: never;
@@ -46,7 +46,7 @@ export interface paths {
             cookie?: never;
         };
         /** Quién soy */
-        get: operations["AuthController_yo"];
+        get: operations["AuthController_me"];
         put?: never;
         post?: never;
         delete?: never;
@@ -63,7 +63,7 @@ export interface paths {
             cookie?: never;
         };
         /** Workspaces a los que pertenezco */
-        get: operations["WorkspacesController_listar"];
+        get: operations["WorkspacesController_list"];
         put?: never;
         post?: never;
         delete?: never;
@@ -86,7 +86,7 @@ export interface paths {
         options?: never;
         head?: never;
         /** Renombrar un workspace propio */
-        patch: operations["WorkspacesController_renombrar"];
+        patch: operations["WorkspacesController_rename"];
         trace?: never;
     };
     "/api/v1/workspaces/{id}/members": {
@@ -97,7 +97,7 @@ export interface paths {
             cookie?: never;
         };
         /** Miembros del workspace */
-        get: operations["WorkspacesController_miembros"];
+        get: operations["WorkspacesController_members"];
         put?: never;
         post?: never;
         delete?: never;
@@ -117,7 +117,7 @@ export interface paths {
         put?: never;
         post?: never;
         /** Expulsar a un miembro */
-        delete: operations["WorkspacesController_expulsar"];
+        delete: operations["WorkspacesController_removeMember"];
         options?: never;
         head?: never;
         patch?: never;
@@ -133,7 +133,7 @@ export interface paths {
         get?: never;
         put?: never;
         /** Abandonar un workspace ajeno */
-        post: operations["WorkspacesController_abandonar"];
+        post: operations["WorkspacesController_leave"];
         delete?: never;
         options?: never;
         head?: never;
@@ -148,13 +148,13 @@ export interface paths {
             cookie?: never;
         };
         /** Invitaciones del workspace */
-        get: operations["WorkspacesController_invitaciones"];
+        get: operations["WorkspacesController_invitations"];
         put?: never;
         /**
          * Invitar por email
          * @description La respuesta es idéntica exista o no una cuenta con ese email: invitar no sirve para averiguar quién usa la plataforma.
          */
-        post: operations["WorkspacesController_invitar"];
+        post: operations["WorkspacesController_invite"];
         delete?: never;
         options?: never;
         head?: never;
@@ -172,7 +172,7 @@ export interface paths {
         put?: never;
         post?: never;
         /** Revocar una invitación */
-        delete: operations["WorkspacesController_revocar"];
+        delete: operations["WorkspacesController_revoke"];
         options?: never;
         head?: never;
         patch?: never;
@@ -216,7 +216,7 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
-        UsuarioActualDto: {
+        CurrentUserDto: {
             /** Format: uuid */
             id: string;
             /** @description Nombre de usuario de GitHub, usado en las menciones */
@@ -240,10 +240,10 @@ export interface components {
             /** @description Si es el workspace personal de su dueño */
             isPersonal: boolean;
         };
-        RenombrarWorkspaceDto: {
+        RenameWorkspaceDto: {
             name: string;
         };
-        MiembroDto: {
+        MemberDto: {
             /** Format: uuid */
             userId: string;
             handle: string;
@@ -252,7 +252,7 @@ export interface components {
             /** @enum {string} */
             role: "OWNER" | "MEMBER";
         };
-        InvitacionDto: {
+        InvitationDto: {
             /** Format: uuid */
             id: string;
             email: string;
@@ -263,7 +263,7 @@ export interface components {
             /** Format: date-time */
             createdAt: string;
         };
-        InvitarDto: {
+        InviteDto: {
             /**
              * Format: email
              * @description Email de la persona a invitar
@@ -305,7 +305,7 @@ export interface components {
 }
 export type $defs = Record<string, never>;
 export interface operations {
-    AuthController_iniciar: {
+    AuthController_signIn: {
         parameters: {
             query?: never;
             header?: never;
@@ -339,7 +339,7 @@ export interface operations {
             };
         };
     };
-    AuthController_yo: {
+    AuthController_me: {
         parameters: {
             query?: never;
             header?: never;
@@ -353,12 +353,12 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["UsuarioActualDto"];
+                    "application/json": components["schemas"]["CurrentUserDto"];
                 };
             };
         };
     };
-    WorkspacesController_listar: {
+    WorkspacesController_list: {
         parameters: {
             query?: never;
             header?: never;
@@ -377,7 +377,7 @@ export interface operations {
             };
         };
     };
-    WorkspacesController_renombrar: {
+    WorkspacesController_rename: {
         parameters: {
             query?: never;
             header?: never;
@@ -388,7 +388,7 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["RenombrarWorkspaceDto"];
+                "application/json": components["schemas"]["RenameWorkspaceDto"];
             };
         };
         responses: {
@@ -402,7 +402,7 @@ export interface operations {
             };
         };
     };
-    WorkspacesController_miembros: {
+    WorkspacesController_members: {
         parameters: {
             query?: never;
             header?: never;
@@ -418,12 +418,12 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["MiembroDto"][];
+                    "application/json": components["schemas"]["MemberDto"][];
                 };
             };
         };
     };
-    WorkspacesController_expulsar: {
+    WorkspacesController_removeMember: {
         parameters: {
             query?: never;
             header?: never;
@@ -443,7 +443,7 @@ export interface operations {
             };
         };
     };
-    WorkspacesController_abandonar: {
+    WorkspacesController_leave: {
         parameters: {
             query?: never;
             header?: never;
@@ -462,7 +462,7 @@ export interface operations {
             };
         };
     };
-    WorkspacesController_invitaciones: {
+    WorkspacesController_invitations: {
         parameters: {
             query?: never;
             header?: never;
@@ -478,12 +478,12 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["InvitacionDto"][];
+                    "application/json": components["schemas"]["InvitationDto"][];
                 };
             };
         };
     };
-    WorkspacesController_invitar: {
+    WorkspacesController_invite: {
         parameters: {
             query?: never;
             header?: never;
@@ -494,7 +494,7 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["InvitarDto"];
+                "application/json": components["schemas"]["InviteDto"];
             };
         };
         responses: {
@@ -503,12 +503,12 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["InvitacionDto"];
+                    "application/json": components["schemas"]["InvitationDto"];
                 };
             };
         };
     };
-    WorkspacesController_revocar: {
+    WorkspacesController_revoke: {
         parameters: {
             query?: never;
             header?: never;
