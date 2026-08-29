@@ -919,6 +919,307 @@
         ]
       }
     },
+    "/api/v1/apps/{appId}/threads": {
+      "get": {
+        "description": "Devuelve todos, incluidos los resueltos: la interfaz decide qué enseña.",
+        "operationId": "CommentsController_list",
+        "parameters": [
+          {
+            "name": "appId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/ThreadDto"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "summary": "Hilos de comentarios de una app",
+        "tags": [
+          "comments"
+        ]
+      },
+      "post": {
+        "description": "Con fragmento y posición, el hilo queda anclado al texto; sin ellos, es un hilo general.",
+        "operationId": "CommentsController_createThread",
+        "parameters": [
+          {
+            "name": "appId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateThreadDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ThreadDto"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Abrir un hilo",
+        "tags": [
+          "comments"
+        ]
+      }
+    },
+    "/api/v1/apps/{appId}/mentionable": {
+      "get": {
+        "description": "Solo miembros del workspace: mencionar no revela quién más usa la plataforma.",
+        "operationId": "CommentsController_mentionable",
+        "parameters": [
+          {
+            "name": "appId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/MentionableUserDto"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "summary": "A quién se puede mencionar",
+        "tags": [
+          "comments"
+        ]
+      }
+    },
+    "/api/v1/threads/{threadId}/comments": {
+      "post": {
+        "operationId": "CommentsController_reply",
+        "parameters": [
+          {
+            "name": "threadId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateCommentDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CommentDto"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Responder en un hilo",
+        "tags": [
+          "comments"
+        ]
+      }
+    },
+    "/api/v1/threads/{threadId}/resolve": {
+      "post": {
+        "operationId": "CommentsController_resolve",
+        "parameters": [
+          {
+            "name": "threadId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ThreadDto"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Dar por resuelto un hilo",
+        "tags": [
+          "comments"
+        ]
+      }
+    },
+    "/api/v1/threads/{threadId}/reopen": {
+      "post": {
+        "operationId": "CommentsController_reopen",
+        "parameters": [
+          {
+            "name": "threadId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ThreadDto"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Reabrir un hilo resuelto",
+        "tags": [
+          "comments"
+        ]
+      }
+    },
+    "/api/v1/threads/{threadId}": {
+      "delete": {
+        "operationId": "CommentsController_removeThread",
+        "parameters": [
+          {
+            "name": "threadId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": ""
+          }
+        },
+        "summary": "Borrar un hilo entero",
+        "tags": [
+          "comments"
+        ]
+      }
+    },
+    "/api/v1/comments/{commentId}": {
+      "patch": {
+        "operationId": "CommentsController_edit",
+        "parameters": [
+          {
+            "name": "commentId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateCommentDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CommentDto"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Editar un comentario propio",
+        "tags": [
+          "comments"
+        ]
+      },
+      "delete": {
+        "description": "El hilo conserva su forma: se marca como borrado, no se elimina.",
+        "operationId": "CommentsController_remove",
+        "parameters": [
+          {
+            "name": "commentId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": ""
+          }
+        },
+        "summary": "Borrar un comentario propio",
+        "tags": [
+          "comments"
+        ]
+      }
+    },
     "/health/live": {
       "get": {
         "operationId": "HealthController_live",
@@ -1686,6 +1987,221 @@
           "displayName",
           "avatarUrl",
           "versionCount"
+        ]
+      },
+      "CommentDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "parentId": {
+            "type": "string",
+            "format": "uuid",
+            "nullable": true
+          },
+          "body": {
+            "type": "string",
+            "description": "Vacío si el comentario fue borrado"
+          },
+          "authorHandle": {
+            "type": "string"
+          },
+          "authorDisplayName": {
+            "type": "string"
+          },
+          "authorAvatarUrl": {
+            "type": "string",
+            "nullable": true
+          },
+          "isMine": {
+            "type": "boolean"
+          },
+          "isDeleted": {
+            "type": "boolean"
+          },
+          "isEdited": {
+            "type": "boolean"
+          },
+          "mentions": {
+            "description": "Handles mencionados",
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "id",
+          "parentId",
+          "body",
+          "authorHandle",
+          "authorDisplayName",
+          "authorAvatarUrl",
+          "isMine",
+          "isDeleted",
+          "isEdited",
+          "mentions",
+          "createdAt"
+        ]
+      },
+      "ThreadDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "GENERAL",
+              "INLINE"
+            ]
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "OPEN",
+              "RESOLVED"
+            ]
+          },
+          "anchorStatus": {
+            "type": "string",
+            "enum": [
+              "ANCHORED",
+              "ORPHANED"
+            ],
+            "nullable": true,
+            "description": "Solo en hilos inline. Huérfano cuando su fragmento ya no existe."
+          },
+          "anchorQuote": {
+            "type": "string",
+            "nullable": true,
+            "description": "Fragmento comentado"
+          },
+          "anchorStart": {
+            "type": "number",
+            "nullable": true
+          },
+          "anchorEnd": {
+            "type": "number",
+            "nullable": true
+          },
+          "resolvedByHandle": {
+            "type": "string",
+            "nullable": true,
+            "description": "Quién lo resolvió"
+          },
+          "canDelete": {
+            "type": "boolean"
+          },
+          "comments": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/CommentDto"
+            }
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "id",
+          "kind",
+          "status",
+          "anchorStatus",
+          "anchorQuote",
+          "anchorStart",
+          "anchorEnd",
+          "resolvedByHandle",
+          "canDelete",
+          "comments",
+          "createdAt"
+        ]
+      },
+      "CreateThreadDto": {
+        "type": "object",
+        "properties": {
+          "body": {
+            "type": "string",
+            "maxLength": 4000
+          },
+          "quote": {
+            "type": "string",
+            "description": "Fragmento comentado. Si falta, el hilo es general.",
+            "maxLength": 2000
+          },
+          "start": {
+            "type": "number",
+            "description": "Posición inicial del fragmento en el markdown"
+          },
+          "end": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "body"
+        ]
+      },
+      "MentionableUserDto": {
+        "type": "object",
+        "properties": {
+          "userId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "handle": {
+            "type": "string"
+          },
+          "displayName": {
+            "type": "string"
+          },
+          "avatarUrl": {
+            "type": "string",
+            "nullable": true
+          }
+        },
+        "required": [
+          "userId",
+          "handle",
+          "displayName",
+          "avatarUrl"
+        ]
+      },
+      "CreateCommentDto": {
+        "type": "object",
+        "properties": {
+          "body": {
+            "type": "string",
+            "maxLength": 4000
+          },
+          "parentId": {
+            "type": "string",
+            "format": "uuid",
+            "description": "Comentario al que responde"
+          }
+        },
+        "required": [
+          "body"
+        ]
+      },
+      "UpdateCommentDto": {
+        "type": "object",
+        "properties": {
+          "body": {
+            "type": "string",
+            "maxLength": 4000
+          }
+        },
+        "required": [
+          "body"
         ]
       },
       "DependencyCheckDto": {

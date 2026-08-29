@@ -415,6 +415,139 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/apps/{appId}/threads": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Hilos de comentarios de una app
+         * @description Devuelve todos, incluidos los resueltos: la interfaz decide qué enseña.
+         */
+        get: operations["CommentsController_list"];
+        put?: never;
+        /**
+         * Abrir un hilo
+         * @description Con fragmento y posición, el hilo queda anclado al texto; sin ellos, es un hilo general.
+         */
+        post: operations["CommentsController_createThread"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/apps/{appId}/mentionable": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * A quién se puede mencionar
+         * @description Solo miembros del workspace: mencionar no revela quién más usa la plataforma.
+         */
+        get: operations["CommentsController_mentionable"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/threads/{threadId}/comments": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Responder en un hilo */
+        post: operations["CommentsController_reply"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/threads/{threadId}/resolve": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Dar por resuelto un hilo */
+        post: operations["CommentsController_resolve"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/threads/{threadId}/reopen": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Reabrir un hilo resuelto */
+        post: operations["CommentsController_reopen"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/threads/{threadId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Borrar un hilo entero */
+        delete: operations["CommentsController_removeThread"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/comments/{commentId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /**
+         * Borrar un comentario propio
+         * @description El hilo conserva su forma: se marca como borrado, no se elimina.
+         */
+        delete: operations["CommentsController_remove"];
+        options?: never;
+        head?: never;
+        /** Editar un comentario propio */
+        patch: operations["CommentsController_edit"];
+        trace?: never;
+    };
     "/health/live": {
         parameters: {
             query?: never;
@@ -654,6 +787,73 @@ export interface components {
             avatarUrl: string | null;
             /** @description Cuántas versiones ha escrito */
             versionCount: number;
+        };
+        CommentDto: {
+            /** Format: uuid */
+            id: string;
+            /** Format: uuid */
+            parentId: string | null;
+            /** @description Vacío si el comentario fue borrado */
+            body: string;
+            authorHandle: string;
+            authorDisplayName: string;
+            authorAvatarUrl: string | null;
+            isMine: boolean;
+            isDeleted: boolean;
+            isEdited: boolean;
+            /** @description Handles mencionados */
+            mentions: string[];
+            /** Format: date-time */
+            createdAt: string;
+        };
+        ThreadDto: {
+            /** Format: uuid */
+            id: string;
+            /** @enum {string} */
+            kind: "GENERAL" | "INLINE";
+            /** @enum {string} */
+            status: "OPEN" | "RESOLVED";
+            /**
+             * @description Solo en hilos inline. Huérfano cuando su fragmento ya no existe.
+             * @enum {string|null}
+             */
+            anchorStatus: "ANCHORED" | "ORPHANED" | null;
+            /** @description Fragmento comentado */
+            anchorQuote: string | null;
+            anchorStart: number | null;
+            anchorEnd: number | null;
+            /** @description Quién lo resolvió */
+            resolvedByHandle: string | null;
+            canDelete: boolean;
+            comments: components["schemas"]["CommentDto"][];
+            /** Format: date-time */
+            createdAt: string;
+        };
+        CreateThreadDto: {
+            body: string;
+            /** @description Fragmento comentado. Si falta, el hilo es general. */
+            quote?: string;
+            /** @description Posición inicial del fragmento en el markdown */
+            start?: number;
+            end?: number;
+        };
+        MentionableUserDto: {
+            /** Format: uuid */
+            userId: string;
+            handle: string;
+            displayName: string;
+            avatarUrl: string | null;
+        };
+        CreateCommentDto: {
+            body: string;
+            /**
+             * Format: uuid
+             * @description Comentario al que responde
+             */
+            parentId?: string;
+        };
+        UpdateCommentDto: {
+            body: string;
         };
         DependencyCheckDto: {
             /**
@@ -1295,6 +1495,203 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+        };
+    };
+    CommentsController_list: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                appId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ThreadDto"][];
+                };
+            };
+        };
+    };
+    CommentsController_createThread: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                appId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateThreadDto"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ThreadDto"];
+                };
+            };
+        };
+    };
+    CommentsController_mentionable: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                appId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MentionableUserDto"][];
+                };
+            };
+        };
+    };
+    CommentsController_reply: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                threadId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateCommentDto"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CommentDto"];
+                };
+            };
+        };
+    };
+    CommentsController_resolve: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                threadId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ThreadDto"];
+                };
+            };
+        };
+    };
+    CommentsController_reopen: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                threadId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ThreadDto"];
+                };
+            };
+        };
+    };
+    CommentsController_removeThread: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                threadId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    CommentsController_remove: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                commentId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    CommentsController_edit: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                commentId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateCommentDto"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CommentDto"];
+                };
             };
         };
     };

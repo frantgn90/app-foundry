@@ -22,6 +22,10 @@ export const AuditAction = {
   APP_PRECURSOR_TRANSFERRED: 'app.precursor_transferred',
   DOCUMENT_VERSION_CREATED: 'document.version_created',
   DOCUMENT_RESTORED: 'document.restored',
+  COMMENT_THREAD_CREATED: 'comment.thread_created',
+  COMMENT_THREAD_RESOLVED: 'comment.thread_resolved',
+  COMMENT_THREAD_REOPENED: 'comment.thread_reopened',
+  COMMENT_THREAD_DELETED: 'comment.thread_deleted',
 } as const;
 export type AuditAction = (typeof AuditAction)[keyof typeof AuditAction];
 

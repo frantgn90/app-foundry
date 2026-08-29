@@ -6,7 +6,8 @@ import {
 } from '@nestjs/common';
 import { and, desc, eq, sql } from 'drizzle-orm';
 
-import { apps, documents, documentVersions, users } from '@app-foundry/db';
+import { type Anchor, reanchor } from '@app-foundry/core';
+import { apps, commentThreads, documents, documentVersions, users } from '@app-foundry/db';
 
 import { AuditAction, AuditService } from '../audit/audit.service.js';
 import { currentTx } from '../database/request-context.js';
@@ -116,6 +117,11 @@ export class DocumentsService {
       })
       .where(eq(documents.id, document.id));
 
+    // Los comentarios anclados se recolocan aquí, una vez por edición, en vez
+    // de recalcularse en cada visita: se hace una sola vez y todo el mundo ve
+    // el mismo resultado (TRD §9.3).
+    await this.reanchorThreads(document.id, body.content);
+
     // La app también cambia de fecha: el listado ordena por actividad, y editar
     // la visión es la actividad más significativa que puede tener una app.
     await tx.update(apps).set({ updatedAt: new Date() }).where(eq(apps.id, appId));
@@ -131,6 +137,44 @@ export class DocumentsService {
     });
 
     return this.get(appId, userId);
+  }
+
+  /**
+   * Recoloca los comentarios anclados sobre el contenido nuevo (RF-809).
+   *
+   * Un hilo huérfano también se reevalúa: si una edición posterior devuelve el
+   * texto —al restaurar una versión, por ejemplo—, el comentario vuelve a su
+   * sitio en lugar de quedarse descolgado para siempre.
+   */
+  private async reanchorThreads(documentId: string, content: string): Promise<void> {
+    const tx = currentTx();
+
+    const threads = await tx
+      .select()
+      .from(commentThreads)
+      .where(and(eq(commentThreads.documentId, documentId), eq(commentThreads.kind, 'INLINE')));
+
+    for (const thread of threads) {
+      if (thread.anchorQuote === null) continue;
+
+      const anchor: Anchor = {
+        quote: thread.anchorQuote,
+        prefix: thread.anchorPrefix ?? '',
+        suffix: thread.anchorSuffix ?? '',
+        start: thread.anchorStart ?? 0,
+        end: thread.anchorEnd ?? 0,
+      };
+
+      const result = reanchor(anchor, content);
+      await tx
+        .update(commentThreads)
+        .set({
+          anchorStatus: result.status,
+          anchorStart: result.start,
+          anchorEnd: result.end,
+        })
+        .where(eq(commentThreads.id, thread.id));
+    }
   }
 
   /** Historial completo, del más reciente al más antiguo (RF-507). */
