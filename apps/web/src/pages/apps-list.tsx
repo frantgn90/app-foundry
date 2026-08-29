@@ -104,7 +104,7 @@ export function AppsListPage({
         />
       )}
 
-      <ul className="grid gap-3 sm:grid-cols-2">
+      <ul className="grid items-start gap-3 sm:grid-cols-2">
         {apps.data?.map((app) => (
           <li key={app.id}>
             <AppCard
@@ -133,7 +133,7 @@ function AppCard({ app, onOpen }: { app: App; onOpen: () => void }) {
         }
       }}
       className={cn(
-        'flex h-full cursor-pointer flex-col gap-3 p-4 transition',
+        'flex cursor-pointer flex-col gap-3 p-4 transition',
         'hover:border-[var(--color-acento)]/40 hover:shadow-md',
         'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--color-acento)]',
       )}
@@ -171,9 +171,7 @@ function AppCard({ app, onOpen }: { app: App; onOpen: () => void }) {
 
       {/* Las etiquetas van al pie y en tono apagado: son clasificación de quien
           escribe, no información del sistema. */}
-      <div className="mt-auto">
-        <TagList tags={app.tags} />
-      </div>
+      <TagList tags={app.tags} />
     </Card>
   );
 }
