@@ -10,6 +10,7 @@ import { type Anchor, reanchor } from '@app-foundry/core';
 import { apps, commentThreads, documents, documentVersions, users } from '@app-foundry/db';
 
 import { AuditAction, AuditService } from '../audit/audit.service.js';
+import { NotificationsService } from '../notifications/notifications.service.js';
 import { currentTx } from '../database/request-context.js';
 import type {
   ContributorDto,
@@ -22,7 +23,10 @@ import type {
 
 @Injectable()
 export class DocumentsService {
-  constructor(private readonly audit: AuditService) {}
+  constructor(
+    private readonly audit: AuditService,
+    private readonly notifications: NotificationsService,
+  ) {}
 
   /** Documento de visión de una app, con la versión sobre la que se edita. */
   async get(appId: string, userId: string): Promise<DocumentDto> {
@@ -125,6 +129,21 @@ export class DocumentsService {
     // La app también cambia de fecha: el listado ordena por actividad, y editar
     // la visión es la actividad más significativa que puede tener una app.
     await tx.update(apps).set({ updatedAt: new Date() }).where(eq(apps.id, appId));
+
+    const contexto = await this.notifications.entornoDeApp(appId, userId);
+    await this.notifications.emit({
+      type: 'DOCUMENT_VERSION_SAVED',
+      entorno: contexto.entorno,
+      workspaceId: contexto.workspaceId,
+      appId,
+      payload: {
+        actorHandle: contexto.actorHandle,
+        appName: contexto.appName,
+        versionNo: version.versionNo,
+        // El mensaje del guardado, si lo hay: es lo que explica el cambio.
+        message: body.message ?? null,
+      },
+    });
 
     await this.audit.record({
       actorId: userId,

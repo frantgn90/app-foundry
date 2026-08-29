@@ -3,6 +3,7 @@ import { APP_GUARD, APP_INTERCEPTOR } from '@nestjs/core';
 
 import { AppsModule } from './apps/apps.module.js';
 import { AuditModule } from './audit/audit.service.js';
+import { NotificationsModule } from './notifications/notifications.module.js';
 import { AuthModule } from './auth/auth.module.js';
 import { CommentsModule } from './comments/comments.module.js';
 import { DocumentsModule } from './documents/documents.module.js';
@@ -16,6 +17,7 @@ import { WorkspacesModule } from './workspaces/workspaces.module.js';
   imports: [
     InfrastructureModule,
     AuditModule,
+    NotificationsModule,
     AuthModule,
     WorkspacesModule,
     AppsModule,

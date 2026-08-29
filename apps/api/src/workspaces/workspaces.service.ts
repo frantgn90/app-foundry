@@ -18,6 +18,7 @@ import { users, workspaceInvitations, workspaceMembers, workspaces } from '@app-
 import type { Env } from '@app-foundry/env';
 
 import { AuditAction, AuditService } from '../audit/audit.service.js';
+import { NotificationsService } from '../notifications/notifications.service.js';
 import { currentTx } from '../database/request-context.js';
 import { ENV } from '../infrastructure/tokens.js';
 import type {
@@ -31,6 +32,7 @@ import type {
 export class WorkspacesService {
   constructor(
     private readonly audit: AuditService,
+    private readonly notifications: NotificationsService,
     @Inject(ENV) private readonly env: Env,
   ) {}
 
@@ -139,6 +141,39 @@ export class WorkspacesService {
     if (!invitacion) throw new NotFoundException('No se pudo crear la invitación');
 
     await tx.execute(sql`SELECT workspace_apply_invitation_if_user_exists(${invitacion.id}::uuid)`);
+
+    /*
+     * Si esa dirección tenía cuenta, la invitación ya la ha metido en el
+     * workspace y por tanto es visible: se le avisa. Si no la tenía, aquí no hay
+     * nadie y no se avisa a nadie.
+     *
+     * Quien invita no ve la diferencia —la respuesta es la misma en ambos
+     * casos—, que es justo lo que impide usar la invitación para averiguar quién
+     * tiene cuenta (RF-312).
+     */
+    const [invitado] = await tx
+      .select({ id: users.id })
+      .from(users)
+      .innerJoin(workspaceMembers, eq(workspaceMembers.userId, users.id))
+      .where(and(eq(workspaceMembers.workspaceId, workspaceId), eq(users.email, email)));
+
+    if (invitado) {
+      const [ws] = await tx
+        .select({ name: workspaces.name })
+        .from(workspaces)
+        .where(eq(workspaces.id, workspaceId));
+      const [quien] = await tx
+        .select({ handle: users.handle })
+        .from(users)
+        .where(eq(users.id, userId));
+
+      await this.notifications.emit({
+        type: 'WORKSPACE_INVITED',
+        entorno: { actor: userId, destinatario: invitado.id },
+        workspaceId,
+        payload: { actorHandle: quien?.handle ?? '', workspaceName: ws?.name ?? '' },
+      });
+    }
 
     await this.audit.record({
       actorId: userId,

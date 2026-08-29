@@ -13,6 +13,7 @@ import {
 } from '@app-foundry/db';
 
 import { AuditAction, AuditService } from '../audit/audit.service.js';
+import { NotificationsService } from '../notifications/notifications.service.js';
 import { currentTx } from '../database/request-context.js';
 import type {
   CommentDto,
@@ -24,7 +25,10 @@ import type {
 
 @Injectable()
 export class CommentsService {
-  constructor(private readonly audit: AuditService) {}
+  constructor(
+    private readonly audit: AuditService,
+    private readonly notifications: NotificationsService,
+  ) {}
 
   /**
    * Hilos de una app, con sus comentarios.
@@ -141,7 +145,21 @@ export class CommentsService {
 
     if (!thread) throw new ForbiddenException('You cannot comment on this app');
 
-    await this.insertComment(thread.id, body.body, null, userId);
+    const { mencionados } = await this.insertComment(thread.id, body.body, null, userId);
+
+    const entorno = await this.notifications.entornoDeApp(appId, userId);
+    await this.notifications.emit({
+      type: 'APP_COMMENTED',
+      entorno: { ...entorno.entorno, mencionados },
+      workspaceId: entorno.workspaceId,
+      appId,
+      threadId: thread.id,
+      payload: {
+        actorHandle: entorno.actorHandle,
+        appName: entorno.appName,
+        excerpt: extracto(body.body),
+      },
+    });
 
     await this.audit.record({
       actorId: userId,
@@ -159,12 +177,38 @@ export class CommentsService {
 
   async reply(threadId: string, body: CreateCommentDto, userId: string): Promise<CommentDto> {
     const [thread] = await currentTx()
-      .select({ appId: commentThreads.appId })
+      .select({ appId: commentThreads.appId, autor: commentThreads.createdBy })
       .from(commentThreads)
       .where(eq(commentThreads.id, threadId));
     if (!thread) throw new NotFoundException('That thread does not exist');
 
-    return this.insertComment(threadId, body.body, body.parentId ?? null, userId);
+    const { comment, mencionados } = await this.insertComment(
+      threadId,
+      body.body,
+      body.parentId ?? null,
+      userId,
+    );
+
+    const contexto = await this.notifications.entornoDeApp(thread.appId, userId);
+    await this.notifications.emit({
+      type: 'THREAD_REPLIED',
+      entorno: {
+        actor: userId,
+        autorDelHilo: thread.autor,
+        participantesDelHilo: await this.participantesDelHilo(threadId),
+        mencionados,
+      },
+      workspaceId: contexto.workspaceId,
+      appId: thread.appId,
+      threadId,
+      payload: {
+        actorHandle: contexto.actorHandle,
+        appName: contexto.appName,
+        excerpt: extracto(body.body),
+      },
+    });
+
+    return comment;
   }
 
   async edit(commentId: string, body: string, userId: string): Promise<CommentDto> {
@@ -182,6 +226,8 @@ export class CommentsService {
       throw new ForbiddenException('You can only edit your own comments');
     }
 
+    // Editar no vuelve a avisar: el aviso ya salió cuando se escribió. Sí se
+    // rehacen las menciones, porque el texto puede haber cambiado a quién señala.
     await this.syncMentions(commentId, body, userId);
     return this.comment(commentId, userId);
   }
@@ -211,13 +257,28 @@ export class CommentsService {
           : { status: 'OPEN', reopenedBy: userId, reopenedAt: new Date() },
       )
       .where(eq(commentThreads.id, threadId))
-      .returning({ appId: commentThreads.appId });
+      .returning({ appId: commentThreads.appId, autor: commentThreads.createdBy });
 
     if (updated.length === 0) {
       throw new ForbiddenException('You cannot change this thread');
     }
 
     const appId = updated[0]!.appId;
+
+    // Solo se avisa al cerrar. Reabrir es en la práctica seguir hablando, y de
+    // eso ya avisa la respuesta que casi siempre viene detrás.
+    if (resolved) {
+      const contexto = await this.notifications.entornoDeApp(appId, userId);
+      await this.notifications.emit({
+        type: 'THREAD_RESOLVED',
+        entorno: { actor: userId, autorDelHilo: updated[0]!.autor },
+        workspaceId: contexto.workspaceId,
+        appId,
+        threadId,
+        payload: { actorHandle: contexto.actorHandle, appName: contexto.appName },
+      });
+    }
+
     await this.audit.record({
       actorId: userId,
       action: resolved ? AuditAction.COMMENT_THREAD_RESOLVED : AuditAction.COMMENT_THREAD_REOPENED,
@@ -285,7 +346,7 @@ export class CommentsService {
     body: string,
     parentId: string | null,
     userId: string,
-  ): Promise<CommentDto> {
+  ): Promise<{ comment: CommentDto; mencionados: string[] }> {
     const [created] = await currentTx()
       .insert(comments)
       .values({ threadId, body, parentId, authorId: userId })
@@ -293,8 +354,8 @@ export class CommentsService {
 
     if (!created) throw new ForbiddenException('You cannot comment here');
 
-    await this.syncMentions(created.id, body, userId);
-    return this.comment(created.id, userId);
+    const mencionados = await this.syncMentions(created.id, body, userId);
+    return { comment: await this.comment(created.id, userId), mencionados };
   }
 
   /**
@@ -302,30 +363,33 @@ export class CommentsService {
    * workspace. Mencionar a alguien de fuera no falla: simplemente no se
    * registra, porque avisar de que ese handle no vale ya diría algo sobre él.
    */
-  private async syncMentions(commentId: string, body: string, userId: string): Promise<void> {
+  /** Devuelve a quién se ha mencionado, que es justo la audiencia del aviso. */
+  private async syncMentions(commentId: string, body: string, userId: string): Promise<string[]> {
     const tx = currentTx();
     await tx.delete(commentMentions).where(eq(commentMentions.commentId, commentId));
 
     const handles = extractMentions(body);
-    if (handles.length === 0) return;
+    if (handles.length === 0) return [];
 
     const [thread] = await tx
       .select({ appId: commentThreads.appId })
       .from(comments)
       .innerJoin(commentThreads, eq(commentThreads.id, comments.threadId))
       .where(eq(comments.id, commentId));
-    if (!thread) return;
+    if (!thread) return [];
 
     const candidates = await this.mentionable(thread.appId);
     const matched = candidates.filter(
       (c) => handles.includes(c.handle.toLowerCase()) && c.userId !== userId,
     );
-    if (matched.length === 0) return;
+    if (matched.length === 0) return [];
 
     await tx
       .insert(commentMentions)
       .values(matched.map((m) => ({ commentId, userId: m.userId })))
       .onConflictDoNothing();
+
+    return matched.map((m) => m.userId);
   }
 
   private async mentionsFor(commentIds: string[]): Promise<Map<string, string[]>> {
@@ -389,6 +453,15 @@ export class CommentsService {
     };
   }
 
+  /** Quienes han escrito en un hilo concreto, borrados incluidos: siguen ahí. */
+  private async participantesDelHilo(threadId: string): Promise<string[]> {
+    const filas = await currentTx()
+      .selectDistinct({ userId: comments.authorId })
+      .from(comments)
+      .where(eq(comments.threadId, threadId));
+    return filas.map((f) => f.userId);
+  }
+
   private async workspaceOf(appId: string): Promise<string> {
     const [row] = await currentTx()
       .select({ workspaceId: apps.workspaceId })
@@ -397,4 +470,13 @@ export class CommentsService {
     if (!row) throw new NotFoundException('The app does not exist');
     return row.workspaceId;
   }
+}
+
+/**
+ * Un trozo del comentario, para que el aviso diga algo y no solo «han
+ * comentado». Se corta corto: es un recordatorio, no el comentario entero.
+ */
+function extracto(texto: string): string {
+  const limpio = texto.replace(/\s+/g, ' ').trim();
+  return limpio.length > 140 ? `${limpio.slice(0, 139)}…` : limpio;
 }

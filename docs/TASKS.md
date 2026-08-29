@@ -297,10 +297,11 @@
 
 | # | Tarea | Verificación | Traza | Estado |
 |---|---|---|---|---|
-| Y1 | Emisión en la misma transacción que la acción que la provoca | Si la acción se deshace, el aviso tampoco existe | §5.5 | ⬜ |
-| Y2 | Nadie recibe avisos de sus propios actos | Comentar en tu propia app no te notifica | RF-905 | ⬜ |
-| Y3 | Destinatarios por acción: comentario, respuesta, resolución, versión, invitación, traspaso, herencia | Cada caso avisa a quien le incumbe y a nadie más | RF-902 | ⬜ |
-| Y4 | Menciones: avisan aunque no participes, si eres del workspace | Mencionar a alguien de fuera no filtra que exista | RF-908, RF-815 | ⬜ |
+| Y1 | Emisión en la misma transacción que la acción que la provoca | Si la acción se deshace, el aviso tampoco existe | §5.5 | ✅ |
+| Y2 | Nadie recibe avisos de sus propios actos | Comentar en tu propia app no te notifica | RF-905 | ✅ |
+| Y3 | Destinatarios por acción: comentario, respuesta, resolución, versión, invitación, traspaso, herencia | Cada caso avisa a quien le incumbe y a nadie más | RF-902 | 🟡 |
+| Y3b | Herencia de apps al salir alguien del workspace | Pendiente: RF-413 no está implementado todavía | RF-413 | ⬜ |
+| Y4 | Menciones: avisan aunque no participes, si eres del workspace | Mencionar a alguien de fuera no filtra que exista | RF-908, RF-815 | ✅ |
 
 ### Bloque Z — API y tiempo real
 

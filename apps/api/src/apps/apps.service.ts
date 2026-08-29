@@ -13,12 +13,16 @@ import {
 } from '@app-foundry/db';
 
 import { AuditAction, AuditService } from '../audit/audit.service.js';
+import { NotificationsService } from '../notifications/notifications.service.js';
 import { currentTx } from '../database/request-context.js';
 import type { AppSummaryDto, CreateAppDto, UpdateAppDto } from './apps.dto.js';
 
 @Injectable()
 export class AppsService {
-  constructor(private readonly audit: AuditService) {}
+  constructor(
+    private readonly audit: AuditService,
+    private readonly notifications: NotificationsService,
+  ) {}
 
   /**
    * Crea una app con su documento de visión ya listo (RF-401, RF-402).
@@ -304,6 +308,15 @@ export class AppsService {
     if (changed.length === 0) {
       throw new ForbiddenException('You cannot transfer this app');
     }
+
+    const contexto = await this.notifications.entornoDeApp(appId, userId);
+    await this.notifications.emit({
+      type: 'PRECURSOR_TRANSFERRED',
+      entorno: { actor: userId, destinatario: toUserId },
+      workspaceId,
+      appId,
+      payload: { actorHandle: contexto.actorHandle, appName: contexto.appName },
+    });
 
     await this.audit.record({
       actorId: userId,
