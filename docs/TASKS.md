@@ -294,6 +294,7 @@
 | U6 | Resaltar en amarillo todos los fragmentos con conversación | La conversación era invisible hasta abrir el panel | ✅ |
 | U7 | Panel compacto: responder bajo demanda | Las cajas de respuesta abiertas forzaban scroll enseguida | ✅ |
 | U8 | El botón de comentar: debajo de la selección, más pequeño y sin perder el contexto | Tapaba el texto marcado y el resaltado se apagaba al escribir | ✅ |
+| U9 | Los hilos resueltos dejan de subrayarse; el resaltado se repinta solo | Reaparecían al comentar y se apagaban al tocar el panel | ✅ |
 
 ---
 

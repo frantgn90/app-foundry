@@ -79,10 +79,25 @@ export function AppDetailPage({
 
   // Al elegir un hilo se resalta su fragmento en el documento y se lleva a la
   // vista: es la mitad de la navegación entre panel y texto (RF-810).
-  // Todos los fragmentos con conversación se pintan, no solo el elegido: si no,
-  // la conversación existente sería invisible hasta abrir el panel (RF-810).
+  /*
+   * Todos los fragmentos con conversación abierta se pintan, no solo el elegido:
+   * si no, la conversación existente sería invisible hasta abrir el panel
+   * (RF-810).
+   *
+   * Los hilos resueltos se quedan fuera a propósito. Se resuelven precisamente
+   * porque ya no hay nada que hacer con ellos, y son la parte de la lista que
+   * crece sin parar: un documento con meses de historia acabaría subrayado de
+   * punta a punta y el resaltado dejaría de señalar nada. Siguen en el panel, y
+   * reabrir uno lo devuelve al documento.
+   */
   const anchorRanges: AnchorRange[] = (threads.data ?? [])
-    .filter((t) => t.anchorStatus === 'ANCHORED' && t.anchorStart !== null && t.anchorEnd !== null)
+    .filter(
+      (t) =>
+        t.status === 'OPEN' &&
+        t.anchorStatus === 'ANCHORED' &&
+        t.anchorStart !== null &&
+        t.anchorEnd !== null,
+    )
     .map((t) => ({ threadId: t.id, start: t.anchorStart ?? 0, end: t.anchorEnd ?? 0 }));
 
   const anchorsKey = anchorRanges.map((a) => `${a.threadId}:${String(a.start)}`).join('|');
@@ -91,27 +106,42 @@ export function AppDetailPage({
    * Todo el resaltado se pinta de una vez y en el mismo efecto.
    *
    * Los rangos de la Custom Highlight API apuntan a nodos concretos del DOM, así
-   * que cualquier cosa que vuelva a renderizar el documento los deja apuntando a
-   * nodos que ya no están: el resaltado sigue registrado pero no pinta nada, sin
-   * ningún error de por medio. Repartirlo en dos efectos con dependencias
-   * distintas hacía que uno se repintara y el otro se quedara vacío.
+   * que cualquier cosa que rehaga el documento los deja apuntando a nodos que ya
+   * no están: el resaltado sigue registrado pero no pinta nada, y no salta
+   * ningún error. Intentar cubrirlo enumerando dependencias no funcionó —
+   * siempre aparecía otra cosa que rehacía el documento sin cambiar ninguna de
+   * ellas, como desplegar los hilos resueltos en el panel de al lado.
+   *
+   * Así que en vez de adivinar qué provoca el re-render, se observa el resultado
+   * y se repinta. Resaltar no modifica el DOM (de eso trata precisamente esta
+   * API), así que el observador no puede dispararse a sí mismo.
    */
   useEffect(() => {
-    paintAnchors(readingRef.current, anchorRanges, selectedThread, {
-      scrollToActive: scrollToThread,
-    });
-    paintPending(readingRef.current, pendingSelection);
+    const contenedor = readingRef.current;
+
+    const pintar = () => {
+      paintAnchors(contenedor, anchorRanges, selectedThread, {
+        scrollToActive: scrollToThread,
+      });
+      paintPending(contenedor, pendingSelection);
+    };
+
+    pintar();
     if (scrollToThread) setScrollToThread(false);
+
+    if (!contenedor) return;
+    // El scroll solo se hace en el pintado inicial: repetirlo en cada mutación
+    // movería la página bajo los pies de quien está leyendo.
+    const observador = new MutationObserver(() => {
+      paintAnchors(contenedor, anchorRanges, selectedThread, { scrollToActive: false });
+      paintPending(contenedor, pendingSelection);
+    });
+    observador.observe(contenedor, { childList: true, subtree: true, characterData: true });
+    return () => {
+      observador.disconnect();
+    };
     // `anchorsKey` resume la lista de anclas, que se reconstruye en cada render.
-  }, [
-    anchorsKey,
-    selectedThread,
-    pendingSelection,
-    composing,
-    tab,
-    scrollToThread,
-    document.data?.content,
-  ]);
+  }, [anchorsKey, selectedThread, pendingSelection, tab, scrollToThread, document.data?.content]);
 
   // Borrador local: cerrar la pestaña a media edición no debería perder el
   // texto. No genera versiones, solo sobrevive a un accidente (RF-506).
