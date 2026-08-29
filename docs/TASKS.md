@@ -273,7 +273,7 @@
 | W1 | Hilo general al pie de la visión | Comentar y responder sin salir de la lectura | RF-801 | ✅ |
 | W2 | Seleccionar texto y comentar sobre la selección | La selección del navegador se traduce a posición en el markdown | RF-802, TRD §9.1 | ✅ |
 | W3 | Panel lateral con los hilos y su estado | Activos, resueltos y huérfanos, con su cita original | RF-810 | ✅ |
-| W4 | Resaltado del fragmento y navegación | Del hilo al texto ✅. Del texto al hilo, pendiente | RF-810 | 🔄 |
+| W4 | Resaltado del fragmento y navegación en ambos sentidos | Del hilo al texto y del texto al hilo | RF-810 | ✅ |
 | W5 | Menciones con autocompletado | Escribir `@` ofrece solo miembros del workspace | RF-814 | ✅ |
 | W6 | Contador de hilos abiertos en la ficha y el listado | Se ve dónde hay conversación pendiente | RF-811 | ✅ |
 
@@ -290,6 +290,9 @@
 | U2 | Que cada tarjeta ocupe su altura y se empaqueten sin huecos | Una tarjeta alta estiraba a su vecina y dejaba espacio muerto | ✅ |
 | U3 | Editar los metadatos de una app desde la interfaz | La API lo permitía y la interfaz solo los enseñaba | ✅ |
 | U4 | Ajustes de workspace: nombre, icono y fondo | Un workspace no se podía distinguir de otro de un vistazo | ✅ |
+| U5 | Menú al seleccionar texto, en vez de abrir el formulario solo | Seleccionar texto no es decidir comentarlo | ✅ |
+| U6 | Resaltar en amarillo todos los fragmentos con conversación | La conversación era invisible hasta abrir el panel | ✅ |
+| U7 | Panel compacto: responder bajo demanda | Las cajas de respuesta abiertas forzaban scroll enseguida | ✅ |
 
 ---
 
