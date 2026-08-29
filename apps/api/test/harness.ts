@@ -31,6 +31,8 @@ export interface TestUser {
 export interface Harness {
   baseUrl: string;
   db: Database;
+  /** URL del Redis real, para poder publicar como si fuera otra instancia. */
+  redisUrl: string;
   createUser: (handle: string) => Promise<TestUser>;
   as: (user: TestUser) => RequestHelper;
   anonymous: () => RequestHelper;
@@ -148,6 +150,7 @@ export async function startHarness(): Promise<Harness> {
   }
 
   return {
+    redisUrl: redis.getConnectionUrl(),
     baseUrl: url,
     db: seeding.db,
     createUser,

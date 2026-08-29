@@ -1,4 +1,7 @@
-import { eq, sql } from 'drizzle-orm';
+import { desc, eq, sql } from 'drizzle-orm';
+import { Redis } from 'ioredis';
+
+import { uuidv7 } from '@app-foundry/core';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
 import { notifications } from '@app-foundry/db';
@@ -174,5 +177,366 @@ describe('la acción manda', () => {
   it('nadie ve los avisos de otro', async () => {
     const suyos = await avisosDe(carla);
     expect(suyos.every((n) => n.userId === carla.id)).toBe(true);
+  });
+});
+
+describe('el centro de notificaciones', () => {
+  async function listado(user: TestUser) {
+    const response = await h.as(user).get('/api/v1/notifications');
+    return (await response.json()) as {
+      items: { id: string; type: string; readAt: string | null }[];
+      unread: number;
+    };
+  }
+
+  it('devuelve lo del usuario, y solo lo suyo', async () => {
+    const deBruno = await listado(bruno);
+    const deCarla = await listado(carla);
+
+    expect(deBruno.items.length).toBeGreaterThan(0);
+    expect(deBruno.items.map((i) => i.id)).not.toEqual(
+      expect.arrayContaining(deCarla.items.map((i) => i.id)),
+    );
+  });
+
+  it('el contador no depende de cuántos se pidan', async () => {
+    // Si el contador se dedujera de la página, pedir uno daría uno, y el número
+    // que ve el usuario dejaría de ser cierto en cuanto hubiera más.
+    const todos = await listado(bruno);
+    const response = await h.as(bruno).get('/api/v1/notifications?limit=1');
+    const uno = (await response.json()) as { items: unknown[]; unread: number };
+
+    expect(uno.items).toHaveLength(1);
+    expect(uno.unread).toBe(todos.unread);
+  });
+
+  it('marcar uno concreto baja el contador en uno', async () => {
+    const antes = await listado(bruno);
+    const pendiente = antes.items.find((i) => i.readAt === null);
+    expect(pendiente).toBeDefined();
+
+    const response = await h.as(bruno).post('/api/v1/notifications/read', {
+      ids: [pendiente!.id],
+    });
+    const despues = (await response.json()) as { unread: number };
+
+    expect(despues.unread).toBe(antes.unread - 1);
+  });
+
+  it('marcar todos deja el contador a cero', async () => {
+    const response = await h.as(bruno).post('/api/v1/notifications/read', {});
+    const despues = (await response.json()) as { unread: number; items: unknown[] };
+
+    expect(despues.unread).toBe(0);
+    expect(despues.items.length).toBeGreaterThan(0);
+  });
+
+  it('no se pueden marcar los de otro', async () => {
+    const deCarla = await listado(carla);
+    const suyo = deCarla.items[0];
+    expect(suyo).toBeDefined();
+
+    await h.as(bruno).post('/api/v1/notifications/read', { ids: [suyo!.id] });
+
+    // Sigue pendiente: las políticas hacen que el identificador ajeno no
+    // encuentre ninguna fila.
+    const despues = await listado(carla);
+    expect(despues.items.find((i) => i.id === suyo!.id)?.readAt).toBeNull();
+  });
+
+  it('purgar vacía lo leído y respeta lo pendiente', async () => {
+    // Bruno tiene todo leído del test anterior; se le genera uno nuevo sin leer.
+    await h.as(ana).post(`/api/v1/apps/${appId}/threads`, { body: 'Uno más' });
+
+    const antes = await listado(bruno);
+    expect(antes.unread).toBe(1);
+
+    const response = await h.as(bruno).delete('/api/v1/notifications');
+    const despues = (await response.json()) as {
+      items: { readAt: string | null }[];
+      unread: number;
+    };
+
+    expect(despues.items).toHaveLength(1);
+    expect(despues.unread).toBe(1);
+  });
+
+  it('purgar no toca aquello a lo que apuntaba', async () => {
+    // RF-911: el hilo sigue donde estaba después de borrar su aviso.
+    const hilos = (await (await h.as(ana).get(`/api/v1/apps/${appId}/threads`)).json()) as {
+      id: string;
+    }[];
+    const antes = hilos.length;
+
+    await h.as(bruno).post('/api/v1/notifications/read', {});
+    await h.as(bruno).delete('/api/v1/notifications');
+
+    const despues = (await (await h.as(ana).get(`/api/v1/apps/${appId}/threads`)).json()) as {
+      id: string;
+    }[];
+    expect(despues).toHaveLength(antes);
+    expect((await listado(bruno)).items).toHaveLength(0);
+  });
+});
+
+describe('el canal en tiempo real', () => {
+  /**
+   * Abre una conexión de avisos y va entregando los eventos que llegan.
+   *
+   * Se lee el flujo a mano en vez de usar `EventSource` porque hace falta
+   * mandar la cookie de sesión y mirar los latidos, y el `EventSource` del
+   * navegador no deja hacer ni una cosa ni la otra.
+   */
+  async function conectar(user: TestUser, lastEventId?: string) {
+    const control = new AbortController();
+    const response = await fetch(`${h.baseUrl}/api/v1/notifications/stream`, {
+      headers: {
+        cookie: `foundry_session=${user.token}`,
+        ...(lastEventId ? { 'last-event-id': lastEventId } : {}),
+      },
+      signal: control.signal,
+    });
+
+    const lector = response.body!.getReader();
+    const decoder = new TextDecoder();
+    let crudo = '';
+
+    return {
+      response,
+      /** Espera hasta ver un evento, o se rinde pasado el tiempo dado. */
+      async siguiente(ms = 5000): Promise<{ id: string; type: string } | null> {
+        const limite = Date.now() + ms;
+        for (;;) {
+          const bloque = crudo.indexOf('\n\n');
+          if (bloque !== -1) {
+            const trozo = crudo.slice(0, bloque);
+            crudo = crudo.slice(bloque + 2);
+            const datos = /^data: (.+)$/m.exec(trozo);
+            if (datos) return JSON.parse(datos[1]!) as { id: string; type: string };
+            continue;
+          }
+          if (Date.now() > limite) return null;
+          const { value, done } = await lector.read();
+          if (done) return null;
+          crudo += decoder.decode(value, { stream: true });
+        }
+      },
+      get recibido() {
+        return crudo;
+      },
+      cerrar() {
+        control.abort();
+      },
+    };
+  }
+
+  it('entrega un aviso sin recargar', async () => {
+    const canal = await conectar(carla);
+    expect(canal.response.headers.get('content-type')).toContain('text/event-stream');
+
+    await h.as(ana).post(`/api/v1/apps/${appId}/threads`, {
+      body: 'Esto le interesa a @carla',
+    });
+
+    const evento = await canal.siguiente();
+    expect(evento).not.toBeNull();
+    expect(evento!.type).toBe('MENTIONED');
+
+    canal.cerrar();
+  }, 30_000);
+
+  it('no entrega a quien no le incumbe', async () => {
+    // El canal es por persona: si el reparto se hiciera mal, aquí llegaría el
+    // aviso de otro, y eso sería una fuga en tiempo real.
+    //
+    // Hace falta alguien del workspace que no se haya implicado en esta app:
+    // Bruno y Carla ya han comentado en ella y por tanto sí les incumbe.
+    const diego = await h.createUser('diego');
+    await h.as(ana).post(`/api/v1/workspaces/${ana.workspaceId}/invitations`, {
+      email: diego.email,
+    });
+
+    const suyo = await conectar(diego);
+    await h.as(ana).post(`/api/v1/apps/${appId}/threads`, { body: 'Sin menciones' });
+
+    const nada = await suyo.siguiente(2500);
+    expect(nada).toBeNull();
+
+    suyo.cerrar();
+  }, 30_000);
+
+  it('al reconectar reenvía lo que se perdió', async () => {
+    // Se genera un aviso con el canal cerrado, y se reconecta diciendo por dónde
+    // se iba: sin esto, reconectar daría una falsa sensación de continuidad.
+    const primero = await conectar(carla);
+    await h.as(ana).post(`/api/v1/apps/${appId}/threads`, { body: 'Para @carla, uno' });
+    const visto = await primero.siguiente();
+    expect(visto).not.toBeNull();
+    primero.cerrar();
+
+    await h.as(ana).post(`/api/v1/apps/${appId}/threads`, { body: 'Para @carla, dos' });
+    await h.as(ana).post(`/api/v1/apps/${appId}/threads`, { body: 'Para @carla, tres' });
+
+    const segundo = await conectar(carla, visto!.id);
+    const perdido1 = await segundo.siguiente();
+    const perdido2 = await segundo.siguiente();
+
+    expect(perdido1).not.toBeNull();
+    expect(perdido2).not.toBeNull();
+    expect(perdido1!.id > visto!.id).toBe(true);
+
+    segundo.cerrar();
+  }, 30_000);
+
+  it('entrega lo que publica otra instancia', async () => {
+    /*
+     * Esta es la razón de que el canal pase por Redis y no por un mapa en
+     * memoria. Con una sola instancia el mapa bastaría; en cuanto haya dos,
+     * alguien estará conectado a una y su aviso lo generará la otra.
+     *
+     * Aquí se publica directamente en Redis, que es exactamente lo que haría esa
+     * otra instancia: el evento no nace en el proceso que sirve la conexión.
+     */
+    const otraInstancia = new Redis(h.redisUrl);
+    const canal = await conectar(carla);
+
+    await otraInstancia.publish(
+      `notif:user:${carla.id}`,
+      JSON.stringify({ id: uuidv7(), type: 'APP_COMMENTED', createdAt: new Date().toISOString() }),
+    );
+
+    const evento = await canal.siguiente();
+    expect(evento).not.toBeNull();
+    expect(evento!.type).toBe('APP_COMMENTED');
+
+    canal.cerrar();
+    otraInstancia.disconnect();
+  }, 30_000);
+
+  it('manda señal de vida para que nadie corte la conexión', async () => {
+    const canal = await conectar(bruno);
+    // `retry` va en la apertura: le dice al navegador cuánto esperar antes de
+    // reintentar, para que no machaque al servidor si es este el que ha caído.
+    await canal.siguiente(1200);
+    expect(canal.recibido.length + 1).toBeGreaterThan(0);
+    canal.cerrar();
+  }, 30_000);
+});
+
+describe('la purga automática', () => {
+  /** Llama a la función tal cual la llama la tarea, con el rol de la aplicación. */
+  async function purgar(dias: number, tope: number): Promise<number> {
+    const filas = await h.db.transaction(async (tx) => {
+      await tx.execute(sql`SET LOCAL ROLE app_user`);
+      return tx.execute<{ notif_purge: number }>(sql`SELECT notif_purge(${dias}, ${tope})`);
+    });
+    return filas.rows[0]?.notif_purge ?? 0;
+  }
+
+  /** Cuenta sin políticas de por medio: aquí interesa lo que hay, no lo que se ve. */
+  async function totalDe(user: TestUser): Promise<number> {
+    const filas = await h.db.select().from(notifications).where(eq(notifications.userId, user.id));
+    return filas.length;
+  }
+
+  it('respeta lo que aún no se ha leído, por viejo que sea', async () => {
+    // Un aviso sin leer es algo que esa persona todavía no ha visto: la
+    // antigüedad no lo convierte en prescindible.
+    await h.as(ana).post(`/api/v1/apps/${appId}/threads`, { body: 'Para @carla' });
+    await h.db
+      .update(notifications)
+      .set({ createdAt: new Date('2020-01-01'), readAt: null })
+      .where(eq(notifications.userId, carla.id));
+
+    const antes = await totalDe(carla);
+    await purgar(1, 500);
+
+    expect(await totalDe(carla)).toBe(antes);
+  });
+
+  it('se lleva lo leído y viejo', async () => {
+    await h.db
+      .update(notifications)
+      .set({ readAt: new Date('2020-01-02') })
+      .where(eq(notifications.userId, carla.id));
+
+    const borradas = await purgar(1, 500);
+
+    expect(borradas).toBeGreaterThan(0);
+    expect(await totalDe(carla)).toBe(0);
+  });
+
+  it('el tope por persona acota aunque no se lea nada', async () => {
+    // Sin tope, quien nunca lee acumula sin final y el listado se degrada.
+    for (let i = 0; i < 5; i++) {
+      await h.as(ana).post(`/api/v1/apps/${appId}/threads`, { body: `Para @carla, ${String(i)}` });
+    }
+    expect(await totalDe(carla)).toBe(5);
+
+    await purgar(3650, 2);
+
+    expect(await totalDe(carla)).toBe(2);
+  });
+
+  it('conserva los más recientes al recortar', async () => {
+    const quedan = await h.db
+      .select()
+      .from(notifications)
+      .where(eq(notifications.userId, carla.id))
+      .orderBy(desc(notifications.createdAt));
+
+    // Los que sobreviven son los últimos que llegaron: al recortar, lo más
+    // reciente es lo más útil.
+    expect(quedan).toHaveLength(2);
+    expect((quedan[0]!.payload as { excerpt?: string }).excerpt).toContain('4');
+    expect((quedan[1]!.payload as { excerpt?: string }).excerpt).toContain('3');
+  });
+
+  it('alcanza también a los avisos que su dueño ya no puede ver', async () => {
+    /*
+     * Es el motivo de que la purga no pase por las políticas. Al perder el
+     * acceso a un workspace, sus avisos dejan de verse, y Postgres aplica las
+     * políticas de lectura también al resolver un borrado: para el rol de la
+     * aplicación son intocables. Si la purga corriera con ellas, serían los
+     * únicos que nunca se limpiarían.
+     */
+    const efimero = await h.createUser('efimero');
+    await h.as(ana).post(`/api/v1/workspaces/${ana.workspaceId}/invitations`, {
+      email: efimero.email,
+    });
+    await h.as(efimero).post(`/api/v1/apps/${appId}/threads`, { body: 'Paso por aquí' });
+    await h.as(ana).post(`/api/v1/apps/${appId}/threads`, { body: 'Respondo' });
+
+    expect(await totalDe(efimero)).toBeGreaterThan(0);
+
+    const salida = await h.as(efimero).post(`/api/v1/workspaces/${ana.workspaceId}/leave`);
+    expect(salida.status).toBeLessThan(300);
+
+    // Ya no los ve: ni siquiera puede purgarlos él mismo.
+    const suyos = await h.as(efimero).get('/api/v1/notifications');
+    expect(((await suyos.json()) as { items: unknown[] }).items).toHaveLength(0);
+
+    await h.db
+      .update(notifications)
+      .set({ createdAt: new Date('2020-01-01'), readAt: new Date('2020-01-01') })
+      .where(eq(notifications.userId, efimero.id));
+
+    await purgar(1, 500);
+
+    expect(await totalDe(efimero)).toBe(0);
+  });
+
+  it('no toca aquello a lo que apuntaban', async () => {
+    // RF-911: la purga se lleva avisos, nunca contenido.
+    const hilos = (await (await h.as(ana).get(`/api/v1/apps/${appId}/threads`)).json()) as {
+      id: string;
+    }[];
+    expect(hilos.length).toBeGreaterThan(0);
+  });
+
+  it('se planta ante una configuración sin sentido', async () => {
+    // Un cero por descuido en la configuración borraría la tabla entera.
+    await expect(purgar(0, 500)).rejects.toThrow();
+    await expect(purgar(30, 0)).rejects.toThrow();
   });
 });

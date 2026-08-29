@@ -7,6 +7,8 @@ export interface RequestContext {
   tx: Transaction;
   /** Identidad fijada en la sesión de base de datos, o null si no hay. */
   userId: string | null;
+  /** Efectos que solo deben ocurrir si la transacción sale adelante. */
+  trasCommit: (() => Promise<void>)[];
 }
 
 /**
@@ -37,4 +39,23 @@ export function currentTx(): Transaction {
 
 export function currentUserId(): string | null {
   return requestContext.getStore()?.userId ?? null;
+}
+
+/**
+ * Aplaza algo hasta que la transacción haya salido adelante.
+ *
+ * Es para lo que sale del sistema y no se puede deshacer: avisar por el canal en
+ * tiempo real, por ejemplo. Publicado dentro de la transacción, un aviso podría
+ * llegar al navegador de alguien y desaparecer un instante después al fallar el
+ * guardado, dejándole mirando algo que no existe.
+ *
+ * Fuera de una petición no hay nada que esperar, así que se ejecuta y ya está.
+ */
+export function trasCommit(efecto: () => Promise<void>): void {
+  const ctx = requestContext.getStore();
+  if (!ctx) {
+    void efecto();
+    return;
+  }
+  ctx.trasCommit.push(efecto);
 }

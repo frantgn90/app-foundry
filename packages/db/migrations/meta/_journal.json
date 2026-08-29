@@ -148,6 +148,20 @@
       "when": 1788001337743,
       "tag": "0020_notifications_rls",
       "breakpoints": true
+    },
+    {
+      "idx": 21,
+      "version": "7",
+      "when": 1788001338743,
+      "tag": "0021_notifications_purge",
+      "breakpoints": true
+    },
+    {
+      "idx": 22,
+      "version": "7",
+      "when": 1788001339743,
+      "tag": "0022_notifications_invite_visibility",
+      "breakpoints": true
     }
   ]
 }

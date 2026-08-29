@@ -1,5 +1,5 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
-import { and, eq, inArray } from 'drizzle-orm';
+import { and, count, desc, eq, inArray, isNotNull, isNull } from 'drizzle-orm';
 
 import { audiencia, type Entorno, type NotificationType, uuidv7 } from '@app-foundry/core';
 import {
@@ -13,7 +13,10 @@ import {
   workspaceMembers,
 } from '@app-foundry/db';
 
-import { currentTx } from '../database/request-context.js';
+import { currentTx, trasCommit } from '../database/request-context.js';
+import type { NotificationDto, NotificationListDto } from './notifications.dto.js';
+import { NotificationsChannel } from './notifications.channel.js';
+import { NotificationsStream } from './notifications.stream.js';
 
 export interface Emision {
   type: NotificationType;
@@ -37,6 +40,21 @@ export interface AvisoEmitido {
 
 @Injectable()
 export class NotificationsService {
+  constructor(
+    private readonly stream: NotificationsStream,
+    private readonly channel: NotificationsChannel,
+  ) {}
+
+  /** Abre una conexión de avisos en tiempo real. Ver `NotificationsChannel`. */
+  async abrirCanal(
+    userId: string,
+    request: Parameters<NotificationsChannel['abrir']>[1],
+    response: Parameters<NotificationsChannel['abrir']>[2],
+    lastEventId?: string,
+  ): Promise<void> {
+    return this.channel.abrir(userId, request, response, lastEventId);
+  }
+
   /**
    * Escribe los avisos de una acción, en su misma transacción.
    *
@@ -63,6 +81,7 @@ export class NotificationsService {
       .map((a) => ({ id: uuidv7(), userId: a.userId, type: a.type }));
     if (avisos.length === 0) return [];
 
+    const creado = new Date().toISOString();
     await currentTx()
       .insert(notifications)
       .values(
@@ -77,7 +96,87 @@ export class NotificationsService {
         })),
       );
 
+    /*
+     * El reparto espera al commit. Publicado aquí mismo, un aviso podría llegar
+     * al navegador y desaparecer un instante después si el guardado falla,
+     * dejando a alguien mirando algo que no existe.
+     */
+    trasCommit(async () => {
+      for (const a of avisos) {
+        await this.stream.publicar(a.userId, { id: a.id, type: a.type, createdAt: creado });
+      }
+    });
+
     return avisos;
+  }
+
+  /**
+   * Los avisos del usuario, recientes primero.
+   *
+   * El contador de pendientes se cuenta aparte y no se deduce de la página
+   * devuelta: si se dedujera, pedir veinte avisos daría un contador de veinte
+   * como mucho, y el número que se enseña dejaría de ser cierto en cuanto
+   * hubiera más.
+   */
+  async list(userId: string, limit = 30): Promise<NotificationListDto> {
+    const tx = currentTx();
+    const tope = Math.min(Math.max(Number.isFinite(limit) ? limit : 30, 1), 100);
+
+    const filas = await tx
+      .select()
+      .from(notifications)
+      .orderBy(desc(notifications.createdAt))
+      .limit(tope);
+
+    return { items: filas.map(aDto), unread: await this.unread(userId) };
+  }
+
+  /** Marca leídos. Sin lista, todos los pendientes (RF-903). */
+  async markRead(userId: string, ids?: string[]): Promise<NotificationListDto> {
+    const tx = currentTx();
+
+    // Las políticas ya limitan el alcance a lo propio, así que no hace falta
+    // filtrar por usuario: cualquier identificador ajeno sencillamente no
+    // encuentra fila.
+    await tx
+      .update(notifications)
+      .set({ readAt: new Date() })
+      .where(
+        ids && ids.length > 0
+          ? and(inArray(notifications.id, ids), isNull(notifications.readAt))
+          : isNull(notifications.readAt),
+      );
+
+    return this.list(userId);
+  }
+
+  /**
+   * Purga manual (RF-909).
+   *
+   * Sin identificadores vacía lo ya leído, no todo: tirar de un botón no debería
+   * llevarse por delante lo que aún no has mirado.
+   *
+   * Borrar un aviso no toca aquello a lo que apuntaba (RF-911); la tabla no
+   * tiene ninguna baja en cascada hacia comentarios ni versiones.
+   */
+  async purge(userId: string, ids?: string[]): Promise<NotificationListDto> {
+    const tx = currentTx();
+
+    await tx
+      .delete(notifications)
+      .where(
+        ids && ids.length > 0 ? inArray(notifications.id, ids) : isNotNull(notifications.readAt),
+      );
+
+    return this.list(userId);
+  }
+
+  private async unread(userId: string): Promise<number> {
+    const [fila] = await currentTx()
+      .select({ total: count() })
+      .from(notifications)
+      .where(and(eq(notifications.userId, userId), isNull(notifications.readAt)));
+    return fila?.total ?? 0;
   }
 
   /**
@@ -167,4 +266,17 @@ export class NotificationsService {
 
     return new Set(miembros.map((m) => m.userId));
   }
+}
+
+function aDto(fila: typeof notifications.$inferSelect): NotificationDto {
+  return {
+    id: fila.id,
+    type: fila.type,
+    payload: fila.payload,
+    workspaceId: fila.workspaceId,
+    appId: fila.appId,
+    threadId: fila.threadId,
+    readAt: fila.readAt?.toISOString() ?? null,
+    createdAt: fila.createdAt.toISOString(),
+  };
 }
