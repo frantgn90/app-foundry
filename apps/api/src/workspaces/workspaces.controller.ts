@@ -12,12 +12,12 @@ import {
 } from '@nestjs/common';
 import { ApiNoContentResponse, ApiOkResponse, ApiOperation, ApiTags } from '@nestjs/swagger';
 
-import { IdUsuarioActual } from '../auth/current-user.decorator.js';
+import { CurrentUserId } from '../auth/current-user.decorator.js';
 import {
-  InvitacionDto,
-  InvitarDto,
-  MiembroDto,
-  RenombrarWorkspaceDto,
+  InvitationDto,
+  InviteDto,
+  MemberDto,
+  RenameWorkspaceDto,
   WorkspaceDto,
 } from './workspaces.dto.js';
 import { WorkspacesService } from './workspaces.service.js';
@@ -30,59 +30,56 @@ export class WorkspacesController {
   @Get()
   @ApiOperation({ summary: 'Workspaces a los que pertenezco' })
   @ApiOkResponse({ type: [WorkspaceDto] })
-  listar(@IdUsuarioActual() userId: string): Promise<WorkspaceDto[]> {
-    return this.workspaces.listar(userId);
+  list(@CurrentUserId() userId: string): Promise<WorkspaceDto[]> {
+    return this.workspaces.list(userId);
   }
 
   @Patch(':id')
   @ApiOperation({ summary: 'Renombrar un workspace propio' })
   @ApiOkResponse({ type: WorkspaceDto })
-  renombrar(
+  rename(
     @Param('id', ParseUUIDPipe) id: string,
-    @Body() cuerpo: RenombrarWorkspaceDto,
-    @IdUsuarioActual() userId: string,
+    @Body() cuerpo: RenameWorkspaceDto,
+    @CurrentUserId() userId: string,
   ): Promise<WorkspaceDto> {
-    return this.workspaces.renombrar(id, cuerpo.name, userId);
+    return this.workspaces.rename(id, cuerpo.name, userId);
   }
 
   @Get(':id/members')
   @ApiOperation({ summary: 'Miembros del workspace' })
-  @ApiOkResponse({ type: [MiembroDto] })
-  miembros(@Param('id', ParseUUIDPipe) id: string): Promise<MiembroDto[]> {
-    return this.workspaces.miembros(id);
+  @ApiOkResponse({ type: [MemberDto] })
+  members(@Param('id', ParseUUIDPipe) id: string): Promise<MemberDto[]> {
+    return this.workspaces.members(id);
   }
 
   @Delete(':id/members/:userId')
   @HttpCode(HttpStatus.NO_CONTENT)
   @ApiOperation({ summary: 'Expulsar a un miembro' })
   @ApiNoContentResponse()
-  expulsar(
+  removeMember(
     @Param('id', ParseUUIDPipe) id: string,
     @Param('userId', ParseUUIDPipe) aQuien: string,
-    @IdUsuarioActual() userId: string,
+    @CurrentUserId() userId: string,
   ): Promise<void> {
-    return this.workspaces.expulsar(id, aQuien, userId);
+    return this.workspaces.removeMember(id, aQuien, userId);
   }
 
   @Post(':id/leave')
   @HttpCode(HttpStatus.NO_CONTENT)
   @ApiOperation({ summary: 'Abandonar un workspace ajeno' })
   @ApiNoContentResponse()
-  abandonar(
-    @Param('id', ParseUUIDPipe) id: string,
-    @IdUsuarioActual() userId: string,
-  ): Promise<void> {
-    return this.workspaces.abandonar(id, userId);
+  leave(@Param('id', ParseUUIDPipe) id: string, @CurrentUserId() userId: string): Promise<void> {
+    return this.workspaces.leave(id, userId);
   }
 
   @Get(':id/invitations')
   @ApiOperation({ summary: 'Invitaciones del workspace' })
-  @ApiOkResponse({ type: [InvitacionDto] })
-  invitaciones(
+  @ApiOkResponse({ type: [InvitationDto] })
+  invitations(
     @Param('id', ParseUUIDPipe) id: string,
-    @IdUsuarioActual() userId: string,
-  ): Promise<InvitacionDto[]> {
-    return this.workspaces.invitaciones(id, userId);
+    @CurrentUserId() userId: string,
+  ): Promise<InvitationDto[]> {
+    return this.workspaces.invitations(id, userId);
   }
 
   @Post(':id/invitations')
@@ -92,23 +89,23 @@ export class WorkspacesController {
       'La respuesta es idéntica exista o no una cuenta con ese email: invitar no ' +
       'sirve para averiguar quién usa la plataforma.',
   })
-  @ApiOkResponse({ type: InvitacionDto })
-  invitar(
+  @ApiOkResponse({ type: InvitationDto })
+  invite(
     @Param('id', ParseUUIDPipe) id: string,
-    @Body() cuerpo: InvitarDto,
-    @IdUsuarioActual() userId: string,
-  ): Promise<InvitacionDto> {
-    return this.workspaces.invitar(id, cuerpo.email, userId);
+    @Body() cuerpo: InviteDto,
+    @CurrentUserId() userId: string,
+  ): Promise<InvitationDto> {
+    return this.workspaces.invite(id, cuerpo.email, userId);
   }
 
   @Delete('invitations/:invitationId')
   @HttpCode(HttpStatus.NO_CONTENT)
   @ApiOperation({ summary: 'Revocar una invitación' })
   @ApiNoContentResponse()
-  revocar(
+  revoke(
     @Param('invitationId', ParseUUIDPipe) invitationId: string,
-    @IdUsuarioActual() userId: string,
+    @CurrentUserId() userId: string,
   ): Promise<void> {
-    return this.workspaces.revocarInvitacion(invitationId, userId);
+    return this.workspaces.revokeInvitation(invitationId, userId);
   }
 }

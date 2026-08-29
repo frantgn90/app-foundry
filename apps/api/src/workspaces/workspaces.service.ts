@@ -17,10 +17,10 @@ import {
 import { users, workspaceInvitations, workspaceMembers, workspaces } from '@app-foundry/db';
 import type { Env } from '@app-foundry/env';
 
-import { AccionAuditada, AuditService } from '../audit/audit.service.js';
+import { AuditAction, AuditService } from '../audit/audit.service.js';
 import { currentTx } from '../database/request-context.js';
 import { ENV } from '../infrastructure/tokens.js';
-import type { InvitacionDto, MiembroDto, WorkspaceDto } from './workspaces.dto.js';
+import type { InvitationDto, MemberDto, WorkspaceDto } from './workspaces.dto.js';
 
 @Injectable()
 export class WorkspacesService {
@@ -37,7 +37,7 @@ export class WorkspacesService {
    * lo que esta persona puede ver. Añadir un `where` aquí sería duplicar la
    * regla y arriesgarse a que las dos copias diverjan.
    */
-  async listar(userId: string): Promise<WorkspaceDto[]> {
+  async list(userId: string): Promise<WorkspaceDto[]> {
     const filas = await currentTx()
       .select({
         id: workspaces.id,
@@ -56,8 +56,8 @@ export class WorkspacesService {
     return filas.map((f) => ({ ...f, role: f.role }));
   }
 
-  async renombrar(workspaceId: string, nombre: string, userId: string): Promise<WorkspaceDto> {
-    this.exigir(await this.permisoAdministrar(workspaceId, userId));
+  async rename(workspaceId: string, nombre: string, userId: string): Promise<WorkspaceDto> {
+    this.enforce(await this.adminDecision(workspaceId, userId));
 
     const [actualizado] = await currentTx()
       .update(workspaces)
@@ -72,9 +72,9 @@ export class WorkspacesService {
 
     if (!actualizado) throw new NotFoundException('El workspace no existe');
 
-    await this.audit.registrar({
+    await this.audit.record({
       actorId: userId,
-      action: AccionAuditada.WORKSPACE_RENOMBRADO,
+      action: AuditAction.WORKSPACE_RENAMED,
       resourceType: 'workspace',
       resourceId: workspaceId,
       workspaceId,
@@ -84,7 +84,7 @@ export class WorkspacesService {
     return { ...actualizado, role: 'OWNER' };
   }
 
-  async miembros(workspaceId: string): Promise<MiembroDto[]> {
+  async members(workspaceId: string): Promise<MemberDto[]> {
     return currentTx()
       .select({
         userId: users.id,
@@ -107,8 +107,8 @@ export class WorkspacesService {
    * ambos casos, así que invitar no sirve para averiguar quién usa la
    * plataforma (RF-312).
    */
-  async invitar(workspaceId: string, email: string, userId: string): Promise<InvitacionDto> {
-    this.exigir(await this.permisoAdministrar(workspaceId, userId));
+  async invite(workspaceId: string, email: string, userId: string): Promise<InvitationDto> {
+    this.enforce(await this.adminDecision(workspaceId, userId));
 
     const expira = new Date(Date.now() + this.env.INVITATION_TTL_DAYS * 86_400_000);
     const tx = currentTx();
@@ -122,9 +122,9 @@ export class WorkspacesService {
 
     await tx.execute(sql`SELECT workspace_apply_invitation_if_user_exists(${invitacion.id}::uuid)`);
 
-    await this.audit.registrar({
+    await this.audit.record({
       actorId: userId,
-      action: AccionAuditada.INVITACION_CREADA,
+      action: AuditAction.INVITATION_CREATED,
       resourceType: 'invitation',
       resourceId: invitacion.id,
       workspaceId,
@@ -133,11 +133,11 @@ export class WorkspacesService {
       metadata: { email },
     });
 
-    return this.aDto(invitacion.id, email, expira);
+    return this.toDto(invitacion.id, email, expira);
   }
 
-  async invitaciones(workspaceId: string, userId: string): Promise<InvitacionDto[]> {
-    this.exigir(await this.permisoAdministrar(workspaceId, userId));
+  async invitations(workspaceId: string, userId: string): Promise<InvitationDto[]> {
+    this.enforce(await this.adminDecision(workspaceId, userId));
 
     const filas = await currentTx()
       .select()
@@ -154,7 +154,7 @@ export class WorkspacesService {
     }));
   }
 
-  async revocarInvitacion(invitationId: string, userId: string): Promise<void> {
+  async revokeInvitation(invitationId: string, userId: string): Promise<void> {
     const tx = currentTx();
     // La RLS ya impide ver invitaciones de workspaces ajenos, así que si no
     // aparece es que no existe o no es asunto de quien pregunta.
@@ -169,17 +169,17 @@ export class WorkspacesService {
       .set({ status: 'REVOKED' })
       .where(eq(workspaceInvitations.id, invitationId));
 
-    await this.audit.registrar({
+    await this.audit.record({
       actorId: userId,
-      action: AccionAuditada.INVITACION_REVOCADA,
+      action: AuditAction.INVITATION_REVOKED,
       resourceType: 'invitation',
       resourceId: invitationId,
       workspaceId: invitacion.workspaceId,
     });
   }
 
-  async expulsar(workspaceId: string, aQuien: string, userId: string): Promise<void> {
-    this.exigir(await this.permisoAdministrar(workspaceId, userId));
+  async removeMember(workspaceId: string, aQuien: string, userId: string): Promise<void> {
+    this.enforce(await this.adminDecision(workspaceId, userId));
     if (aQuien === userId) {
       throw new ForbiddenException('El dueño no puede expulsarse de su propio workspace');
     }
@@ -190,9 +190,9 @@ export class WorkspacesService {
         and(eq(workspaceMembers.workspaceId, workspaceId), eq(workspaceMembers.userId, aQuien)),
       );
 
-    await this.audit.registrar({
+    await this.audit.record({
       actorId: userId,
-      action: AccionAuditada.MIEMBRO_EXPULSADO,
+      action: AuditAction.MEMBER_REMOVED,
       resourceType: 'user',
       resourceId: aQuien,
       workspaceId,
@@ -200,14 +200,14 @@ export class WorkspacesService {
   }
 
   /** Abandonar un workspace ajeno (RF-308). El dueño no puede (RF-310). */
-  async abandonar(workspaceId: string, userId: string): Promise<void> {
-    const rol = await this.rolEn(workspaceId, userId);
+  async leave(workspaceId: string, userId: string): Promise<void> {
+    const rol = await this.roleIn(workspaceId, userId);
     if (rol === null) throw new NotFoundException('No perteneces a este workspace');
 
-    this.exigir(
+    this.enforce(
       canLeaveWorkspace({
         actor: this.actor(userId),
-        membership: this.membresia(workspaceId, userId, rol),
+        membership: this.membership(workspaceId, userId, rol),
       }),
     );
 
@@ -217,9 +217,9 @@ export class WorkspacesService {
         and(eq(workspaceMembers.workspaceId, workspaceId), eq(workspaceMembers.userId, userId)),
       );
 
-    await this.audit.registrar({
+    await this.audit.record({
       actorId: userId,
-      action: AccionAuditada.MIEMBRO_SALIDA,
+      action: AuditAction.MEMBER_LEFT,
       resourceType: 'user',
       resourceId: userId,
       workspaceId,
@@ -242,11 +242,15 @@ export class WorkspacesService {
     };
   }
 
-  private membresia(workspaceId: string, userId: string, role: WorkspaceRole): WorkspaceMembership {
+  private membership(
+    workspaceId: string,
+    userId: string,
+    role: WorkspaceRole,
+  ): WorkspaceMembership {
     return { workspaceId: asWorkspaceId(workspaceId), userId: asUserId(userId), role };
   }
 
-  private async rolEn(workspaceId: string, userId: string): Promise<WorkspaceRole | null> {
+  private async roleIn(workspaceId: string, userId: string): Promise<WorkspaceRole | null> {
     const [fila] = await currentTx()
       .select({ role: workspaceMembers.role })
       .from(workspaceMembers)
@@ -256,11 +260,11 @@ export class WorkspacesService {
     return fila?.role ?? null;
   }
 
-  private async permisoAdministrar(workspaceId: string, userId: string): Promise<Decision> {
-    const rol = await this.rolEn(workspaceId, userId);
+  private async adminDecision(workspaceId: string, userId: string): Promise<Decision> {
+    const rol = await this.roleIn(workspaceId, userId);
     return canAdministerWorkspace({
       actor: this.actor(userId),
-      membership: rol === null ? null : this.membresia(workspaceId, userId, rol),
+      membership: rol === null ? null : this.membership(workspaceId, userId, rol),
     });
   }
 
@@ -270,7 +274,7 @@ export class WorkspacesService {
    * Se responde 404 y no 403 cuando la persona ni siquiera es miembro: decirle
    * "no tienes permiso" ya le confirmaría que ese workspace existe.
    */
-  private exigir(decision: Decision): void {
+  private enforce(decision: Decision): void {
     if (decision.allowed) return;
     if (decision.reason === DenialReason.NOT_A_MEMBER) {
       throw new NotFoundException('El workspace no existe');
@@ -278,7 +282,7 @@ export class WorkspacesService {
     throw new ForbiddenException(decision.reason);
   }
 
-  private aDto(id: string, email: string, expira: Date): InvitacionDto {
+  private toDto(id: string, email: string, expira: Date): InvitationDto {
     return {
       id,
       email,

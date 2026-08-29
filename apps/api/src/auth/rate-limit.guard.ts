@@ -26,10 +26,10 @@ import { REDIS } from '../infrastructure/tokens.js';
  */
 @Injectable()
 export class RateLimitGuard implements CanActivate {
-  private readonly limitador: RateLimiterRedis;
+  private readonly limiter: RateLimiterRedis;
 
   constructor(@Inject(REDIS) redis: Redis) {
-    this.limitador = new RateLimiterRedis({
+    this.limiter = new RateLimiterRedis({
       storeClient: redis,
       keyPrefix: 'rl:auth',
       points: 20,
@@ -40,22 +40,22 @@ export class RateLimitGuard implements CanActivate {
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
     const request = context.switchToHttp().getRequest<Request>();
-    const clave = request.ip ?? 'desconocida';
+    const key = request.ip ?? 'unknown';
 
     try {
-      await this.limitador.consume(clave);
+      await this.limiter.consume(key);
       return true;
-    } catch (resultado) {
+    } catch (result) {
       // La librería rechaza con el estado del límite, no con un Error.
-      const espera =
-        typeof resultado === 'object' && resultado !== null && 'msBeforeNext' in resultado
-          ? Math.ceil(Number(resultado.msBeforeNext) / 1000)
+      const retryAfter =
+        typeof result === 'object' && result !== null && 'msBeforeNext' in result
+          ? Math.ceil(Number(result.msBeforeNext) / 1000)
           : 60;
       throw new HttpException(
         {
           statusCode: HttpStatus.TOO_MANY_REQUESTS,
-          message: 'Demasiados intentos. Inténtalo de nuevo en unos segundos.',
-          retryAfter: espera,
+          message: 'Too many attempts. Try again in a few seconds.',
+          retryAfter,
         },
         HttpStatus.TOO_MANY_REQUESTS,
       );

@@ -5,7 +5,7 @@ import { sessions, users } from '../src/index.js';
 import { asAppUser, startTestDb, type TestDb } from './helpers.js';
 
 /** Extrae el SQLSTATE de un error de Postgres, venga envuelto o no. */
-function sqlstateDe(error: unknown): string | undefined {
+function sqlstateOf(error: unknown): string | undefined {
   let actual: unknown = error;
   while (actual instanceof Error) {
     const code = (actual as Error & { code?: string }).code;
@@ -131,7 +131,7 @@ describe('la política también protege las escrituras', () => {
     // insufficient_privilege, que es como Postgres rechaza una escritura que
     // incumple el WITH CHECK de una política. El texto depende del idioma del
     // servidor y Drizzle además lo envuelve.
-    expect(sqlstateDe(error)).toBe('42501');
+    expect(sqlstateOf(error)).toBe('42501');
   });
 
   it('no se puede borrar la sesión de otro: la orden pasa, pero no toca nada', async () => {
@@ -153,7 +153,7 @@ describe('la política también protege las escrituras', () => {
           (e: unknown) => e,
         ),
       );
-      expect(sqlstateDe(error)).toBe('42501');
+      expect(sqlstateOf(error)).toBe('42501');
     }
 
     const roles = await testDb.db.select({ role: users.platformRole }).from(users);

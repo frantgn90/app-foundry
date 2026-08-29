@@ -2,14 +2,14 @@ import { sql } from 'drizzle-orm';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
 import { users, workspaceInvitations, workspaceMembers, workspaces } from '../src/index.js';
-import { type Escenario, sembrar } from './escenario.js';
+import { type Scenario, seed } from './escenario.js';
 import { asAppUser, startTestDb, type TestDb } from './helpers.js';
 
 let db: TestDb;
-let e: Escenario;
+let e: Scenario;
 
 /** SQLSTATE del error, venga envuelto o no. */
-function sqlstateDe(error: unknown): string | undefined {
+function sqlstateOf(error: unknown): string | undefined {
   let actual: unknown = error;
   while (actual instanceof Error) {
     const code = (actual as Error & { code?: string }).code;
@@ -29,7 +29,7 @@ async function fallo(fn: () => Promise<unknown>): Promise<unknown> {
 
 beforeAll(async () => {
   db = await startTestDb();
-  e = await sembrar(db.db);
+  e = await seed(db.db);
 });
 
 afterAll(async () => {
@@ -90,7 +90,7 @@ describe('quién ve qué workspaces', () => {
         tx.insert(workspaces).values({ ownerId: e.ana, name: 'Impostor', slug: 'impostor' }),
       ),
     );
-    expect(sqlstateDe(error)).toBe('42501');
+    expect(sqlstateOf(error)).toBe('42501');
   });
 });
 
@@ -115,7 +115,7 @@ describe('miembros de un workspace', () => {
         }),
       ),
     );
-    expect(sqlstateDe(error)).toBe('42501');
+    expect(sqlstateOf(error)).toBe('42501');
   });
 
   it('un invitado no puede expulsar a otro', async () => {
@@ -173,7 +173,7 @@ describe('invitaciones', () => {
         }),
       ),
     );
-    expect(sqlstateDe(error)).toBe('42501');
+    expect(sqlstateOf(error)).toBe('42501');
   });
 
   it('el email de una invitación compara sin distinguir mayúsculas', async () => {
@@ -192,7 +192,7 @@ describe('la deuda que dejó H0: ascenso a ADMIN', () => {
       ),
     );
     // 42501: el permiso de UPDATE sobre users no incluye esa columna.
-    expect(sqlstateDe(error)).toBe('42501');
+    expect(sqlstateOf(error)).toBe('42501');
 
     const [ana] = await db.db
       .select({ role: users.platformRole })
@@ -207,7 +207,7 @@ describe('la deuda que dejó H0: ascenso a ADMIN', () => {
         tx.execute(sql`UPDATE users SET status = 'ACTIVE' WHERE id = ${e.ana}`),
       ),
     );
-    expect(sqlstateDe(error)).toBe('42501');
+    expect(sqlstateOf(error)).toBe('42501');
   });
 
   it('pero sí puede cambiar su nombre visible', async () => {
@@ -254,7 +254,7 @@ describe('registro de auditoría', () => {
     );
     // Sin esto, cualquiera podría fabricar entradas atribuidas a otro, que es
     // lo único que haría inútil un registro de auditoría.
-    expect(sqlstateDe(error)).toBe('42501');
+    expect(sqlstateOf(error)).toBe('42501');
   });
 
   it('la auditoría no se puede modificar ni borrar desde la aplicación', async () => {
@@ -268,7 +268,7 @@ describe('registro de auditoría', () => {
       sql`UPDATE audit_log SET action = 'otra'`,
     ]) {
       const error = await fallo(() => asAppUser(db.db, e.ana, (tx) => tx.execute(sentencia)));
-      expect(sqlstateDe(error)).toBe('42501');
+      expect(sqlstateOf(error)).toBe('42501');
     }
   });
 

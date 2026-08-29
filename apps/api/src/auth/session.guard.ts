@@ -7,10 +7,10 @@ import {
 import { Reflector } from '@nestjs/core';
 import type { Request } from 'express';
 
-import { ES_PUBLICO } from './public.decorator.js';
+import { IS_PUBLIC } from './public.decorator.js';
 import { SessionService } from './session.service.js';
 
-export const COOKIE_SESION = 'foundry_session';
+export const SESSION_COOKIE = 'foundry_session';
 
 /**
  * Lo único que el guard sabe de quien pide: su identificador.
@@ -19,7 +19,7 @@ export const COOKIE_SESION = 'foundry_session';
  * cada petición para algo que casi ningún endpoint necesita; quien lo necesite
  * lo pide explícitamente.
  */
-export interface PeticionAutenticada {
+export interface AuthenticatedRequest {
   id: string;
 }
 
@@ -39,22 +39,22 @@ export class SessionGuard implements CanActivate {
   ) {}
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
-    const publico = this.reflector.getAllAndOverride<boolean>(ES_PUBLICO, [
+    const publico = this.reflector.getAllAndOverride<boolean>(IS_PUBLIC, [
       context.getHandler(),
       context.getClass(),
     ]);
     if (publico) return true;
 
-    const request = context.switchToHttp().getRequest<Request & { user?: PeticionAutenticada }>();
-    const token = (request.cookies as Record<string, string> | undefined)?.[COOKIE_SESION];
-    if (!token) throw new UnauthorizedException('No hay sesión');
+    const request = context.switchToHttp().getRequest<Request & { user?: AuthenticatedRequest }>();
+    const token = (request.cookies as Record<string, string> | undefined)?.[SESSION_COOKIE];
+    if (!token) throw new UnauthorizedException('Not signed in');
 
-    const sesion = await this.sessions.validar(token);
-    if (!sesion) throw new UnauthorizedException('La sesión no es válida o ha caducado');
+    const session = await this.sessions.validate(token);
+    if (!session) throw new UnauthorizedException('Session is invalid or expired');
 
     // El guard corre antes que el interceptor de transacción, que leerá este
     // identificador para fijar la identidad en la base de datos.
-    request.user = { id: sesion.userId };
+    request.user = { id: session.userId };
     return true;
   }
 }

@@ -1,6 +1,6 @@
 import { ApiProperty } from '@nestjs/swagger';
 
-export class UsuarioActualDto {
+export class CurrentUserDto {
   @ApiProperty({ format: 'uuid' })
   id!: string;
 

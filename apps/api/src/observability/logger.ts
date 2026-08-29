@@ -9,7 +9,7 @@ import pino, { type Logger as PinoLogger } from 'pino';
  * contenido de documentos y texto de comentarios queden fuera por diseño, y una
  * regla que hay que recordar aplicar acaba olvidándose.
  */
-const CAMPOS_REDACTADOS = [
+const REDACTED_FIELDS = [
   'req.headers.cookie',
   'req.headers.authorization',
   'res.headers["set-cookie"]',
@@ -27,7 +27,7 @@ const CAMPOS_REDACTADOS = [
   '*.ip',
 ];
 
-export interface OpcionesLogger {
+export interface LoggerOptions {
   level: string;
   /** Formato legible para desarrollo; en producción, JSON en una línea. */
   pretty: boolean;
@@ -41,8 +41,8 @@ export interface OpcionesLogger {
  * ya correlacionados con su traza. Enviarlos solo por OTLP dejaría la terminal
  * muda, y solo por stdout obligaría a recogerlos del contenedor.
  */
-export function crearLogger({ level, pretty, otlpEndpoint }: OpcionesLogger): PinoLogger {
-  const destinos = [
+export function createLogger({ level, pretty, otlpEndpoint }: LoggerOptions): PinoLogger {
+  const targets = [
     pretty
       ? { target: 'pino-pretty', options: { translateTime: 'HH:MM:ss', ignore: 'pid,hostname' } }
       : { target: 'pino/file', options: { destination: 1 } },
@@ -58,7 +58,7 @@ export function crearLogger({ level, pretty, otlpEndpoint }: OpcionesLogger): Pi
 
   return pino({
     level,
-    redact: { paths: CAMPOS_REDACTADOS, censor: '[redactado]' },
+    redact: { paths: REDACTED_FIELDS, censor: '[redactado]' },
     /**
      * Correlación con la traza: cada línea lleva el identificador del span
      * activo, que es lo que permite saltar de un log a su traza en Grafana y al
@@ -70,7 +70,7 @@ export function crearLogger({ level, pretty, otlpEndpoint }: OpcionesLogger): Pi
       const { traceId, spanId } = span.spanContext();
       return { trace_id: traceId, span_id: spanId };
     },
-    transport: { targets: destinos },
+    transport: { targets: targets },
   });
 }
 

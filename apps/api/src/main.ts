@@ -8,11 +8,11 @@ import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { loadEnv } from '@app-foundry/env';
 
 import { AppModule } from './app.module.js';
-import { crearLogger, PinoNestLogger } from './observability/logger.js';
+import { createLogger, PinoNestLogger } from './observability/logger.js';
 
 async function bootstrap(): Promise<void> {
   const env = loadEnv();
-  const logger = crearLogger({
+  const logger = createLogger({
     level: env.LOG_LEVEL,
     pretty: env.NODE_ENV === 'development',
     otlpEndpoint: env.OTEL_ENABLED ? env.OTEL_EXPORTER_OTLP_ENDPOINT : undefined,

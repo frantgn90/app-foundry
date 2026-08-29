@@ -9,7 +9,7 @@ import { ENV, REDIS } from '../infrastructure/tokens.js';
 import { RedisStateStore } from './state-store.js';
 
 /** Lo que necesitamos de GitHub, y nada más. */
-export interface PerfilGitHub {
+export interface GitHubProfile {
   githubId: number;
   handle: string;
   email: string;
@@ -17,7 +17,7 @@ export interface PerfilGitHub {
   avatarUrl: string | null;
 }
 
-interface RespuestaUsuario {
+interface GitHubUserResponse {
   id: number;
   login: string;
   name: string | null;
@@ -25,7 +25,7 @@ interface RespuestaUsuario {
   avatar_url: string | null;
 }
 
-interface RespuestaEmail {
+interface GitHubEmailResponse {
   email: string;
   primary: boolean;
   verified: boolean;
@@ -63,46 +63,45 @@ export class GithubStrategy extends PassportStrategy(Strategy, 'github') {
    * aparte. El email se consulta en su propio endpoint porque el del perfil
    * puede ser nulo si la persona lo tiene oculto, y necesitamos uno verificado.
    */
-  async validate(accessToken: string): Promise<PerfilGitHub> {
-    const cabeceras = {
+  async validate(accessToken: string): Promise<GitHubProfile> {
+    const headers = {
       Authorization: `Bearer ${accessToken}`,
       Accept: 'application/vnd.github+json',
       'User-Agent': 'app-foundry',
     };
 
-    const respuestaUsuario = await fetch('https://api.github.com/user', { headers: cabeceras });
-    if (!respuestaUsuario.ok) {
-      throw new Error(`GitHub respondió ${String(respuestaUsuario.status)} al pedir el perfil`);
+    const userResponse = await fetch('https://api.github.com/user', { headers });
+    if (!userResponse.ok) {
+      throw new Error(`GitHub responded ${String(userResponse.status)} when fetching the profile`);
     }
-    const usuario = (await respuestaUsuario.json()) as RespuestaUsuario;
+    const user = (await userResponse.json()) as GitHubUserResponse;
 
-    const email = await this.emailVerificado(cabeceras, usuario.email);
+    const email = await this.verifiedEmail(headers, user.email);
     if (email === null) {
       // Sin email verificado no se puede dar de alta (RF-103): es lo que
       // relaciona a la persona con las invitaciones que le hayan enviado.
-      throw new Error('Tu cuenta de GitHub no tiene ningún email verificado');
+      throw new Error('Your GitHub account has no verified email address');
     }
 
     return {
-      githubId: usuario.id,
-      handle: usuario.login,
+      githubId: user.id,
+      handle: user.login,
       email,
-      displayName: usuario.name ?? usuario.login,
-      avatarUrl: usuario.avatar_url,
+      displayName: user.name ?? user.login,
+      avatarUrl: user.avatar_url,
     };
   }
 
-  private async emailVerificado(
-    cabeceras: Record<string, string>,
-    emailDelPerfil: string | null,
+  private async verifiedEmail(
+    headers: Record<string, string>,
+    profileEmail: string | null,
   ): Promise<string | null> {
-    const respuesta = await fetch('https://api.github.com/user/emails', { headers: cabeceras });
-    if (respuesta.ok) {
-      const emails = (await respuesta.json()) as RespuestaEmail[];
-      const principal =
-        emails.find((e) => e.primary && e.verified) ?? emails.find((e) => e.verified);
-      if (principal) return principal.email;
+    const response = await fetch('https://api.github.com/user/emails', { headers });
+    if (response.ok) {
+      const emails = (await response.json()) as GitHubEmailResponse[];
+      const primary = emails.find((e) => e.primary && e.verified) ?? emails.find((e) => e.verified);
+      if (primary) return primary.email;
     }
-    return emailDelPerfil;
+    return profileEmail;
   }
 }

@@ -12,17 +12,17 @@ import { AuthGuard } from '@nestjs/passport';
 import { ApiExcludeEndpoint, ApiOkResponse, ApiOperation, ApiTags } from '@nestjs/swagger';
 import type { Request, Response } from 'express';
 
-import { truncarIp } from '@app-foundry/core';
+import { truncateIp } from '@app-foundry/core';
 import type { Env } from '@app-foundry/env';
 
 import { ENV } from '../infrastructure/tokens.js';
 import { AuthService } from './auth.service.js';
-import { UsuarioActualDto } from './auth.dto.js';
-import { IdUsuarioActual } from './current-user.decorator.js';
-import type { PerfilGitHub } from './github.strategy.js';
-import { Publico } from './public.decorator.js';
+import { CurrentUserDto } from './auth.dto.js';
+import { CurrentUserId } from './current-user.decorator.js';
+import type { GitHubProfile } from './github.strategy.js';
+import { Public } from './public.decorator.js';
 import { RateLimitGuard } from './rate-limit.guard.js';
-import { COOKIE_SESION, SessionGuard } from './session.guard.js';
+import { SESSION_COOKIE, SessionGuard } from './session.guard.js';
 import { SessionService } from './session.service.js';
 
 @ApiTags('auth')
@@ -35,32 +35,32 @@ export class AuthController {
   ) {}
 
   /** Lleva a GitHub. Passport se encarga de la redirección y del `state`. */
-  @Publico()
+  @Public()
   @Get('github')
   @UseGuards(RateLimitGuard, AuthGuard('github'))
   @ApiOperation({ summary: 'Iniciar sesión con GitHub' })
-  iniciar(): void {
+  signIn(): void {
     // Passport redirige antes de llegar aquí.
   }
 
-  @Publico()
+  @Public()
   @Get('github/callback')
   @UseGuards(RateLimitGuard, AuthGuard('github'))
   @ApiExcludeEndpoint()
   async callback(
-    @Req() request: Request & { user?: PerfilGitHub },
+    @Req() request: Request & { user?: GitHubProfile },
     @Res() response: Response,
   ): Promise<void> {
-    if (!request.user) throw new UnauthorizedException('GitHub no devolvió ningún perfil');
+    if (!request.user) throw new UnauthorizedException('GitHub no devolvió ningún profile');
 
-    const usuario = await this.auth.provisionar(request.user);
-    const token = await this.sessions.crear(
-      usuario.id,
-      truncarIp(request.ip),
+    const user = await this.auth.provision(request.user);
+    const token = await this.sessions.create(
+      user.id,
+      truncateIp(request.ip),
       request.get('user-agent') ?? null,
     );
 
-    response.cookie(COOKIE_SESION, token, this.opcionesCookie());
+    response.cookie(SESSION_COOKIE, token, this.cookieOptions());
     // De vuelta a la aplicación, que ya consultará /me para saber quién eres.
     response.redirect(this.env.WEB_ORIGIN);
   }
@@ -72,20 +72,20 @@ export class AuthController {
     @Req() request: Request,
     @Res({ passthrough: true }) response: Response,
   ): Promise<void> {
-    const token = (request.cookies as Record<string, string> | undefined)?.[COOKIE_SESION];
-    if (token) await this.sessions.revocar(token);
-    response.clearCookie(COOKIE_SESION, this.opcionesCookie());
+    const token = (request.cookies as Record<string, string> | undefined)?.[SESSION_COOKIE];
+    if (token) await this.sessions.revoke(token);
+    response.clearCookie(SESSION_COOKIE, this.cookieOptions());
   }
 
   @Get('me')
   @UseGuards(SessionGuard)
   @ApiOperation({ summary: 'Quién soy' })
-  @ApiOkResponse({ type: UsuarioActualDto })
-  async yo(@IdUsuarioActual() userId: string): Promise<UsuarioActualDto> {
-    return this.auth.perfil(userId);
+  @ApiOkResponse({ type: CurrentUserDto })
+  async me(@CurrentUserId() userId: string): Promise<CurrentUserDto> {
+    return this.auth.profile(userId);
   }
 
-  private opcionesCookie() {
+  private cookieOptions() {
     return {
       httpOnly: true,
       sameSite: 'lax' as const,

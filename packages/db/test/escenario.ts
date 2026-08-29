@@ -18,7 +18,7 @@ import {
  * Se siembra como superusuario, que siempre ignora RLS, para preparar el
  * escenario sin que las políticas estorben.
  */
-export interface Escenario {
+export interface Scenario {
   ana: string;
   bruno: string;
   carla: string;
@@ -27,7 +27,7 @@ export interface Escenario {
   invitacionPendiente: string;
 }
 
-export async function sembrar(db: Database): Promise<Escenario> {
+export async function seed(db: Database): Promise<Scenario> {
   const [ana] = await db
     .insert(users)
     .values({ githubId: 2001, handle: 'ana', email: 'ana@example.com', displayName: 'Ana' })
@@ -76,7 +76,7 @@ export async function sembrar(db: Database): Promise<Escenario> {
   };
 }
 
-export async function limpiar(db: Database): Promise<void> {
+export async function clean(db: Database): Promise<void> {
   await db.execute(sql`TRUNCATE users, workspaces, workspace_members,
                        workspace_invitations, sessions RESTART IDENTITY CASCADE`);
 }

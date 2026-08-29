@@ -9,9 +9,9 @@ import type {
   StateStoreVerifyCallback,
 } from 'passport-oauth2';
 
-const PREFIJO = 'oauth:state:';
+const PREFIX = 'oauth:state:';
 /** El usuario tiene diez minutos para completar el login en GitHub. */
-const TTL_SEGUNDOS = 600;
+const TTL_SECONDS = 600;
 
 /**
  * Almacén del parámetro `state` del flujo OAuth, en Redis.
@@ -38,12 +38,15 @@ export class RedisStateStore implements StateStore {
     const callback = (quizaCallback ?? metaOCallback) as StateStoreStoreCallback;
     const state = randomBytes(24).toString('base64url');
     this.redis
-      .setex(PREFIJO + state, TTL_SEGUNDOS, '1')
+      .setex(PREFIX + state, TTL_SECONDS, '1')
       .then(() => {
         callback(null, state);
       })
       .catch((error: unknown) => {
-        callback(error instanceof Error ? error : new Error('No se pudo guardar el state'), null);
+        callback(
+          error instanceof Error ? error : new Error('Could not store the OAuth state'),
+          null,
+        );
       });
   }
 
@@ -58,17 +61,17 @@ export class RedisStateStore implements StateStore {
     const callback = (quizaCallback ?? metaOCallback) as StateStoreVerifyCallback;
     // DEL devuelve cuántas claves borró: si es 1, el state existía y era este.
     this.redis
-      .del(PREFIJO + state)
-      .then((borradas) => {
-        if (borradas === 1) {
+      .del(PREFIX + state)
+      .then((deleted) => {
+        if (deleted === 1) {
           callback(null, true, state);
         } else {
-          callback(null, false, { message: 'El parámetro state no es válido o ha caducado' });
+          callback(null, false, { message: 'The state parameter is invalid or expired' });
         }
       })
       .catch((error: unknown) => {
         callback(
-          error instanceof Error ? error : new Error('No se pudo verificar el state'),
+          error instanceof Error ? error : new Error('Could not verify the OAuth state'),
           false,
           null,
         );

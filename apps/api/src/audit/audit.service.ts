@@ -5,20 +5,20 @@ import { auditLog } from '@app-foundry/db';
 import { currentTx } from '../database/request-context.js';
 
 /** Acciones registrables. Enumerarlas evita cadenas sueltas por el código. */
-export const AccionAuditada = {
-  SESION_INICIADA: 'sesion.iniciada',
-  USUARIO_ALTA: 'usuario.alta',
-  WORKSPACE_RENOMBRADO: 'workspace.renombrado',
-  INVITACION_CREADA: 'invitacion.creada',
-  INVITACION_REVOCADA: 'invitacion.revocada',
-  MIEMBRO_EXPULSADO: 'miembro.expulsado',
-  MIEMBRO_SALIDA: 'miembro.salida',
+export const AuditAction = {
+  SESSION_STARTED: 'sesion.iniciada',
+  USER_CREATED: 'usuario.alta',
+  WORKSPACE_RENAMED: 'workspace.renombrado',
+  INVITATION_CREATED: 'invitacion.creada',
+  INVITATION_REVOKED: 'invitacion.revocada',
+  MEMBER_REMOVED: 'miembro.expulsado',
+  MEMBER_LEFT: 'miembro.salida',
 } as const;
-export type AccionAuditada = (typeof AccionAuditada)[keyof typeof AccionAuditada];
+export type AuditAction = (typeof AuditAction)[keyof typeof AuditAction];
 
-export interface EventoAuditable {
+export interface AuditEvent {
   actorId: string;
-  action: AccionAuditada;
+  action: AuditAction;
   resourceType?: string;
   resourceId?: string;
   workspaceId?: string;
@@ -36,7 +36,7 @@ export class AuditService {
    * `metadata` guarda identificadores y valores de enum, nunca contenido ni
    * credenciales (RF-706, RNF-112).
    */
-  async registrar(evento: EventoAuditable): Promise<void> {
+  async record(evento: AuditEvent): Promise<void> {
     await currentTx()
       .insert(auditLog)
       .values({

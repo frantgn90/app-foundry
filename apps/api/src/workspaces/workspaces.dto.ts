@@ -21,14 +21,14 @@ export class WorkspaceDto {
   isPersonal!: boolean;
 }
 
-export class RenombrarWorkspaceDto {
+export class RenameWorkspaceDto {
   @ApiProperty({ minLength: 1, maxLength: 80 })
   @IsString()
   @Length(1, 80)
   name!: string;
 }
 
-export class MiembroDto {
+export class MemberDto {
   @ApiProperty({ format: 'uuid' })
   userId!: string;
 
@@ -45,13 +45,13 @@ export class MiembroDto {
   role!: 'OWNER' | 'MEMBER';
 }
 
-export class InvitarDto {
+export class InviteDto {
   @ApiProperty({ format: 'email', description: 'Email de la persona a invitar' })
   @IsEmail()
   email!: string;
 }
 
-export class InvitacionDto {
+export class InvitationDto {
   @ApiProperty({ format: 'uuid' })
   id!: string;
 

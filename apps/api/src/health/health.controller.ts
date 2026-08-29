@@ -9,14 +9,14 @@ import {
 import type { Response } from 'express';
 
 import { DependencyCheckDto, LivenessDto, ReadinessReportDto } from './health.dto.js';
-import { Publico } from '../auth/public.decorator.js';
+import { Public } from '../auth/public.decorator.js';
 import { HealthService } from './health.service.js';
 
 // DependencyCheckDto solo aparece dentro de un mapa, así que hay que
 // registrarlo a mano para que llegue al contrato.
 @ApiExtraModels(DependencyCheckDto)
 // La salud la consulta un orquestador, que no tiene sesión.
-@Publico()
+@Public()
 @ApiTags('health')
 @Controller('health')
 export class HealthController {

@@ -1,72 +1,73 @@
-import { useQuery } from '@tanstack/react-query';
+import { useEffect, useState } from 'react';
 
-import { createApiClient } from '@app-foundry/contracts';
+import { Layout } from './components/layout.js';
+import { LoginPage } from './pages/login.js';
+import { WorkspacePage } from './pages/workspace.js';
+import { useSession, useWorkspaces } from './lib/api.js';
 
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './components/ui/card.js';
+const WORKSPACE_KEY = 'app-foundry:workspace';
 
-// El cliente se deriva del OpenAPI que publica el servidor: si una ruta cambia,
-// esto deja de compilar (TRD T-8).
-const api = createApiClient();
+export function App() {
+  const session = useSession();
+  const workspaces = useWorkspaces(Boolean(session.data));
+  const [selected, setSelected] = useState<string | null>(() =>
+    localStorage.getItem(WORKSPACE_KEY),
+  );
 
-function Indicador({ estado }: { estado: 'up' | 'down' }) {
+  // Al entrar se aterriza en el workspace personal (RF-301), salvo que ya
+  // estuvieras en otro la última vez.
+  useEffect(() => {
+    if (!workspaces.data || workspaces.data.length === 0) return;
+    const exists = workspaces.data.some((w) => w.id === selected);
+    if (!exists) {
+      const personalWorkspace = workspaces.data.find((w) => w.isPersonal) ?? workspaces.data[0];
+      if (personalWorkspace) setSelected(personalWorkspace.id);
+    }
+  }, [workspaces.data, selected]);
+
+  if (session.isPending) {
+    return <Screen text="Loading…" />;
+  }
+
+  // Sin sesión no hay nada que enseñar salvo la puerta.
+  if (!session.data) {
+    return <LoginPage />;
+  }
+
+  if (workspaces.isError) {
+    return <Screen text="Something went wrong loading your workspaces." error />;
+  }
+
+  const current = workspaces.data?.find((w) => w.id === selected);
+
   return (
-    <span
-      className="inline-block size-2 rounded-full"
-      style={{ backgroundColor: estado === 'up' ? 'var(--color-ok)' : 'var(--color-fallo)' }}
-      aria-hidden
-    />
+    <Layout
+      session={session.data}
+      workspaces={workspaces.data ?? []}
+      current={current}
+      onSelect={(id) => {
+        setSelected(id);
+        localStorage.setItem(WORKSPACE_KEY, id);
+      }}
+    >
+      {current ? (
+        <WorkspacePage workspace={current} />
+      ) : (
+        <Screen text="Preparing your workspace…" />
+      )}
+    </Layout>
   );
 }
 
-export function App() {
-  const { data, isPending, isError } = useQuery({
-    queryKey: ['health'],
-    queryFn: async () => {
-      const { data, error } = await api.GET('/health/ready');
-      if (error) throw new Error('La API no responde');
-      return data;
-    },
-    refetchInterval: 10_000,
-  });
-
+function Screen({ text, error = false }: { text: string; error?: boolean }) {
   return (
-    <main className="mx-auto flex min-h-screen max-w-2xl flex-col justify-center gap-6 px-6 py-16">
-      <header className="flex flex-col gap-2">
-        <h1 className="text-3xl font-semibold tracking-tight">App Foundry</h1>
-        <p className="text-[var(--color-texto-suave)]">
-          Un espacio para pensar, definir y traquear ideas de aplicaciones.
-        </p>
-      </header>
-
-      <Card>
-        <CardHeader>
-          <CardTitle>Estado del sistema</CardTitle>
-          <CardDescription>
-            Andamiaje del hito H0. Todavía no hay producto: solo los cimientos.
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          {isPending && <p className="text-sm text-[var(--color-texto-suave)]">Consultando…</p>}
-          {isError && (
-            <p className="text-sm" style={{ color: 'var(--color-fallo)' }}>
-              La API no responde. ¿Está arrancada en el puerto 3001?
-            </p>
-          )}
-          {data && (
-            <ul className="flex flex-col gap-2 text-sm">
-              {Object.entries(data.checks).map(([nombre, check]) => (
-                <li key={nombre} className="flex items-center gap-2">
-                  <Indicador estado={check.status} />
-                  <span className="font-medium">{nombre}</span>
-                  <span className="text-[var(--color-texto-suave)]">
-                    {check.status === 'up' ? `${String(check.latencyMs)} ms` : check.error}
-                  </span>
-                </li>
-              ))}
-            </ul>
-          )}
-        </CardContent>
-      </Card>
-    </main>
+    <div className="grid min-h-screen place-items-center px-6">
+      <p
+        className="text-sm"
+        style={{ color: error ? 'var(--color-fallo)' : 'var(--color-texto-suave)' }}
+      >
+        {text}
+      </p>
+    </div>
   );
 }

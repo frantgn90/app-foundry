@@ -9,15 +9,15 @@ import type { Env } from '@app-foundry/env';
 
 import { DATABASE, ENV, REDIS } from '../infrastructure/tokens.js';
 
-export interface SesionValida {
+export interface ValidSession {
   sessionId: string;
   userId: string;
   expiresAt: Date;
 }
 
-const PREFIJO_CACHE = 'sess:';
+const CACHE_PREFIX = 'sess:';
 /** Corto a propósito: revocar debe notarse en segundos, no en minutos. */
-const TTL_CACHE_SEGUNDOS = 30;
+const CACHE_TTL_SECONDS = 30;
 
 /**
  * Sesiones opacas respaldadas por la base de datos.
@@ -40,54 +40,54 @@ export class SessionService {
   ) {}
 
   /** Devuelve el token en claro: es la única vez que existe fuera del navegador. */
-  async crear(userId: string, ip: string | null, userAgent: string | null): Promise<string> {
+  async create(userId: string, ip: string | null, userAgent: string | null): Promise<string> {
     const token = randomBytes(32).toString('base64url');
-    const expira = new Date(Date.now() + this.env.SESSION_TTL_DAYS * 86_400_000);
+    const expiresAt = new Date(Date.now() + this.env.SESSION_TTL_DAYS * 86_400_000);
 
     await this.db.execute(
       sql`SELECT auth_create_session(${userId}::uuid, ${this.hash(token)}::bytea,
-                                     ${expira.toISOString()}::timestamptz,
+                                     ${expiresAt.toISOString()}::timestamptz,
                                      ${ip}::inet, ${userAgent}::text)`,
     );
     return token;
   }
 
-  async validar(token: string): Promise<SesionValida | null> {
+  async validate(token: string): Promise<ValidSession | null> {
     const hash = this.hash(token);
-    const clave = PREFIJO_CACHE + hash.toString('hex');
+    const key = CACHE_PREFIX + hash.toString('hex');
 
-    const cacheado = await this.redis.get(clave).catch(() => null);
-    if (cacheado !== null) {
-      const datos = JSON.parse(cacheado) as {
+    const cached = await this.redis.get(key).catch(() => null);
+    if (cached !== null) {
+      const data = JSON.parse(cached) as {
         sessionId: string;
         userId: string;
         expiresAt: string;
       };
-      return { ...datos, expiresAt: new Date(datos.expiresAt) };
+      return { ...data, expiresAt: new Date(data.expiresAt) };
     }
 
-    const resultado = await this.db.execute<{
+    const result = await this.db.execute<{
       session_id: string;
       user_id: string;
       expires_at: string;
     }>(sql`SELECT * FROM auth_find_session(${hash}::bytea)`);
 
-    const fila = resultado.rows[0];
-    if (!fila) return null;
+    const row = result.rows[0];
+    if (!row) return null;
 
-    const sesion: SesionValida = {
-      sessionId: fila.session_id,
-      userId: fila.user_id,
-      expiresAt: new Date(fila.expires_at),
+    const session: ValidSession = {
+      sessionId: row.session_id,
+      userId: row.user_id,
+      expiresAt: new Date(row.expires_at),
     };
-    await this.redis.setex(clave, TTL_CACHE_SEGUNDOS, JSON.stringify(sesion)).catch(() => null);
-    return sesion;
+    await this.redis.setex(key, CACHE_TTL_SECONDS, JSON.stringify(session)).catch(() => null);
+    return session;
   }
 
-  async revocar(token: string): Promise<void> {
+  async revoke(token: string): Promise<void> {
     const hash = this.hash(token);
     await this.db.execute(sql`SELECT auth_revoke_session(${hash}::bytea)`);
-    await this.redis.del(PREFIJO_CACHE + hash.toString('hex')).catch(() => null);
+    await this.redis.del(CACHE_PREFIX + hash.toString('hex')).catch(() => null);
   }
 
   /** SHA-256 del token: en la base de datos nunca hay nada reutilizable. */
