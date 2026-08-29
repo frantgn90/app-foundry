@@ -220,6 +220,65 @@
 
 ---
 
+## H4 — Conversar sobre el texto
+
+> Objetivo: que refinar una visión deje de ser un monólogo. Un hilo general al
+> pie y comentarios anclados a fragmentos concretos, al estilo de Confluence.
+>
+> Es la parte técnicamente más delicada del proyecto. El problema no es guardar
+> comentarios: es que el texto al que se anclan **sigue cambiando**, y un
+> comentario que pierde su sitio no puede ni desaparecer ni engancharse al
+> fragmento equivocado (TRD §9).
+
+### Bloque R — Modelo de comentarios
+
+| # | Tarea | Verificación | Traza | Estado |
+|---|---|---|---|---|
+| R1 | Tablas `comment_threads`, `comments` y `comment_mentions` | El esquema declarado coincide con el aplicado | §5.4 | ⬜ |
+| R2 | Anidamiento de un solo nivel, garantizado por la base de datos | Responder a una respuesta se rechaza en el motor, no solo en la interfaz | RF-804 | ⬜ |
+| R3 | Políticas: comenta quien puede leer, incluido `WORKSPACE_READ` | Un lector que no edita sí comenta | RF-803, D-12 | ⬜ |
+| R4 | Borrado lógico que conserva el hilo y la autoría | Expulsar a alguien no borra lo que escribió | RF-806, RF-813 | ⬜ |
+| R5 | Tests de aislamiento de los comentarios | Quien no ve la app no ve sus hilos | RNF-401 | ⬜ |
+
+### Bloque S — Anclaje y reanclaje
+
+> Lógica pura, en `core` y con tests exhaustivos: es donde un error se traduce
+> en comentarios pegados donde no tocan, y eso destruye la confianza en la
+> herramienta más rápido que perderlos.
+
+| # | Tarea | Verificación | Traza | Estado |
+|---|---|---|---|---|
+| S1 | Modelo de ancla: cita, prefijo, sufijo y posición | Se captura de un fragmento y se vuelve a encontrar en el mismo texto | RF-808 | ⬜ |
+| S2 | Reanclaje por coincidencia exacta y por contexto | Editar el final del documento no mueve los anclajes de arriba | TRD §9.3 | ⬜ |
+| S3 | Reanclaje difuso ante ediciones menores | Corregir una errata dentro del fragmento no rompe su anclaje | TRD §9.3 | ⬜ |
+| S4 | Marcar como huérfano cuando el fragmento desaparece | Ante la duda, huérfano antes que anclado en el sitio equivocado | RF-809 | ⬜ |
+| S5 | Un ancla huérfana revive si el texto vuelve | Restaurar una versión anterior recupera sus anclajes | RF-809 | ⬜ |
+
+### Bloque T — API de comentarios
+
+| # | Tarea | Verificación | Traza | Estado |
+|---|---|---|---|---|
+| T1 | Hilo general: crear, responder, listar | Cualquiera que pueda leer la app comenta | RF-801, RF-803 | ⬜ |
+| T2 | Hilos inline anclados a una selección | Se guarda cita, contexto y versión de origen | RF-802, RF-808 | ⬜ |
+| T3 | Reanclaje al guardar una versión nueva | Se calcula una vez por edición, no una por visita | TRD §9.3 | ⬜ |
+| T4 | Editar y borrar comentarios propios; el precursor borra cualquier hilo | Un comentario editado se marca como tal | RF-806 | ⬜ |
+| T5 | Resolver y reabrir hilos, registrando quién | Los resueltos se ocultan por defecto y se recuperan | RF-807 | ⬜ |
+| T6 | Menciones limitadas a miembros del workspace | El autocompletado no revela usuarios de fuera | RF-814, RF-815 | ⬜ |
+| T7 | Tests de API de todo lo anterior | Incluidos los casos negativos de permisos | RNF-401 | ⬜ |
+
+### Bloque W — Interfaz de comentarios
+
+| # | Tarea | Verificación | Traza | Estado |
+|---|---|---|---|---|
+| W1 | Hilo general al pie de la visión | Comentar y responder sin salir de la lectura | RF-801 | ⬜ |
+| W2 | Seleccionar texto y comentar sobre la selección | La selección del navegador se traduce a posición en el markdown | RF-802, TRD §9.1 | ⬜ |
+| W3 | Panel lateral con los hilos y su estado | Activos, resueltos y huérfanos, con su cita original | RF-810 | ⬜ |
+| W4 | Resaltado del fragmento y navegación en ambos sentidos | Del hilo al texto y del texto al hilo | RF-810 | ⬜ |
+| W5 | Menciones con autocompletado | Escribir `@` ofrece solo miembros del workspace | RF-814 | ⬜ |
+| W6 | Contador de hilos abiertos en la ficha y el listado | Se ve dónde hay conversación pendiente | RF-811 | ⬜ |
+
+---
+
 ## Mejoras detectadas usando el producto
 
 > No salen de un hito: salen de abrir la aplicación y encontrarse con algo que
