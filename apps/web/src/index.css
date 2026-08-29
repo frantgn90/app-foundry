@@ -139,3 +139,14 @@
   text-decoration-color: color-mix(in oklab, #a16207 70%, transparent);
   text-underline-offset: 3px;
 }
+
+/*
+ * Fragmento sobre el que se está escribiendo un comentario todavía sin enviar.
+ *
+ * Se distingue del amarillo de los comentarios ya existentes: aquí no hay nada
+ * guardado aún, y confundirlos haría creer que el comentario ya está.
+ */
+::highlight(foundry-anchor-pending) {
+  background-color: color-mix(in oklab, var(--color-acento) 30%, transparent);
+  color: var(--color-texto);
+}

@@ -12,6 +12,7 @@
  */
 const ALL = 'foundry-anchors';
 const ACTIVE = 'foundry-anchor-active';
+const PENDING = 'foundry-anchor-pending';
 
 export interface AnchorRange {
   threadId: string;
@@ -95,6 +96,28 @@ export function paintAnchors(
       block?.scrollIntoView({ block: 'center', behavior: 'smooth' });
     }
   }
+}
+
+/**
+ * Marca el fragmento sobre el que se está a punto de comentar.
+ *
+ * La selección nativa del navegador se apaga en cuanto el foco pasa al campo de
+ * texto, y entonces se pierde de vista sobre qué se estaba comentando. Este
+ * resaltado propio no depende del foco, así que el contexto sigue ahí mientras
+ * se escribe.
+ */
+export function paintPending(
+  root: HTMLElement | null,
+  anchor: { start: number; end: number } | null,
+): void {
+  if (!('highlights' in CSS)) return;
+  const highlights = CSS.highlights as Map<string, Highlight>;
+
+  highlights.delete(PENDING);
+  if (!root || !anchor) return;
+
+  const range = rangeFor(root, { threadId: '', ...anchor });
+  if (range) highlights.set(PENDING, new Highlight(range));
 }
 
 /**

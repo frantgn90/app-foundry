@@ -18,7 +18,7 @@ import {
   useVersions,
 } from '../lib/api.js';
 import { CommentsPanel } from '../components/comments-panel.js';
-import { type AnchorRange, paintAnchors, sourceOffsetAt } from '../lib/highlight.js';
+import { type AnchorRange, paintAnchors, paintPending, sourceOffsetAt } from '../lib/highlight.js';
 import { SelectionMenu } from '../components/selection-menu.js';
 import { resolveSelection, type SourceSelection } from '../lib/selection.js';
 import { MentionInput } from '../components/mention-input.js';
@@ -87,13 +87,31 @@ export function AppDetailPage({
 
   const anchorsKey = anchorRanges.map((a) => `${a.threadId}:${String(a.start)}`).join('|');
 
+  /*
+   * Todo el resaltado se pinta de una vez y en el mismo efecto.
+   *
+   * Los rangos de la Custom Highlight API apuntan a nodos concretos del DOM, así
+   * que cualquier cosa que vuelva a renderizar el documento los deja apuntando a
+   * nodos que ya no están: el resaltado sigue registrado pero no pinta nada, sin
+   * ningún error de por medio. Repartirlo en dos efectos con dependencias
+   * distintas hacía que uno se repintara y el otro se quedara vacío.
+   */
   useEffect(() => {
     paintAnchors(readingRef.current, anchorRanges, selectedThread, {
       scrollToActive: scrollToThread,
     });
+    paintPending(readingRef.current, pendingSelection);
     if (scrollToThread) setScrollToThread(false);
-    // `anchorsKey` resume la lista, que se reconstruye en cada render.
-  }, [anchorsKey, selectedThread, tab, scrollToThread]);
+    // `anchorsKey` resume la lista de anclas, que se reconstruye en cada render.
+  }, [
+    anchorsKey,
+    selectedThread,
+    pendingSelection,
+    composing,
+    tab,
+    scrollToThread,
+    document.data?.content,
+  ]);
 
   // Borrador local: cerrar la pestaña a media edición no debería perder el
   // texto. No genera versiones, solo sobrevive a un accidente (RF-506).
