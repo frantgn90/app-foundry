@@ -6,7 +6,7 @@ import { AppsListPage } from './pages/apps-list.js';
 import { LoginPage } from './pages/login.js';
 import { WorkspacePage } from './pages/workspace.js';
 import { WorkspaceSettingsPage } from './pages/workspace-settings.js';
-import { useSession, useWorkspaces } from './lib/api.js';
+import { useApps, useSession, useWorkspaces } from './lib/api.js';
 
 const WORKSPACE_KEY = 'app-foundry:workspace';
 
@@ -18,6 +18,9 @@ export function App() {
   );
   const [openApp, setOpenApp] = useState<string | null>(null);
   const [view, setView] = useState<'apps' | 'settings' | 'people'>('apps');
+  // Misma clave que usa el listado, así que TanStack Query la comparte y no
+  // hay una segunda petición por tener el desplegable en la cabecera.
+  const apps = useApps(selected ?? undefined);
 
   // Al entrar se aterriza en el workspace personal (RF-301), salvo que ya
   // estuvieras en otro la última vez.
@@ -56,6 +59,9 @@ export function App() {
         setOpenApp(null);
         localStorage.setItem(WORKSPACE_KEY, id);
       }}
+      apps={apps.data ?? []}
+      currentApp={openApp ? apps.data?.find((a) => a.id === openApp) : undefined}
+      onSelectApp={setOpenApp}
     >
       {!current && <Screen text="Preparing your workspace…" />}
 
