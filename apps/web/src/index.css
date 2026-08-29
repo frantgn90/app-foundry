@@ -54,3 +54,64 @@
     -webkit-font-smoothing: antialiased;
   }
 }
+
+/*
+ * Estilos del markdown renderizado.
+ *
+ * Van aquí y no como clases en el componente porque el HTML lo genera el
+ * procesador de markdown y no pasa por React: no hay dónde colgar las clases.
+ */
+@layer components {
+  .markdown h1 {
+    font-size: 1.5rem;
+    font-weight: 600;
+    letter-spacing: -0.02em;
+    margin-top: 0.5rem;
+  }
+  .markdown h2 {
+    font-size: 1.15rem;
+    font-weight: 600;
+    margin-top: 0.5rem;
+  }
+  .markdown h3 {
+    font-weight: 600;
+  }
+  .markdown p {
+    color: var(--color-texto-suave);
+  }
+  .markdown ul,
+  .markdown ol {
+    padding-left: 1.25rem;
+    color: var(--color-texto-suave);
+    list-style: disc;
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+  }
+  .markdown ol {
+    list-style: decimal;
+  }
+  .markdown a {
+    color: var(--color-acento);
+    text-decoration: underline;
+  }
+  .markdown code {
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    font-size: 0.875em;
+    background: var(--color-borde);
+    padding: 0.1em 0.35em;
+    border-radius: 0.25rem;
+  }
+  .markdown pre {
+    background: var(--color-fondo);
+    border: 1px solid var(--color-borde);
+    border-radius: 0.5rem;
+    padding: 0.75rem;
+    overflow-x: auto;
+  }
+  .markdown blockquote {
+    border-left: 3px solid var(--color-borde);
+    padding-left: 0.75rem;
+    color: var(--color-texto-suave);
+  }
+}

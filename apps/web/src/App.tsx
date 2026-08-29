@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react';
 
 import { Layout } from './components/layout.js';
+import { AppDetailPage } from './pages/app-detail.js';
+import { AppsListPage } from './pages/apps-list.js';
 import { LoginPage } from './pages/login.js';
 import { WorkspacePage } from './pages/workspace.js';
 import { useSession, useWorkspaces } from './lib/api.js';
@@ -13,6 +15,8 @@ export function App() {
   const [selected, setSelected] = useState<string | null>(() =>
     localStorage.getItem(WORKSPACE_KEY),
   );
+  const [openApp, setOpenApp] = useState<string | null>(null);
+  const [view, setView] = useState<'apps' | 'people'>('apps');
 
   // Al entrar se aterriza en el workspace personal (RF-301), salvo que ya
   // estuvieras en otro la última vez.
@@ -47,13 +51,48 @@ export function App() {
       current={current}
       onSelect={(id) => {
         setSelected(id);
+        // Cambiar de workspace cierra la app abierta: pertenece al anterior.
+        setOpenApp(null);
         localStorage.setItem(WORKSPACE_KEY, id);
       }}
     >
-      {current ? (
-        <WorkspacePage workspace={current} />
-      ) : (
-        <Screen text="Preparing your workspace…" />
+      {!current && <Screen text="Preparing your workspace…" />}
+
+      {current && openApp && (
+        <AppDetailPage
+          appId={openApp}
+          onBack={() => {
+            setOpenApp(null);
+          }}
+        />
+      )}
+
+      {current && !openApp && (
+        <div className="flex flex-col gap-6">
+          <nav className="flex gap-4 text-sm">
+            {(['apps', 'people'] as const).map((v) => (
+              <button
+                key={v}
+                onClick={() => {
+                  setView(v);
+                }}
+                className={
+                  view === v
+                    ? 'font-medium'
+                    : 'text-[var(--color-texto-suave)] hover:text-[var(--color-texto)]'
+                }
+              >
+                {v === 'apps' ? 'Apps' : 'People & invitations'}
+              </button>
+            ))}
+          </nav>
+
+          {view === 'apps' ? (
+            <AppsListPage workspace={current} onOpen={setOpenApp} />
+          ) : (
+            <WorkspacePage workspace={current} />
+          )}
+        </div>
       )}
     </Layout>
   );

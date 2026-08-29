@@ -196,3 +196,179 @@ export function useSignOut() {
     },
   });
 }
+
+export interface App {
+  id: string;
+  slug: string;
+  name: string;
+  shortDescription: string | null;
+  status: string;
+  accessLevel: string;
+  icon: { emoji: string; color: string };
+  tags: string[];
+  repoUrl: string | null;
+  precursorHandle: string;
+  isPrecursor: boolean;
+  canEdit: boolean;
+  isArchived: boolean;
+  updatedAt: string;
+}
+
+export interface VisionDocument {
+  id: string;
+  type: string;
+  content: string;
+  currentVersionId: string | null;
+  versionNo: number;
+  canEdit: boolean;
+  updatedAt: string;
+}
+
+export interface Version {
+  id: string;
+  versionNo: number;
+  authorHandle: string;
+  authorDisplayName: string;
+  message: string | null;
+  createdAt: string;
+}
+
+/** Lo que devuelve la API cuando alguien guardó mientras editabas (RF-511). */
+export interface SaveConflict {
+  message: string;
+  currentContent: string;
+  currentVersionId: string;
+  currentVersionNo: number;
+  lastAuthorHandle: string;
+}
+
+export class ConflictError extends Error {
+  constructor(readonly detail: SaveConflict) {
+    super(detail.message);
+    this.name = 'ConflictError';
+  }
+}
+
+export function useApps(workspaceId: string | undefined) {
+  return useQuery<App[]>({
+    queryKey: ['apps', workspaceId],
+    enabled: Boolean(workspaceId),
+    queryFn: async () => {
+      const { data, error } = await api.GET('/api/v1/workspaces/{workspaceId}/apps', {
+        params: { path: { workspaceId: workspaceId ?? '' } },
+      });
+      if (error || !data) throw new Error('Could not load apps');
+      return data;
+    },
+  });
+}
+
+export function useCreateApp(workspaceId: string) {
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: async (name: string) => {
+      const { data, error } = await api.POST('/api/v1/workspaces/{workspaceId}/apps', {
+        params: { path: { workspaceId } },
+        body: { name },
+      });
+      if (error || !data) throw new Error('Could not create the app');
+      return data;
+    },
+    onSuccess: () => client.invalidateQueries({ queryKey: ['apps', workspaceId] }),
+  });
+}
+
+export function useApp(appId: string) {
+  return useQuery<App>({
+    queryKey: ['app', appId],
+    queryFn: async () => {
+      const { data, error } = await api.GET('/api/v1/apps/{id}', {
+        params: { path: { id: appId } },
+      });
+      if (error || !data) throw new Error('Could not load the app');
+      return data;
+    },
+  });
+}
+
+export function useDocument(appId: string) {
+  return useQuery<VisionDocument>({
+    queryKey: ['document', appId],
+    queryFn: async () => {
+      const { data, error } = await api.GET('/api/v1/apps/{appId}/document', {
+        params: { path: { appId } },
+      });
+      if (error || !data) throw new Error('Could not load the document');
+      return data as VisionDocument;
+    },
+  });
+}
+
+export function useSaveDocument(appId: string) {
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: async (input: { content: string; baseVersionId: string; message?: string }) => {
+      const { data, error, response } = await api.PUT('/api/v1/apps/{appId}/document', {
+        params: { path: { appId } },
+        body: input,
+      });
+      // El 409 no es un fallo cualquiera: trae consigo lo que hay guardado
+      // ahora, y la interfaz necesita ese contenido para poder enseñar el
+      // conflicto en lugar de limitarse a decir que algo salió mal.
+      if (response.status === 409) {
+        throw new ConflictError(error as unknown as SaveConflict);
+      }
+      if (error || !data) throw new Error('Could not save');
+      return data as VisionDocument;
+    },
+    onSuccess: async () => {
+      await client.invalidateQueries({ queryKey: ['document', appId] });
+      await client.invalidateQueries({ queryKey: ['versions', appId] });
+      await client.invalidateQueries({ queryKey: ['apps'] });
+    },
+  });
+}
+
+export function useVersions(appId: string) {
+  return useQuery<Version[]>({
+    queryKey: ['versions', appId],
+    queryFn: async () => {
+      const { data, error } = await api.GET('/api/v1/apps/{appId}/document/versions', {
+        params: { path: { appId } },
+      });
+      if (error || !data) throw new Error('Could not load history');
+      return data;
+    },
+  });
+}
+
+export function useVersionContent(appId: string, versionId: string | null) {
+  return useQuery<{ content: string; versionNo: number }>({
+    queryKey: ['version', appId, versionId],
+    enabled: Boolean(versionId),
+    queryFn: async () => {
+      const { data, error } = await api.GET('/api/v1/apps/{appId}/document/versions/{versionId}', {
+        params: { path: { appId, versionId: versionId ?? '' } },
+      });
+      if (error || !data) throw new Error('Could not load that version');
+      return data;
+    },
+  });
+}
+
+export function useRestoreVersion(appId: string) {
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: async (versionId: string) => {
+      const { data, error } = await api.POST('/api/v1/apps/{appId}/document/restore/{versionId}', {
+        params: { path: { appId, versionId } },
+      });
+      if (error || !data) throw new Error('Could not restore that version');
+      return data as VisionDocument;
+    },
+    onSuccess: async () => {
+      await client.invalidateQueries({ queryKey: ['document', appId] });
+      await client.invalidateQueries({ queryKey: ['versions', appId] });
+    },
+  });
+}
