@@ -175,6 +175,51 @@
 
 ---
 
+## H3 — Pensar en equipo de verdad
+
+> El plan original definía H3 como «niveles de acceso, miembros, permisos completos y suite de tests
+> negativos», pero casi todo eso se adelantó: los niveles de acceso entraron en K y L, los permisos tienen 56
+> tests y los miembros e invitaciones se hicieron en H1. Lo que queda es más pequeño y distinto, así que el
+> hito se redefine en lugar de ejecutarse a ciegas.
+>
+> Objetivo: cerrar lo que impide usar el producto **entre varias personas** — la interfaz que falta, los tests
+> de la API que aún no existen, y una prueba real con dos identidades.
+
+### Bloque O — Editar una app desde la interfaz
+
+> Hueco detectado al usar el producto: la API permite editar los siete campos de una app, pero la interfaz
+> solo los enseña. Las etiquetas se ven en las tarjetas y no hay forma de ponerlas.
+
+| # | Tarea | Verificación | Traza | Estado |
+|---|---|---|---|---|
+| O1 | Editar nombre, descripción, estado y etiquetas | Se ponen y se quitan etiquetas, y aparecen en la tarjeta | RF-403, RF-404 | ⬜ |
+| O2 | Selector de icono: emoji y color de la paleta curada | Cambiar el icono se refleja en el listado | RF-416 | ⬜ |
+| O3 | Enlace al repositorio de GitHub | Se guarda, se muestra como enlace y rechaza lo que no sea una URL | RF-417 | ⬜ |
+| O4 | Cambiar el nivel de acceso, explicando qué implica | La interfaz dice a cuánta gente pasará a verse antes de confirmar | RF-406, RF-407 | ⬜ |
+| O5 | Archivar, desarchivar, transferir y eliminar | Eliminar exige escribir el nombre de la app | RF-409, RF-410, RF-411 | ⬜ |
+| O6 | La interfaz no ofrece lo que quien mira no puede hacer | Un invitado en una app de solo lectura no ve ningún control de edición | RF-606 | ⬜ |
+
+### Bloque P — Tests de la API
+
+> Deuda declarada en H2: la detección de conflictos, que es la pieza más delicada escrita hasta ahora, se
+> verificó a mano y no tiene test automatizado. `apps/api` no tiene todavía infraestructura de pruebas.
+
+| # | Tarea | Verificación | Traza | Estado |
+|---|---|---|---|---|
+| P1 | Infraestructura de tests de API contra un Postgres real | `pnpm test:api` arranca la aplicación y ejecuta peticiones reales | RNF-401 | ⬜ |
+| P2 | Tests del guardado y del conflicto de versiones | Dos guardados desde la misma versión base: el segundo recibe 409 y no sobrescribe | RF-511 | ⬜ |
+| P3 | Tests de permisos por endpoint, con dos identidades | Cada regla de la matriz §3.7 comprobada a través de HTTP, no solo en SQL | RNF-401 | ⬜ |
+| P4 | Tests de los caminos de error | 404 frente a 403 según lo acordado, y los rechazos del motor traducidos | RD-6 | ⬜ |
+
+### Bloque Q — Prueba del flujo compartido
+
+| # | Tarea | Verificación | Traza | Estado |
+|---|---|---|---|---|
+| Q1 | Datos de ejemplo con dos personas y un workspace compartido | `pnpm db:seed` deja el escenario listo para mirarlo en la interfaz | RNF-303 | ⬜ |
+| Q2 | Recorrido completo del flujo compartido con dos identidades | Invitar, ver, editar según nivel, y comprobar qué no se ve | §7 criterios 4 a 8 | ⬜ |
+
+---
+
 ## Hitos siguientes (a grano grueso)
 
 Se desglosarán al cerrar el hito anterior.
