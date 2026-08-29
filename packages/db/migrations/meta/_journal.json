@@ -134,6 +134,20 @@
       "when": 1787996605539,
       "tag": "0018_comments_rls",
       "breakpoints": true
+    },
+    {
+      "idx": 19,
+      "version": "7",
+      "when": 1788001336743,
+      "tag": "0019_notifications",
+      "breakpoints": true
+    },
+    {
+      "idx": 20,
+      "version": "7",
+      "when": 1788001337743,
+      "tag": "0020_notifications_rls",
+      "breakpoints": true
     }
   ]
 }

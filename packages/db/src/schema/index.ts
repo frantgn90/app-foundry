@@ -5,4 +5,5 @@ export * from './sessions.js';
 export * from './workspaces.js';
 export * from './apps.js';
 export * from './comments.js';
+export * from './notifications.js';
 export * from './audit.js';

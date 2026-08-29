@@ -33,3 +33,20 @@ export const invitationStatusEnum = pgEnum('invitation_status', [
   'REVOKED',
   'EXPIRED',
 ]);
+
+/**
+ * Qué ha pasado para que a alguien le llegue un aviso (RF-902).
+ *
+ * El tipo decide cómo se redacta y adónde lleva al pulsarlo, así que vive aquí
+ * y no como cadena suelta: añadir un caso obliga a decidir ambas cosas.
+ */
+export const notificationTypeEnum = pgEnum('notification_type', [
+  'WORKSPACE_INVITED',
+  'APP_COMMENTED',
+  'THREAD_REPLIED',
+  'THREAD_RESOLVED',
+  'MENTIONED',
+  'DOCUMENT_VERSION_SAVED',
+  'PRECURSOR_TRANSFERRED',
+  'APPS_INHERITED',
+]);
