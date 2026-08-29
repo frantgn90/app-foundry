@@ -8,8 +8,9 @@
         "parameters": [
           {
             "name": "limit",
-            "required": true,
+            "required": false,
             "in": "query",
+            "description": "Cuántos devolver. Por defecto 30, y como mucho 100.",
             "schema": {
               "type": "string"
             }

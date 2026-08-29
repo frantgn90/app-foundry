@@ -18,6 +18,8 @@ export function App() {
   );
   const [openApp, setOpenApp] = useState<string | null>(null);
   const [view, setView] = useState<'apps' | 'settings' | 'people'>('apps');
+  /** Hilo al que hay que ir tras abrir una app desde un aviso (RF-904). */
+  const [hiloDestino, setHiloDestino] = useState<string | null>(null);
   // Misma clave que usa el listado, así que TanStack Query la comparte y no
   // hay una segunda petición por tener el desplegable en la cabecera.
   const apps = useApps(selected ?? undefined);
@@ -61,7 +63,25 @@ export function App() {
       }}
       apps={apps.data ?? []}
       currentApp={openApp ? apps.data?.find((a) => a.id === openApp) : undefined}
-      onSelectApp={setOpenApp}
+      onSelectApp={(id) => {
+        setHiloDestino(null);
+        setOpenApp(id);
+      }}
+      onOpenNotification={(destino) => {
+        /*
+         * Un aviso lleva al sitio exacto, no a la puerta (RF-904). Si es de otro
+         * workspace hay que cambiar primero, porque una app solo existe dentro
+         * del suyo.
+         */
+        if (destino.workspaceId !== selected) {
+          setSelected(destino.workspaceId);
+          localStorage.setItem(WORKSPACE_KEY, destino.workspaceId);
+        }
+        setHiloDestino(destino.threadId);
+        setOpenApp(destino.appId);
+        // Sin app, el aviso es del workspace: se aterriza en su gente.
+        if (!destino.appId) setView(destino.threadId ? 'apps' : 'people');
+      }}
     >
       {!current && <Screen text="Preparing your workspace…" />}
 
@@ -69,7 +89,9 @@ export function App() {
         <AppDetailPage
           appId={openApp}
           workspaceId={current.id}
+          initialThreadId={hiloDestino}
           onBack={() => {
+            setHiloDestino(null);
             setOpenApp(null);
           }}
         />

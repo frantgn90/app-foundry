@@ -1,5 +1,11 @@
 import { Body, Controller, Delete, Get, Headers, Post, Query, Req, Res } from '@nestjs/common';
-import { ApiExcludeEndpoint, ApiOkResponse, ApiOperation, ApiTags } from '@nestjs/swagger';
+import {
+  ApiExcludeEndpoint,
+  ApiOkResponse,
+  ApiOperation,
+  ApiQuery,
+  ApiTags,
+} from '@nestjs/swagger';
 import type { Request, Response } from 'express';
 
 import { CurrentUserId } from '../auth/current-user.decorator.js';
@@ -17,6 +23,11 @@ export class NotificationsController {
     summary: 'Avisos del usuario',
     description:
       'Los más recientes primero. El contador de pendientes viene aparte, porque no depende de cuántos se hayan pedido.',
+  })
+  @ApiQuery({
+    name: 'limit',
+    required: false,
+    description: 'Cuántos devolver. Por defecto 30, y como mucho 100.',
   })
   @ApiOkResponse({ type: NotificationListDto })
   list(

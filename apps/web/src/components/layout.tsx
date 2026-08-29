@@ -4,6 +4,7 @@ import type { App, Session, Workspace } from '../lib/api.js';
 import { useSignOut } from '../lib/api.js';
 import { cn } from '../lib/utils.js';
 import { ICON_BACKGROUNDS } from './icon-picker.js';
+import { NotificationBell, type NotificationTarget } from './notification-bell.js';
 import { Avatar } from './ui/avatar.js';
 import { Badge } from './ui/badge.js';
 import { Button } from './ui/button.js';
@@ -16,6 +17,7 @@ interface Props {
   apps: App[];
   currentApp: App | undefined;
   onSelectApp: (id: string) => void;
+  onOpenNotification: (destino: NotificationTarget) => void;
   children: React.ReactNode;
 }
 
@@ -34,6 +36,7 @@ export function Layout({
   apps,
   currentApp,
   onSelectApp,
+  onOpenNotification,
   children,
 }: Props) {
   const signOut = useSignOut();
@@ -85,6 +88,7 @@ export function Layout({
 
           <div className="ml-auto flex items-center gap-3">
             {session.platformRole === 'ADMIN' && <Badge tone="ok">Admin</Badge>}
+            <NotificationBell onOpen={onOpenNotification} />
             <span className="flex items-center gap-2 text-sm">
               <Avatar src={session.avatarUrl} name={session.displayName} />
               <span className="hidden sm:inline">{session.handle}</span>

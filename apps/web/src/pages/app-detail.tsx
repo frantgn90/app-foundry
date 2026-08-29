@@ -39,10 +39,13 @@ const draftKey = (appId: string) => `app-foundry:draft:${appId}`;
 export function AppDetailPage({
   appId,
   workspaceId,
+  initialThreadId = null,
   onBack,
 }: {
   appId: string;
   workspaceId: string;
+  /** Hilo al que ir nada más abrir, cuando se llega desde un aviso (RF-904). */
+  initialThreadId?: string | null;
   onBack: () => void;
 }) {
   const app = useApp(appId);
@@ -55,10 +58,22 @@ export function AppDetailPage({
   const [draft, setDraft] = useState<string | null>(null);
   const [conflict, setConflict] = useState<SaveConflict | null>(null);
   const [comparing, setComparing] = useState<string | null>(null);
-  const [selectedThread, setSelectedThread] = useState<string | null>(null);
+  const [selectedThread, setSelectedThread] = useState<string | null>(initialThreadId);
   // Solo se hace scroll cuando el hilo se elige desde el panel; al pinchar en el
   // texto ya se está mirando el sitio.
-  const [scrollToThread, setScrollToThread] = useState(false);
+  const [scrollToThread, setScrollToThread] = useState(initialThreadId !== null);
+  /*
+   * Llegar desde un aviso a una app que ya estaba abierta también tiene que
+   * llevar al hilo: sin esto, el segundo aviso de la misma app no movería nada,
+   * porque el estado inicial ya se fijó al montar.
+   */
+  useEffect(() => {
+    if (initialThreadId === null) return;
+    setSelectedThread(initialThreadId);
+    setScrollToThread(true);
+    setTab('read');
+  }, [initialThreadId]);
+
   // La selección pendiente se guarda al soltar el ratón, pero el formulario no
   // se abre hasta que se pulsa el botón del menú: seleccionar texto no es
   // decidir comentarlo.

@@ -1,3 +1,5 @@
+import { useEffect } from 'react';
+
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
 import { type components, createApiClient } from '@app-foundry/contracts';
@@ -610,5 +612,93 @@ export function useDeleteComment(appId: string) {
       if (error) throw new Error('Could not delete that comment');
     },
     onSuccess: () => client.invalidateQueries({ queryKey: ['threads', appId] }),
+  });
+}
+
+export interface Notification {
+  id: string;
+  type: string;
+  payload: Record<string, unknown>;
+  workspaceId: string;
+  appId: string | null;
+  threadId: string | null;
+  readAt: string | null;
+  createdAt: string;
+}
+
+export interface NotificationList {
+  items: Notification[];
+  unread: number;
+}
+
+export function useNotifications(enabled: boolean) {
+  return useQuery<NotificationList>({
+    queryKey: ['notifications'],
+    enabled,
+    queryFn: async () => {
+      const { data, error } = await api.GET('/api/v1/notifications');
+      if (error || !data) throw new Error('Could not load notifications');
+      return data;
+    },
+  });
+}
+
+/**
+ * Escucha el canal de avisos y refresca la lista cuando llega algo.
+ *
+ * Se refresca en vez de insertar el evento en la caché a propósito: el evento
+ * trae lo justo para saber que hay algo nuevo, y volver a pedir la lista deja un
+ * solo sitio donde se decide qué se ve y en qué orden. Es una petición más por
+ * aviso, que a este ritmo no es nada.
+ *
+ * `EventSource` reconecta solo y recuerda el último identificador recibido, así
+ * que la reanudación del servidor funciona sin escribir nada aquí.
+ */
+export function useNotificationStream(enabled: boolean) {
+  const client = useQueryClient();
+
+  useEffect(() => {
+    if (!enabled) return;
+
+    const source = new EventSource('/api/v1/notifications/stream');
+    source.addEventListener('notification', () => {
+      void client.invalidateQueries({ queryKey: ['notifications'] });
+    });
+
+    return () => {
+      source.close();
+    };
+  }, [enabled, client]);
+}
+
+export function useMarkNotificationsRead() {
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: async (ids?: string[]) => {
+      const { data, error } = await api.POST('/api/v1/notifications/read', {
+        body: ids ? { ids } : {},
+      });
+      if (error || !data) throw new Error('Could not mark as read');
+      return data;
+    },
+    onSuccess: (data) => {
+      client.setQueryData(['notifications'], data);
+    },
+  });
+}
+
+export function usePurgeNotifications() {
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: async (ids?: string[]) => {
+      const { data, error } = await api.DELETE('/api/v1/notifications', {
+        body: ids ? { ids } : {},
+      });
+      if (error || !data) throw new Error('Could not clear notifications');
+      return data;
+    },
+    onSuccess: (data) => {
+      client.setQueryData(['notifications'], data);
+    },
   });
 }

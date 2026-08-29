@@ -965,8 +965,9 @@ export type $defs = Record<string, never>;
 export interface operations {
     NotificationsController_list: {
         parameters: {
-            query: {
-                limit: string;
+            query?: {
+                /** @description Cuántos devolver. Por defecto 30, y como mucho 100. */
+                limit?: string;
             };
             header?: never;
             path?: never;

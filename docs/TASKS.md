@@ -317,10 +317,10 @@
 
 | # | Tarea | Verificación | Traza | Estado |
 |---|---|---|---|---|
-| AB1 | Campana con contador siempre visible | El contador sube sin recargar | RF-901 | ⬜ |
-| AB2 | Panel: leer, marcar leídas y purgar | Se vacían las leídas de una vez | RF-903, RF-909 | ⬜ |
-| AB3 | Pulsar lleva al recurso: app, hilo o workspace | Un aviso de comentario abre su hilo, resaltado | RF-904 | ⬜ |
-| AB4 | Trazas de Redis visibles en Tempo | Queda comprobado lo que quedó pendiente en H2 | §13 | ⬜ |
+| AB1 | Campana con contador siempre visible | El contador sube sin recargar | RF-901 | ✅ |
+| AB2 | Panel: leer, marcar leídas y purgar | Se vacían las leídas de una vez | RF-903, RF-909 | ✅ |
+| AB3 | Pulsar lleva al recurso: app, hilo o workspace | Un aviso de comentario abre su hilo, resaltado | RF-904 | ✅ |
+| AB4 | Trazas de Redis visibles en Tempo | Comprobado: los spans se llaman como el comando (`publish`, `get`), no «redis» | §13 | ✅ |
 
 ## Mejoras detectadas usando el producto
 
