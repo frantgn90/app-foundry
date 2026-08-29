@@ -2,6 +2,7 @@ import 'reflect-metadata';
 
 import { Logger, ValidationPipe } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
+import cookieParser from 'cookie-parser';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 
 import { loadEnv } from '@app-foundry/env';
@@ -34,6 +35,7 @@ async function bootstrap(): Promise<void> {
     }),
   );
 
+  app.use(cookieParser(env.SESSION_SECRET));
   app.enableCors({ origin: env.WEB_ORIGIN, credentials: true });
   app.enableShutdownHooks();
 

@@ -36,6 +36,20 @@
       "when": 1787960847203,
       "tag": "0004_workspace_rls",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1787961205081,
+      "tag": "0005_auth_functions",
+      "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1787961347375,
+      "tag": "0006_platform_roles",
+      "breakpoints": true
     }
   ]
 }
