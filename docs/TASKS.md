@@ -270,12 +270,12 @@
 
 | # | Tarea | Verificación | Traza | Estado |
 |---|---|---|---|---|
-| W1 | Hilo general al pie de la visión | Comentar y responder sin salir de la lectura | RF-801 | ⬜ |
-| W2 | Seleccionar texto y comentar sobre la selección | La selección del navegador se traduce a posición en el markdown | RF-802, TRD §9.1 | ⬜ |
-| W3 | Panel lateral con los hilos y su estado | Activos, resueltos y huérfanos, con su cita original | RF-810 | ⬜ |
-| W4 | Resaltado del fragmento y navegación en ambos sentidos | Del hilo al texto y del texto al hilo | RF-810 | ⬜ |
-| W5 | Menciones con autocompletado | Escribir `@` ofrece solo miembros del workspace | RF-814 | ⬜ |
-| W6 | Contador de hilos abiertos en la ficha y el listado | Se ve dónde hay conversación pendiente | RF-811 | ⬜ |
+| W1 | Hilo general al pie de la visión | Comentar y responder sin salir de la lectura | RF-801 | ✅ |
+| W2 | Seleccionar texto y comentar sobre la selección | La selección del navegador se traduce a posición en el markdown | RF-802, TRD §9.1 | ✅ |
+| W3 | Panel lateral con los hilos y su estado | Activos, resueltos y huérfanos, con su cita original | RF-810 | ✅ |
+| W4 | Resaltado del fragmento y navegación | Del hilo al texto ✅. Del texto al hilo, pendiente | RF-810 | 🔄 |
+| W5 | Menciones con autocompletado | Escribir `@` ofrece solo miembros del workspace | RF-814 | ✅ |
+| W6 | Contador de hilos abiertos en la ficha y el listado | Se ve dónde hay conversación pendiente | RF-811 | ✅ |
 
 ---
 
