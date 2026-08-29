@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
-import { createApiClient } from '@app-foundry/contracts';
+import { type components, createApiClient } from '@app-foundry/contracts';
 
 /**
  * Cliente derivado del OpenAPI que publica el servidor.
@@ -369,6 +369,100 @@ export function useRestoreVersion(appId: string) {
     onSuccess: async () => {
       await client.invalidateQueries({ queryKey: ['document', appId] });
       await client.invalidateQueries({ queryKey: ['versions', appId] });
+    },
+  });
+}
+
+/**
+ * Cambios admitidos sobre una app.
+ *
+ * Se deriva del contrato en lugar de escribirse a mano: así el editor conoce la
+ * lista exacta de emojis y estados válidos, y un cambio en el servidor rompe la
+ * compilación aquí, que es cuando conviene enterarse.
+ */
+export type AppUpdate = components['schemas']['UpdateAppDto'];
+export type AccessLevel = components['schemas']['ChangeAccessLevelDto']['accessLevel'];
+
+export function useUpdateApp(appId: string) {
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: async (changes: AppUpdate) => {
+      const { data, error } = await api.PATCH('/api/v1/apps/{id}', {
+        params: { path: { id: appId } },
+        body: changes,
+      });
+      if (error || !data) throw new Error('Could not save the changes');
+      return data;
+    },
+    onSuccess: async () => {
+      await client.invalidateQueries({ queryKey: ['app', appId] });
+      await client.invalidateQueries({ queryKey: ['apps'] });
+    },
+  });
+}
+
+export function useChangeAccessLevel(appId: string) {
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: async (accessLevel: AccessLevel) => {
+      const { data, error } = await api.PATCH('/api/v1/apps/{id}/access-level', {
+        params: { path: { id: appId } },
+        body: { accessLevel },
+      });
+      if (error || !data) throw new Error('Could not change who can see this');
+      return data;
+    },
+    onSuccess: async () => {
+      await client.invalidateQueries({ queryKey: ['app', appId] });
+      await client.invalidateQueries({ queryKey: ['apps'] });
+    },
+  });
+}
+
+export function useSetArchived(appId: string) {
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: async (archived: boolean) => {
+      const path = archived ? '/api/v1/apps/{id}/archive' : '/api/v1/apps/{id}/unarchive';
+      const { data, error } = await api.POST(path, { params: { path: { id: appId } } });
+      if (error || !data) throw new Error('Could not archive this app');
+      return data;
+    },
+    onSuccess: async () => {
+      await client.invalidateQueries({ queryKey: ['app', appId] });
+      await client.invalidateQueries({ queryKey: ['apps'] });
+      await client.invalidateQueries({ queryKey: ['document', appId] });
+    },
+  });
+}
+
+export function useDeleteApp(appId: string) {
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: async () => {
+      const { error } = await api.DELETE('/api/v1/apps/{id}', {
+        params: { path: { id: appId } },
+      });
+      if (error) throw new Error('Could not delete this app');
+    },
+    onSuccess: () => client.invalidateQueries({ queryKey: ['apps'] }),
+  });
+}
+
+export function useTransferPrecursor(appId: string) {
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: async (userId: string) => {
+      const { data, error } = await api.POST('/api/v1/apps/{id}/transfer-precursor', {
+        params: { path: { id: appId } },
+        body: { userId },
+      });
+      if (error || !data) throw new Error('Could not transfer this app');
+      return data;
+    },
+    onSuccess: async () => {
+      await client.invalidateQueries({ queryKey: ['app', appId] });
+      await client.invalidateQueries({ queryKey: ['apps'] });
     },
   });
 }

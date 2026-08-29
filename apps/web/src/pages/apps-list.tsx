@@ -5,21 +5,8 @@ import { Badge } from '../components/ui/badge.js';
 import { Button } from '../components/ui/button.js';
 import { Card } from '../components/ui/card.js';
 import { Input } from '../components/ui/input.js';
+import { ICON_BACKGROUNDS } from '../components/icon-picker.js';
 import { cn } from '../lib/utils.js';
-
-/** Colores de la paleta acotada, en su versión clara y oscura. */
-const ICON_BACKGROUNDS: Record<string, string> = {
-  amber: 'bg-amber-500/15',
-  rose: 'bg-rose-500/15',
-  violet: 'bg-violet-500/15',
-  indigo: 'bg-indigo-500/15',
-  sky: 'bg-sky-500/15',
-  teal: 'bg-teal-500/15',
-  emerald: 'bg-emerald-500/15',
-  lime: 'bg-lime-500/15',
-  orange: 'bg-orange-500/15',
-  slate: 'bg-slate-500/15',
-};
 
 export function AppsListPage({
   workspace,

@@ -10,6 +10,7 @@ import {
   useVersionContent,
   useVersions,
 } from '../lib/api.js';
+import { AppSettingsPage } from './app-settings.js';
 import { DiffView } from '../components/diff-view.js';
 import { MarkdownEditor } from '../components/editor.js';
 import { Markdown } from '../components/markdown.js';
@@ -18,12 +19,20 @@ import { Button } from '../components/ui/button.js';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card.js';
 import { cn } from '../lib/utils.js';
 
-type Tab = 'read' | 'edit' | 'history';
+type Tab = 'read' | 'edit' | 'history' | 'settings';
 
 /** Clave del borrador local, por app: no se mezclan entre sí (RF-506). */
 const draftKey = (appId: string) => `app-foundry:draft:${appId}`;
 
-export function AppDetailPage({ appId, onBack }: { appId: string; onBack: () => void }) {
+export function AppDetailPage({
+  appId,
+  workspaceId,
+  onBack,
+}: {
+  appId: string;
+  workspaceId: string;
+  onBack: () => void;
+}) {
   const app = useApp(appId);
   const document = useDocument(appId);
   const versions = useVersions(appId);
@@ -120,7 +129,7 @@ export function AppDetailPage({ appId, onBack }: { appId: string; onBack: () => 
       </header>
 
       <nav className="flex gap-1 border-b border-[var(--color-borde)]">
-        {(['read', 'edit', 'history'] as const).map((t) => (
+        {(['read', 'edit', 'history', 'settings'] as const).map((t) => (
           <button
             key={t}
             onClick={() => {
@@ -172,6 +181,10 @@ export function AppDetailPage({ appId, onBack }: { appId: string; onBack: () => 
             </span>
           </div>
         </div>
+      )}
+
+      {tab === 'settings' && (
+        <AppSettingsPage app={app.data} workspaceId={workspaceId} onDeleted={onBack} />
       )}
 
       {tab === 'history' && (

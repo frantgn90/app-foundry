@@ -150,6 +150,9 @@ importers:
       '@app-foundry/contracts':
         specifier: workspace:*
         version: link:../../packages/contracts
+      '@app-foundry/core':
+        specifier: workspace:*
+        version: link:../../packages/core
       '@codemirror/commands':
         specifier: 6.11.0
         version: 6.11.0

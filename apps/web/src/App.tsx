@@ -61,6 +61,7 @@ export function App() {
       {current && openApp && (
         <AppDetailPage
           appId={openApp}
+          workspaceId={current.id}
           onBack={() => {
             setOpenApp(null);
           }}
