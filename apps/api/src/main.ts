@@ -1,7 +1,7 @@
 import 'reflect-metadata';
 
 import { Logger, ValidationPipe } from '@nestjs/common';
-import { NestFactory } from '@nestjs/core';
+import { HttpAdapterHost, NestFactory } from '@nestjs/core';
 import cookieParser from 'cookie-parser';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 
@@ -38,7 +38,8 @@ async function bootstrap(): Promise<void> {
 
   app.use(cookieParser(env.SESSION_SECRET));
   app.enableCors({ origin: env.WEB_ORIGIN, credentials: true });
-  app.useGlobalFilters(new DatabaseExceptionFilter());
+  // El filtro base necesita el adaptador HTTP para poder responder por su cuenta.
+  app.useGlobalFilters(new DatabaseExceptionFilter(app.get(HttpAdapterHost).httpAdapter));
   app.enableShutdownHooks();
 
   const document = SwaggerModule.createDocument(

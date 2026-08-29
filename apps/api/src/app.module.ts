@@ -4,6 +4,7 @@ import { APP_GUARD, APP_INTERCEPTOR } from '@nestjs/core';
 import { AppsModule } from './apps/apps.module.js';
 import { AuditModule } from './audit/audit.service.js';
 import { AuthModule } from './auth/auth.module.js';
+import { DocumentsModule } from './documents/documents.module.js';
 import { SessionGuard } from './auth/session.guard.js';
 import { TransactionInterceptor } from './database/transaction.interceptor.js';
 import { HealthModule } from './health/health.module.js';
@@ -17,6 +18,7 @@ import { WorkspacesModule } from './workspaces/workspaces.module.js';
     AuthModule,
     WorkspacesModule,
     AppsModule,
+    DocumentsModule,
     HealthModule,
   ],
   providers: [

@@ -617,6 +617,308 @@
         ]
       }
     },
+    "/api/v1/apps/{appId}/document": {
+      "get": {
+        "operationId": "DocumentsController_get",
+        "parameters": [
+          {
+            "name": "appId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DocumentDto"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Documento de visión actual",
+        "tags": [
+          "documents"
+        ]
+      },
+      "put": {
+        "description": "Hay que enviar la versión desde la que se editó. Si alguien guardó mientras tanto, se responde 409 con lo que hay ahora en lugar de sobrescribirlo.",
+        "operationId": "DocumentsController_save",
+        "parameters": [
+          {
+            "name": "appId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SaveDocumentDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DocumentDto"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ConflictDto"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Guardar una versión nueva",
+        "tags": [
+          "documents"
+        ]
+      }
+    },
+    "/api/v1/apps/{appId}/document/versions": {
+      "get": {
+        "operationId": "DocumentsController_versions",
+        "parameters": [
+          {
+            "name": "appId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/VersionSummaryDto"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "summary": "Historial de versiones",
+        "tags": [
+          "documents"
+        ]
+      }
+    },
+    "/api/v1/apps/{appId}/document/versions/{versionId}": {
+      "get": {
+        "operationId": "DocumentsController_version",
+        "parameters": [
+          {
+            "name": "appId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "versionId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/VersionDetailDto"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Una versión concreta, con su contenido",
+        "tags": [
+          "documents"
+        ]
+      }
+    },
+    "/api/v1/apps/{appId}/document/diff": {
+      "get": {
+        "description": "Devuelve ambos contenidos; el cálculo visual de diferencias es cosa del cliente.",
+        "operationId": "DocumentsController_diff",
+        "parameters": [
+          {
+            "name": "appId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "from",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          },
+          {
+            "name": "to",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DiffDto"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Dos versiones para comparar",
+        "tags": [
+          "documents"
+        ]
+      }
+    },
+    "/api/v1/apps/{appId}/document/restore/{versionId}": {
+      "post": {
+        "description": "Crea una versión nueva con ese contenido. No borra nada.",
+        "operationId": "DocumentsController_restore",
+        "parameters": [
+          {
+            "name": "appId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "versionId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DocumentDto"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Restaurar una versión anterior",
+        "tags": [
+          "documents"
+        ]
+      }
+    },
+    "/api/v1/apps/{appId}/document/contributors": {
+      "get": {
+        "operationId": "DocumentsController_contributors",
+        "parameters": [
+          {
+            "name": "appId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/ContributorDto"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "summary": "Quiénes han escrito en esta visión",
+        "tags": [
+          "documents"
+        ]
+      }
+    },
+    "/api/v1/apps/{appId}/document/export": {
+      "get": {
+        "operationId": "DocumentsController_export",
+        "parameters": [
+          {
+            "name": "appId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "Descargar como VISION.md",
+        "tags": [
+          "documents"
+        ]
+      }
+    },
     "/health/live": {
       "get": {
         "operationId": "HealthController_live",
@@ -1104,6 +1406,226 @@
         },
         "required": [
           "userId"
+        ]
+      },
+      "DocumentDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "type": {
+            "type": "string",
+            "enum": [
+              "VISION",
+              "PRD",
+              "TRD"
+            ]
+          },
+          "content": {
+            "type": "string"
+          },
+          "currentVersionId": {
+            "type": "object",
+            "format": "uuid",
+            "nullable": true,
+            "description": "Versión sobre la que se está editando. Hay que devolverla al guardar."
+          },
+          "versionNo": {
+            "type": "number"
+          },
+          "canEdit": {
+            "type": "boolean"
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "id",
+          "type",
+          "content",
+          "currentVersionId",
+          "versionNo",
+          "canEdit",
+          "updatedAt"
+        ]
+      },
+      "SaveDocumentDto": {
+        "type": "object",
+        "properties": {
+          "content": {
+            "type": "string",
+            "description": "Contenido completo en markdown"
+          },
+          "baseVersionId": {
+            "type": "string",
+            "format": "uuid",
+            "description": "Versión desde la que se editó. Si mientras tanto alguien guardó otra, la petición se rechaza con 409 en lugar de sobrescribir."
+          },
+          "message": {
+            "type": "string",
+            "maxLength": 200,
+            "description": "Qué cambió y por qué"
+          }
+        },
+        "required": [
+          "content",
+          "baseVersionId"
+        ]
+      },
+      "ConflictDto": {
+        "type": "object",
+        "properties": {
+          "statusCode": {
+            "type": "number",
+            "example": 409
+          },
+          "message": {
+            "type": "string"
+          },
+          "currentContent": {
+            "type": "string",
+            "description": "Contenido que hay ahora mismo guardado"
+          },
+          "currentVersionId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "currentVersionNo": {
+            "type": "number"
+          },
+          "lastAuthorHandle": {
+            "type": "string",
+            "description": "Quién guardó mientras tanto"
+          }
+        },
+        "required": [
+          "statusCode",
+          "message",
+          "currentContent",
+          "currentVersionId",
+          "currentVersionNo",
+          "lastAuthorHandle"
+        ]
+      },
+      "VersionSummaryDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "versionNo": {
+            "type": "number"
+          },
+          "authorHandle": {
+            "type": "string"
+          },
+          "authorDisplayName": {
+            "type": "string"
+          },
+          "message": {
+            "type": "string",
+            "nullable": true
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "id",
+          "versionNo",
+          "authorHandle",
+          "authorDisplayName",
+          "message",
+          "createdAt"
+        ]
+      },
+      "VersionDetailDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "versionNo": {
+            "type": "number"
+          },
+          "authorHandle": {
+            "type": "string"
+          },
+          "authorDisplayName": {
+            "type": "string"
+          },
+          "message": {
+            "type": "string",
+            "nullable": true
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "content": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "versionNo",
+          "authorHandle",
+          "authorDisplayName",
+          "message",
+          "createdAt",
+          "content"
+        ]
+      },
+      "DiffDto": {
+        "type": "object",
+        "properties": {
+          "from": {
+            "$ref": "#/components/schemas/VersionDetailDto"
+          },
+          "to": {
+            "$ref": "#/components/schemas/VersionDetailDto"
+          }
+        },
+        "required": [
+          "from",
+          "to"
+        ]
+      },
+      "ContributorDto": {
+        "type": "object",
+        "properties": {
+          "userId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "handle": {
+            "type": "string"
+          },
+          "displayName": {
+            "type": "string"
+          },
+          "avatarUrl": {
+            "type": "string",
+            "nullable": true
+          },
+          "versionCount": {
+            "type": "number",
+            "description": "Cuántas versiones ha escrito"
+          }
+        },
+        "required": [
+          "userId",
+          "handle",
+          "displayName",
+          "avatarUrl",
+          "versionCount"
         ]
       },
       "DependencyCheckDto": {

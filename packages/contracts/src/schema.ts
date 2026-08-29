@@ -286,6 +286,135 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/apps/{appId}/document": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Documento de visión actual */
+        get: operations["DocumentsController_get"];
+        /**
+         * Guardar una versión nueva
+         * @description Hay que enviar la versión desde la que se editó. Si alguien guardó mientras tanto, se responde 409 con lo que hay ahora en lugar de sobrescribirlo.
+         */
+        put: operations["DocumentsController_save"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/apps/{appId}/document/versions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Historial de versiones */
+        get: operations["DocumentsController_versions"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/apps/{appId}/document/versions/{versionId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Una versión concreta, con su contenido */
+        get: operations["DocumentsController_version"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/apps/{appId}/document/diff": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Dos versiones para comparar
+         * @description Devuelve ambos contenidos; el cálculo visual de diferencias es cosa del cliente.
+         */
+        get: operations["DocumentsController_diff"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/apps/{appId}/document/restore/{versionId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Restaurar una versión anterior
+         * @description Crea una versión nueva con ese contenido. No borra nada.
+         */
+        post: operations["DocumentsController_restore"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/apps/{appId}/document/contributors": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Quiénes han escrito en esta visión */
+        get: operations["DocumentsController_contributors"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/apps/{appId}/document/export": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Descargar como VISION.md */
+        get: operations["DocumentsController_export"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/health/live": {
         parameters: {
             query?: never;
@@ -439,6 +568,79 @@ export interface components {
              * @description Miembro del workspace que pasa a ser precursor
              */
             userId: string;
+        };
+        DocumentDto: {
+            /** Format: uuid */
+            id: string;
+            /** @enum {string} */
+            type: "VISION" | "PRD" | "TRD";
+            content: string;
+            /**
+             * Format: uuid
+             * @description Versión sobre la que se está editando. Hay que devolverla al guardar.
+             */
+            currentVersionId: Record<string, never> | null;
+            versionNo: number;
+            canEdit: boolean;
+            /** Format: date-time */
+            updatedAt: string;
+        };
+        SaveDocumentDto: {
+            /** @description Contenido completo en markdown */
+            content: string;
+            /**
+             * Format: uuid
+             * @description Versión desde la que se editó. Si mientras tanto alguien guardó otra, la petición se rechaza con 409 en lugar de sobrescribir.
+             */
+            baseVersionId: string;
+            /** @description Qué cambió y por qué */
+            message?: string;
+        };
+        ConflictDto: {
+            /** @example 409 */
+            statusCode: number;
+            message: string;
+            /** @description Contenido que hay ahora mismo guardado */
+            currentContent: string;
+            /** Format: uuid */
+            currentVersionId: string;
+            currentVersionNo: number;
+            /** @description Quién guardó mientras tanto */
+            lastAuthorHandle: string;
+        };
+        VersionSummaryDto: {
+            /** Format: uuid */
+            id: string;
+            versionNo: number;
+            authorHandle: string;
+            authorDisplayName: string;
+            message: string | null;
+            /** Format: date-time */
+            createdAt: string;
+        };
+        VersionDetailDto: {
+            /** Format: uuid */
+            id: string;
+            versionNo: number;
+            authorHandle: string;
+            authorDisplayName: string;
+            message: string | null;
+            /** Format: date-time */
+            createdAt: string;
+            content: string;
+        };
+        DiffDto: {
+            from: components["schemas"]["VersionDetailDto"];
+            to: components["schemas"]["VersionDetailDto"];
+        };
+        ContributorDto: {
+            /** Format: uuid */
+            userId: string;
+            handle: string;
+            displayName: string;
+            avatarUrl: string | null;
+            /** @description Cuántas versiones ha escrito */
+            versionCount: number;
         };
         DependencyCheckDto: {
             /**
@@ -897,6 +1099,189 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["AppSummaryDto"];
                 };
+            };
+        };
+    };
+    DocumentsController_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                appId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DocumentDto"];
+                };
+            };
+        };
+    };
+    DocumentsController_save: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                appId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SaveDocumentDto"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DocumentDto"];
+                };
+            };
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ConflictDto"];
+                };
+            };
+        };
+    };
+    DocumentsController_versions: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                appId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["VersionSummaryDto"][];
+                };
+            };
+        };
+    };
+    DocumentsController_version: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                appId: string;
+                versionId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["VersionDetailDto"];
+                };
+            };
+        };
+    };
+    DocumentsController_diff: {
+        parameters: {
+            query: {
+                from: string;
+                to: string;
+            };
+            header?: never;
+            path: {
+                appId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DiffDto"];
+                };
+            };
+        };
+    };
+    DocumentsController_restore: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                appId: string;
+                versionId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DocumentDto"];
+                };
+            };
+        };
+    };
+    DocumentsController_contributors: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                appId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ContributorDto"][];
+                };
+            };
+        };
+    };
+    DocumentsController_export: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                appId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
         };
     };
