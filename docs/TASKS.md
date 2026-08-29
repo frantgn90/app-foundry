@@ -279,6 +279,48 @@
 
 ---
 
+## H5 — Que nada se quede sin leer
+
+> El objetivo no es «tener notificaciones», es que quien recibe un comentario se
+> entere sin tener que ir a buscarlo. Eso obliga a resolver dos cosas incómodas:
+> quién debe enterarse de cada acción, y cómo llega el aviso sin recargar.
+
+### Bloque X — Modelo de notificaciones
+
+| # | Tarea | Verificación | Traza | Estado |
+|---|---|---|---|---|
+| X1 | Tabla `notifications` con destinatario, tipo, `payload` y referencias | Se renderiza una notificación sin consultar otras tablas | §5.5 | ⬜ |
+| X2 | Políticas: cada uno ve y purga las suyas, y nadie fabrica avisos ajenos | Crear un aviso para alguien de otro workspace se rechaza en el motor | RF-906, RF-312 | ⬜ |
+| X3 | Tests de aislamiento | Un usuario no ve ni borra las notificaciones de otro | RNF-401 | ⬜ |
+
+### Bloque Y — Quién se entera de qué
+
+| # | Tarea | Verificación | Traza | Estado |
+|---|---|---|---|---|
+| Y1 | Emisión en la misma transacción que la acción que la provoca | Si la acción se deshace, el aviso tampoco existe | §5.5 | ⬜ |
+| Y2 | Nadie recibe avisos de sus propios actos | Comentar en tu propia app no te notifica | RF-905 | ⬜ |
+| Y3 | Destinatarios por acción: comentario, respuesta, resolución, versión, invitación, traspaso, herencia | Cada caso avisa a quien le incumbe y a nadie más | RF-902 | ⬜ |
+| Y4 | Menciones: avisan aunque no participes, si eres del workspace | Mencionar a alguien de fuera no filtra que exista | RF-908, RF-815 | ⬜ |
+
+### Bloque Z — API y tiempo real
+
+| # | Tarea | Verificación | Traza | Estado |
+|---|---|---|---|---|
+| Z1 | Listado, marcar leídas y purgar (una y todas) | El contador de no leídas cuadra tras cada operación | RF-901, RF-903, RF-909 | ⬜ |
+| Z2 | SSE por usuario, publicado por Redis | Dos instancias no rompen el canal | §11, T-6 | ⬜ |
+| Z3 | Reconexión con `Last-Event-ID` y latidos | Cortar la red no pierde avisos ni deja la conexión colgada | §11 | ⬜ |
+| Z4 | Purga automática por antigüedad y por tope de usuario | No crecen sin límite y no tocan el contenido referenciado | RF-910, RF-911 | ⬜ |
+| Z5 | Tests de la API | Cubren permisos, contador y purga | RNF-401 | ⬜ |
+
+### Bloque AB — Interfaz
+
+| # | Tarea | Verificación | Traza | Estado |
+|---|---|---|---|---|
+| AB1 | Campana con contador siempre visible | El contador sube sin recargar | RF-901 | ⬜ |
+| AB2 | Panel: leer, marcar leídas y purgar | Se vacían las leídas de una vez | RF-903, RF-909 | ⬜ |
+| AB3 | Pulsar lleva al recurso: app, hilo o workspace | Un aviso de comentario abre su hilo, resaltado | RF-904 | ⬜ |
+| AB4 | Trazas de Redis visibles en Tempo | Queda comprobado lo que quedó pendiente en H2 | §13 | ⬜ |
+
 ## Mejoras detectadas usando el producto
 
 > No salen de un hito: salen de abrir la aplicación y encontrarse con algo que
