@@ -5,6 +5,7 @@ import { AppDetailPage } from './pages/app-detail.js';
 import { AppsListPage } from './pages/apps-list.js';
 import { LoginPage } from './pages/login.js';
 import { WorkspacePage } from './pages/workspace.js';
+import { WorkspaceSettingsPage } from './pages/workspace-settings.js';
 import { useSession, useWorkspaces } from './lib/api.js';
 
 const WORKSPACE_KEY = 'app-foundry:workspace';
@@ -16,7 +17,7 @@ export function App() {
     localStorage.getItem(WORKSPACE_KEY),
   );
   const [openApp, setOpenApp] = useState<string | null>(null);
-  const [view, setView] = useState<'apps' | 'people'>('apps');
+  const [view, setView] = useState<'apps' | 'settings' | 'people'>('apps');
 
   // Al entrar se aterriza en el workspace personal (RF-301), salvo que ya
   // estuvieras en otro la última vez.
@@ -71,7 +72,7 @@ export function App() {
       {current && !openApp && (
         <div className="flex flex-col gap-6">
           <nav className="flex gap-4 text-sm">
-            {(['apps', 'people'] as const).map((v) => (
+            {(['apps', 'settings', 'people'] as const).map((v) => (
               <button
                 key={v}
                 onClick={() => {
@@ -83,16 +84,14 @@ export function App() {
                     : 'text-[var(--color-texto-suave)] hover:text-[var(--color-texto)]'
                 }
               >
-                {v === 'apps' ? 'Apps' : 'People & invitations'}
+                {v === 'apps' ? 'Apps' : v === 'settings' ? 'Settings' : 'People & invitations'}
               </button>
             ))}
           </nav>
 
-          {view === 'apps' ? (
-            <AppsListPage workspace={current} onOpen={setOpenApp} />
-          ) : (
-            <WorkspacePage workspace={current} />
-          )}
+          {view === 'apps' && <AppsListPage workspace={current} onOpen={setOpenApp} />}
+          {view === 'settings' && <WorkspaceSettingsPage workspace={current} />}
+          {view === 'people' && <WorkspacePage workspace={current} />}
         </div>
       )}
     </Layout>

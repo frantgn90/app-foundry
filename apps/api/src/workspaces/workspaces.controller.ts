@@ -17,7 +17,7 @@ import {
   InvitationDto,
   InviteDto,
   MemberDto,
-  RenameWorkspaceDto,
+  UpdateWorkspaceDto,
   WorkspaceDto,
 } from './workspaces.dto.js';
 import { WorkspacesService } from './workspaces.service.js';
@@ -35,14 +35,14 @@ export class WorkspacesController {
   }
 
   @Patch(':id')
-  @ApiOperation({ summary: 'Renombrar un workspace propio' })
+  @ApiOperation({ summary: 'Cambiar el nombre o el aspecto de un workspace propio' })
   @ApiOkResponse({ type: WorkspaceDto })
-  rename(
+  update(
     @Param('id', ParseUUIDPipe) id: string,
-    @Body() cuerpo: RenameWorkspaceDto,
+    @Body() body: UpdateWorkspaceDto,
     @CurrentUserId() userId: string,
   ): Promise<WorkspaceDto> {
-    return this.workspaces.rename(id, cuerpo.name, userId);
+    return this.workspaces.update(id, body, userId);
   }
 
   @Get(':id/members')

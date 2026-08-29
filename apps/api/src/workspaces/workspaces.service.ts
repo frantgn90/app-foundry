@@ -20,7 +20,12 @@ import type { Env } from '@app-foundry/env';
 import { AuditAction, AuditService } from '../audit/audit.service.js';
 import { currentTx } from '../database/request-context.js';
 import { ENV } from '../infrastructure/tokens.js';
-import type { InvitationDto, MemberDto, WorkspaceDto } from './workspaces.dto.js';
+import type {
+  InvitationDto,
+  MemberDto,
+  UpdateWorkspaceDto,
+  WorkspaceDto,
+} from './workspaces.dto.js';
 
 @Injectable()
 export class WorkspacesService {
@@ -44,6 +49,9 @@ export class WorkspacesService {
         name: workspaces.name,
         slug: workspaces.slug,
         isPersonal: workspaces.isPersonal,
+        iconEmoji: workspaces.iconEmoji,
+        iconColor: workspaces.iconColor,
+        background: workspaces.background,
         role: workspaceMembers.role,
       })
       .from(workspaces)
@@ -56,21 +64,29 @@ export class WorkspacesService {
     return filas.map((f) => ({ ...f, role: f.role }));
   }
 
-  async rename(workspaceId: string, nombre: string, userId: string): Promise<WorkspaceDto> {
+  /** Nombre y aspecto del workspace (RF-303). Solo su dueño. */
+  async update(
+    workspaceId: string,
+    changes: UpdateWorkspaceDto,
+    userId: string,
+  ): Promise<WorkspaceDto> {
     this.enforce(await this.adminDecision(workspaceId, userId));
 
-    const [actualizado] = await currentTx()
+    const [updated] = await currentTx()
       .update(workspaces)
-      .set({ name: nombre, updatedAt: new Date() })
+      .set({ ...changes, updatedAt: new Date() })
       .where(eq(workspaces.id, workspaceId))
       .returning({
         id: workspaces.id,
         name: workspaces.name,
         slug: workspaces.slug,
         isPersonal: workspaces.isPersonal,
+        iconEmoji: workspaces.iconEmoji,
+        iconColor: workspaces.iconColor,
+        background: workspaces.background,
       });
 
-    if (!actualizado) throw new NotFoundException('El workspace no existe');
+    if (!updated) throw new NotFoundException('The workspace does not exist');
 
     await this.audit.record({
       actorId: userId,
@@ -78,10 +94,12 @@ export class WorkspacesService {
       resourceType: 'workspace',
       resourceId: workspaceId,
       workspaceId,
-      metadata: { nombre },
+      // Qué campos se tocaron, no sus valores: el nombre sí es identificativo
+      // y se guarda, el resto es aspecto y no aporta nada al registro.
+      metadata: { fields: Object.keys(changes), ...(changes.name ? { name: changes.name } : {}) },
     });
 
-    return { ...actualizado, role: 'OWNER' };
+    return { ...updated, role: 'OWNER' };
   }
 
   async members(workspaceId: string): Promise<MemberDto[]> {

@@ -1,5 +1,7 @@
-import { ApiProperty } from '@nestjs/swagger';
-import { IsEmail, IsString, Length } from 'class-validator';
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import { IsEmail, IsIn, IsOptional, IsString, Length } from 'class-validator';
+
+import { APP_COLORS, WORKSPACE_BACKGROUNDS, WORKSPACE_EMOJIS } from '@app-foundry/core';
 
 export class WorkspaceDto {
   @ApiProperty({ format: 'uuid' })
@@ -19,13 +21,37 @@ export class WorkspaceDto {
 
   @ApiProperty({ description: 'Si es el workspace personal de su dueño' })
   isPersonal!: boolean;
+
+  @ApiProperty() iconEmoji!: string;
+  @ApiProperty() iconColor!: string;
+  @ApiProperty({ description: 'Fondo elegido del catálogo' }) background!: string;
 }
 
-export class RenameWorkspaceDto {
-  @ApiProperty({ minLength: 1, maxLength: 80 })
+/** Todo lo que el dueño puede cambiar de su workspace (RF-303). */
+export class UpdateWorkspaceDto {
+  @ApiPropertyOptional({ minLength: 1, maxLength: 80 })
+  @IsOptional()
   @IsString()
   @Length(1, 80)
-  name!: string;
+  name?: string;
+
+  @ApiPropertyOptional({ enum: WORKSPACE_EMOJIS })
+  @IsOptional()
+  @IsIn(WORKSPACE_EMOJIS as readonly string[])
+  iconEmoji?: string;
+
+  @ApiPropertyOptional({ enum: APP_COLORS })
+  @IsOptional()
+  @IsIn(APP_COLORS as readonly string[])
+  iconColor?: string;
+
+  @ApiPropertyOptional({
+    enum: WORKSPACE_BACKGROUNDS,
+    description: 'Identificador del fondo; el catálogo vive en la interfaz.',
+  })
+  @IsOptional()
+  @IsIn(WORKSPACE_BACKGROUNDS as readonly string[])
+  background?: string;
 }
 
 export class MemberDto {

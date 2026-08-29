@@ -6,6 +6,7 @@ import { Button } from '../components/ui/button.js';
 import { Card } from '../components/ui/card.js';
 import { Input } from '../components/ui/input.js';
 import { ICON_BACKGROUNDS } from '../components/icon-picker.js';
+import { backgroundStyle } from '../components/workspace-background.js';
 import { cn } from '../lib/utils.js';
 
 export function AppsListPage({
@@ -36,14 +37,32 @@ export function AppsListPage({
 
   return (
     <div className="flex flex-col gap-6">
-      <header className="flex items-start justify-between gap-4">
-        <div className="flex flex-col gap-1">
-          <h1 className="text-2xl font-semibold tracking-tight">{workspace.name}</h1>
-          <p className="text-sm text-[var(--color-texto-suave)]">
-            {apps.data?.length
-              ? `${String(apps.data.length)} idea${apps.data.length === 1 ? '' : 's'} here`
-              : 'No ideas here yet'}
-          </p>
+      {/* La cabecera lleva el aspecto del workspace: es lo que hace que dos
+          espacios distintos se distingan de un vistazo al cambiar entre ellos. */}
+      <header
+        className={cn(
+          'flex items-start justify-between gap-4 rounded-xl p-5',
+          backgroundStyle(workspace.background),
+        )}
+      >
+        <div className="flex items-start gap-3">
+          <span
+            className={cn(
+              'grid size-11 shrink-0 place-items-center rounded-xl text-xl',
+              ICON_BACKGROUNDS[workspace.iconColor] ?? ICON_BACKGROUNDS['slate'],
+            )}
+            aria-hidden
+          >
+            {workspace.iconEmoji}
+          </span>
+          <div className="flex flex-col gap-1">
+            <h1 className="text-2xl font-semibold tracking-tight">{workspace.name}</h1>
+            <p className="text-sm text-[var(--color-texto-suave)]">
+              {apps.data?.length
+                ? `${String(apps.data.length)} idea${apps.data.length === 1 ? '' : 's'} here`
+                : 'No ideas here yet'}
+            </p>
+          </div>
         </div>
         {!creating && (
           <Button

@@ -25,8 +25,13 @@ export interface Workspace {
   name: string;
   slug: string;
   isPersonal: boolean;
+  iconEmoji: string;
+  iconColor: string;
+  background: string;
   role: 'OWNER' | 'MEMBER';
 }
+
+export type WorkspaceUpdate = components['schemas']['UpdateWorkspaceDto'];
 
 export interface Member {
   userId: string;
@@ -114,7 +119,7 @@ export function useInvitations(workspaceId: string | undefined, enabled: boolean
 }
 
 export function useInvite(workspaceId: string) {
-  const cliente = useQueryClient();
+  const client = useQueryClient();
   return useMutation({
     mutationFn: async (email: string) => {
       const { data, error } = await api.POST('/api/v1/workspaces/{id}/invitations', {
@@ -127,14 +132,14 @@ export function useInvite(workspaceId: string) {
     onSuccess: async () => {
       // Se refrescan las dos listas: si esa persona ya tenía cuenta, acaba de
       // convertirse en miembro.
-      await cliente.invalidateQueries({ queryKey: ['invitaciones', workspaceId] });
-      await cliente.invalidateQueries({ queryKey: ['miembros', workspaceId] });
+      await client.invalidateQueries({ queryKey: ['invitaciones', workspaceId] });
+      await client.invalidateQueries({ queryKey: ['miembros', workspaceId] });
     },
   });
 }
 
 export function useRevokeInvitation(workspaceId: string) {
-  const cliente = useQueryClient();
+  const client = useQueryClient();
   return useMutation({
     mutationFn: async (invitationId: string) => {
       const { error } = await api.DELETE('/api/v1/workspaces/invitations/{invitationId}', {
@@ -142,12 +147,12 @@ export function useRevokeInvitation(workspaceId: string) {
       });
       if (error) throw new Error('No se pudo revocar la invitación');
     },
-    onSuccess: () => cliente.invalidateQueries({ queryKey: ['invitaciones', workspaceId] }),
+    onSuccess: () => client.invalidateQueries({ queryKey: ['invitaciones', workspaceId] }),
   });
 }
 
 export function useRemoveMember(workspaceId: string) {
-  const cliente = useQueryClient();
+  const client = useQueryClient();
   return useMutation({
     mutationFn: async (userId: string) => {
       const { error } = await api.DELETE('/api/v1/workspaces/{id}/members/{userId}', {
@@ -155,12 +160,12 @@ export function useRemoveMember(workspaceId: string) {
       });
       if (error) throw new Error('No se pudo expulsar a esta persona');
     },
-    onSuccess: () => cliente.invalidateQueries({ queryKey: ['miembros', workspaceId] }),
+    onSuccess: () => client.invalidateQueries({ queryKey: ['miembros', workspaceId] }),
   });
 }
 
 export function useLeaveWorkspace() {
-  const cliente = useQueryClient();
+  const client = useQueryClient();
   return useMutation({
     mutationFn: async (workspaceId: string) => {
       const { error } = await api.POST('/api/v1/workspaces/{id}/leave', {
@@ -168,21 +173,22 @@ export function useLeaveWorkspace() {
       });
       if (error) throw new Error('No se pudo abandonar el workspace');
     },
-    onSuccess: () => cliente.invalidateQueries({ queryKey: ['workspaces'] }),
+    onSuccess: () => client.invalidateQueries({ queryKey: ['workspaces'] }),
   });
 }
 
-export function useRenameWorkspace(workspaceId: string) {
-  const cliente = useQueryClient();
+export function useUpdateWorkspace(workspaceId: string) {
+  const client = useQueryClient();
   return useMutation({
-    mutationFn: async (name: string) => {
-      const { error } = await api.PATCH('/api/v1/workspaces/{id}', {
+    mutationFn: async (changes: WorkspaceUpdate) => {
+      const { data, error } = await api.PATCH('/api/v1/workspaces/{id}', {
         params: { path: { id: workspaceId } },
-        body: { name },
+        body: changes,
       });
-      if (error) throw new Error('No se pudo renombrar el workspace');
+      if (error || !data) throw new Error('Could not save the changes');
+      return data;
     },
-    onSuccess: () => cliente.invalidateQueries({ queryKey: ['workspaces'] }),
+    onSuccess: () => client.invalidateQueries({ queryKey: ['workspaces'] }),
   });
 }
 

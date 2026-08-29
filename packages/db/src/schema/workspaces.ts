@@ -24,6 +24,16 @@ export const workspaces = pgTable(
     name: text('name').notNull(),
     slug: citext('slug').notNull().unique(),
     isPersonal: boolean('is_personal').notNull().default(true),
+    /**
+     * Aspecto del workspace: un emoji, un color y un fondo del catálogo.
+     *
+     * Se guarda el identificador del fondo, no una imagen: el catálogo vive en
+     * la interfaz, así que personalizar un espacio no obliga a montar
+     * almacenamiento de ficheros (RD-7).
+     */
+    iconEmoji: text('icon_emoji').notNull().default('🗂️'),
+    iconColor: text('icon_color').notNull().default('slate'),
+    background: text('background').notNull().default('plain'),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
   },

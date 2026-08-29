@@ -220,6 +220,20 @@
 
 ---
 
+## Mejoras detectadas usando el producto
+
+> No salen de un hito: salen de abrir la aplicación y encontrarse con algo que
+> chirría. Se registran aquí para que quede claro de dónde vienen.
+
+| # | Mejora | Origen | Estado |
+|---|---|---|---|
+| U1 | Separar estado, visibilidad y etiquetas, que se dibujaban como píldoras idénticas | El estado merece color propio y posición prominente | ✅ |
+| U2 | Que cada tarjeta ocupe su altura y se empaqueten sin huecos | Una tarjeta alta estiraba a su vecina y dejaba espacio muerto | ✅ |
+| U3 | Editar los metadatos de una app desde la interfaz | La API lo permitía y la interfaz solo los enseñaba | ✅ |
+| U4 | Ajustes de workspace: nombre, icono y fondo | Un workspace no se podía distinguir de otro de un vistazo | ✅ |
+
+---
+
 ## Hitos siguientes (a grano grueso)
 
 Se desglosarán al cerrar el hito anterior.

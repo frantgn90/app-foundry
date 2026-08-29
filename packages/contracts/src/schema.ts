@@ -85,8 +85,8 @@ export interface paths {
         delete?: never;
         options?: never;
         head?: never;
-        /** Renombrar un workspace propio */
-        patch: operations["WorkspacesController_rename"];
+        /** Cambiar el nombre o el aspecto de un workspace propio */
+        patch: operations["WorkspacesController_update"];
         trace?: never;
     };
     "/api/v1/workspaces/{id}/members": {
@@ -476,9 +476,22 @@ export interface components {
             role: "OWNER" | "MEMBER";
             /** @description Si es el workspace personal de su dueño */
             isPersonal: boolean;
+            iconEmoji: string;
+            iconColor: string;
+            /** @description Fondo elegido del catálogo */
+            background: string;
         };
-        RenameWorkspaceDto: {
-            name: string;
+        UpdateWorkspaceDto: {
+            name?: string;
+            /** @enum {string} */
+            iconEmoji?: "🗂️" | "🏠" | "🧭" | "⚗️" | "🌳" | "🛰️" | "🏛️" | "🎪" | "⛺" | "🌋" | "🗼" | "🧵" | "🪴" | "🧊" | "🎠" | "🛖";
+            /** @enum {string} */
+            iconColor?: "amber" | "rose" | "violet" | "indigo" | "sky" | "teal" | "emerald" | "lime" | "orange" | "slate";
+            /**
+             * @description Identificador del fondo; el catálogo vive en la interfaz.
+             * @enum {string}
+             */
+            background?: "plain" | "dawn" | "dusk" | "forest" | "ocean" | "ember" | "grid" | "dots";
         };
         MemberDto: {
             /** Format: uuid */
@@ -749,7 +762,7 @@ export interface operations {
             };
         };
     };
-    WorkspacesController_rename: {
+    WorkspacesController_update: {
         parameters: {
             query?: never;
             header?: never;
@@ -760,7 +773,7 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["RenameWorkspaceDto"];
+                "application/json": components["schemas"]["UpdateWorkspaceDto"];
             };
         };
         responses: {

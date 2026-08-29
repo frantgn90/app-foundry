@@ -80,7 +80,7 @@
     },
     "/api/v1/workspaces/{id}": {
       "patch": {
-        "operationId": "WorkspacesController_rename",
+        "operationId": "WorkspacesController_update",
         "parameters": [
           {
             "name": "id",
@@ -96,7 +96,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/RenameWorkspaceDto"
+                "$ref": "#/components/schemas/UpdateWorkspaceDto"
               }
             }
           }
@@ -113,7 +113,7 @@
             }
           }
         },
-        "summary": "Renombrar un workspace propio",
+        "summary": "Cambiar el nombre o el aspecto de un workspace propio",
         "tags": [
           "workspaces"
         ]
@@ -1046,6 +1046,16 @@
           "isPersonal": {
             "type": "boolean",
             "description": "Si es el workspace personal de su dueño"
+          },
+          "iconEmoji": {
+            "type": "string"
+          },
+          "iconColor": {
+            "type": "string"
+          },
+          "background": {
+            "type": "string",
+            "description": "Fondo elegido del catálogo"
           }
         },
         "required": [
@@ -1053,21 +1063,71 @@
           "name",
           "slug",
           "role",
-          "isPersonal"
+          "isPersonal",
+          "iconEmoji",
+          "iconColor",
+          "background"
         ]
       },
-      "RenameWorkspaceDto": {
+      "UpdateWorkspaceDto": {
         "type": "object",
         "properties": {
           "name": {
             "type": "string",
             "minLength": 1,
             "maxLength": 80
+          },
+          "iconEmoji": {
+            "type": "string",
+            "enum": [
+              "🗂️",
+              "🏠",
+              "🧭",
+              "⚗️",
+              "🌳",
+              "🛰️",
+              "🏛️",
+              "🎪",
+              "⛺",
+              "🌋",
+              "🗼",
+              "🧵",
+              "🪴",
+              "🧊",
+              "🎠",
+              "🛖"
+            ]
+          },
+          "iconColor": {
+            "type": "string",
+            "enum": [
+              "amber",
+              "rose",
+              "violet",
+              "indigo",
+              "sky",
+              "teal",
+              "emerald",
+              "lime",
+              "orange",
+              "slate"
+            ]
+          },
+          "background": {
+            "type": "string",
+            "enum": [
+              "plain",
+              "dawn",
+              "dusk",
+              "forest",
+              "ocean",
+              "ember",
+              "grid",
+              "dots"
+            ],
+            "description": "Identificador del fondo; el catálogo vive en la interfaz."
           }
-        },
-        "required": [
-          "name"
-        ]
+        }
       },
       "MemberDto": {
         "type": "object",
