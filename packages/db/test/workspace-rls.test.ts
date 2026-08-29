@@ -69,6 +69,21 @@ describe('quién ve qué workspaces', () => {
     expect(ws?.name).toBe('Workspace de Ana');
   });
 
+  it('el dueño puede crear su workspace y recuperar su id (regresión)', async () => {
+    // El alta de un usuario inserta su workspace con RETURNING, y RETURNING
+    // obliga a Postgres a evaluar además la política de SELECT sobre la fila
+    // recién creada. Cuando esa política dependía solo de la membresía —que se
+    // inserta un instante después— el INSERT funcionaba sin RETURNING y fallaba
+    // con él. El dueño ve siempre su workspace, y esto lo comprueba.
+    const creado = await asAppUser(db.db, e.carla, (tx) =>
+      tx
+        .insert(workspaces)
+        .values({ ownerId: e.carla, name: 'El de Carla', slug: 'carla-nuevo' })
+        .returning({ id: workspaces.id }),
+    );
+    expect(creado[0]?.id).toBeTruthy();
+  });
+
   it('no se puede crear un workspace a nombre de otro', async () => {
     const error = await fallo(() =>
       asAppUser(db.db, e.carla, (tx) =>

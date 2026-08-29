@@ -9,9 +9,19 @@ import type { Request } from 'express';
 
 import { ES_PUBLICO } from './public.decorator.js';
 import { SessionService } from './session.service.js';
-import type { UsuarioAutenticado } from './auth.service.js';
 
 export const COOKIE_SESION = 'foundry_session';
+
+/**
+ * Lo único que el guard sabe de quien pide: su identificador.
+ *
+ * Deliberadamente no es el usuario completo. Cargarlo costaría una consulta en
+ * cada petición para algo que casi ningún endpoint necesita; quien lo necesite
+ * lo pide explícitamente.
+ */
+export interface PeticionAutenticada {
+  id: string;
+}
 
 /**
  * Exige sesión válida en toda la aplicación (RF-109).
@@ -35,7 +45,7 @@ export class SessionGuard implements CanActivate {
     ]);
     if (publico) return true;
 
-    const request = context.switchToHttp().getRequest<Request & { user?: UsuarioAutenticado }>();
+    const request = context.switchToHttp().getRequest<Request & { user?: PeticionAutenticada }>();
     const token = (request.cookies as Record<string, string> | undefined)?.[COOKIE_SESION];
     if (!token) throw new UnauthorizedException('No hay sesión');
 
@@ -44,7 +54,7 @@ export class SessionGuard implements CanActivate {
 
     // El guard corre antes que el interceptor de transacción, que leerá este
     // identificador para fijar la identidad en la base de datos.
-    request.user = { id: sesion.userId } as UsuarioAutenticado;
+    request.user = { id: sesion.userId };
     return true;
   }
 }

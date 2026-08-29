@@ -1,5 +1,6 @@
 export * from './ids.js';
 export * from './enums.js';
+export * from './privacidad/ip.js';
 export * from './entities.js';
 export * from './authorization/result.js';
 export * from './authorization/context.js';

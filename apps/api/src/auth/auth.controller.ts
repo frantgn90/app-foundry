@@ -12,12 +12,13 @@ import { AuthGuard } from '@nestjs/passport';
 import { ApiExcludeEndpoint, ApiOkResponse, ApiOperation, ApiTags } from '@nestjs/swagger';
 import type { Request, Response } from 'express';
 
+import { truncarIp } from '@app-foundry/core';
 import type { Env } from '@app-foundry/env';
 
 import { ENV } from '../infrastructure/tokens.js';
-import { AuthService, type UsuarioAutenticado } from './auth.service.js';
+import { AuthService } from './auth.service.js';
 import { UsuarioActualDto } from './auth.dto.js';
-import { UsuarioActual } from './current-user.decorator.js';
+import { IdUsuarioActual } from './current-user.decorator.js';
 import type { PerfilGitHub } from './github.strategy.js';
 import { Publico } from './public.decorator.js';
 import { RateLimitGuard } from './rate-limit.guard.js';
@@ -55,7 +56,7 @@ export class AuthController {
     const usuario = await this.auth.provisionar(request.user);
     const token = await this.sessions.crear(
       usuario.id,
-      this.ipTruncada(request.ip),
+      truncarIp(request.ip),
       request.get('user-agent') ?? null,
     );
 
@@ -80,8 +81,8 @@ export class AuthController {
   @UseGuards(SessionGuard)
   @ApiOperation({ summary: 'Quién soy' })
   @ApiOkResponse({ type: UsuarioActualDto })
-  yo(@UsuarioActual() usuario: UsuarioAutenticado): UsuarioActualDto {
-    return usuario;
+  async yo(@IdUsuarioActual() userId: string): Promise<UsuarioActualDto> {
+    return this.auth.perfil(userId);
   }
 
   private opcionesCookie() {
@@ -92,22 +93,5 @@ export class AuthController {
       path: '/',
       maxAge: this.env.SESSION_TTL_DAYS * 86_400_000,
     };
-  }
-
-  /**
-   * IP recortada a /24 (o /48 en IPv6).
-   *
-   * Sirve para que alguien reconozca una sesión suya, no para rastrearle
-   * (RF-706, RNF-112).
-   */
-  private ipTruncada(ip: string | undefined): string | null {
-    if (!ip) return null;
-    if (ip.includes(':')) {
-      const grupos = ip.split(':').slice(0, 3);
-      return `${grupos.join(':')}::`;
-    }
-    const octetos = ip.split('.');
-    if (octetos.length !== 4) return null;
-    return `${octetos.slice(0, 3).join('.')}.0`;
   }
 }

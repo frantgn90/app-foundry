@@ -4,6 +4,7 @@ import { sql } from 'drizzle-orm';
 import { type Database, workspaceMembers, workspaces } from '@app-foundry/db';
 import type { Env } from '@app-foundry/env';
 
+import { currentTx } from '../database/request-context.js';
 import { DATABASE, ENV } from '../infrastructure/tokens.js';
 import type { PerfilGitHub } from './github.strategy.js';
 
@@ -67,6 +68,24 @@ export class AuthService {
       if (!fila) throw new Error('El usuario recién creado no es visible');
       return fila;
     });
+  }
+
+  /**
+   * Perfil completo del usuario de la petición.
+   *
+   * Va por la transacción en curso, así que se resuelve con las políticas
+   * aplicadas: cada uno puede verse a sí mismo, de modo que esto no abre nada
+   * que no estuviera ya abierto.
+   */
+  async perfil(userId: string): Promise<UsuarioAutenticado> {
+    const resultado = await currentTx().execute<Record<string, unknown> & UsuarioAutenticado>(
+      sql`SELECT id, handle, email, display_name AS "displayName",
+                 avatar_url AS "avatarUrl", platform_role AS "platformRole"
+          FROM users WHERE id = ${userId}::uuid`,
+    );
+    const fila = resultado.rows[0];
+    if (!fila) throw new Error('El usuario de la sesión ya no es visible');
+    return fila;
   }
 
   /** Cada cuenta recibe su espacio propio al darse de alta (RF-105). */
