@@ -21,7 +21,9 @@ export function ThemeToggle() {
     <div
       role="radiogroup"
       aria-label="Theme"
-      className="flex items-center gap-0.5 rounded-lg border border-[var(--color-borde)] p-0.5"
+      // `inline-flex` para que ocupe lo que mide y no todo el ancho de donde esté:
+      // en la cabecera daba igual, dentro de una tarjeta se estiraba entero.
+      className="inline-flex items-center gap-0.5 rounded-lg border border-[var(--color-borde)] p-0.5"
     >
       {OPCIONES.map((opcion) => (
         <button

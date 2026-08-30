@@ -1,14 +1,14 @@
 import { useEffect, useRef, useState } from 'react';
 
 import type { App, Session, Workspace } from '../lib/api.js';
-import { useSignOut } from '../lib/api.js';
 import { cn } from '../lib/utils.js';
 import { ICON_BACKGROUNDS } from './icon-picker.js';
 import { NotificationBell, type NotificationTarget } from './notification-bell.js';
-import { ThemeToggle } from './theme-toggle.js';
-import { Avatar } from './ui/avatar.js';
+import { UserMenu } from './user-menu.js';
 import { Badge } from './ui/badge.js';
-import { Button } from './ui/button.js';
+
+/** Qué se está mirando ahora mismo. */
+export type Pantalla = 'workspace' | 'admin' | 'account';
 
 interface Props {
   session: Session;
@@ -19,8 +19,9 @@ interface Props {
   currentApp: App | undefined;
   onSelectApp: (id: string) => void;
   onOpenNotification: (destino: NotificationTarget) => void;
-  admin: boolean;
-  onToggleAdmin: () => void;
+  /** Qué se está mirando: el workspace, la administración o la propia cuenta. */
+  pantalla: Pantalla;
+  onPantalla: (pantalla: Pantalla) => void;
   children: React.ReactNode;
 }
 
@@ -40,12 +41,10 @@ export function Layout({
   currentApp,
   onSelectApp,
   onOpenNotification,
-  admin,
-  onToggleAdmin,
+  pantalla,
+  onPantalla,
   children,
 }: Props) {
-  const signOut = useSignOut();
-
   return (
     <div className="min-h-screen">
       <header className="border-b border-[var(--color-borde)] bg-[var(--color-superficie)]">
@@ -98,25 +97,22 @@ export function Layout({
               cabecera de quien no la tiene (RF-205).
             */}
             {session.platformRole === 'ADMIN' && (
-              <button onClick={onToggleAdmin} title={admin ? 'Back to work' : 'Administration'}>
-                {admin ? <Badge tone="ok">Leave admin</Badge> : <Badge>Admin</Badge>}
+              <button
+                onClick={() => {
+                  onPantalla(pantalla === 'admin' ? 'workspace' : 'admin');
+                }}
+                title={pantalla === 'admin' ? 'Back to work' : 'Administration'}
+              >
+                {pantalla === 'admin' ? <Badge tone="ok">Leave admin</Badge> : <Badge>Admin</Badge>}
               </button>
             )}
             <NotificationBell onOpen={onOpenNotification} />
-            <ThemeToggle />
-            <span className="flex items-center gap-2 text-sm">
-              <Avatar src={session.avatarUrl} name={session.displayName} />
-              <span className="hidden sm:inline">{session.handle}</span>
-            </span>
-            <Button
-              variant="ghost"
-              className="px-2 py-1 text-xs"
-              onClick={() => {
-                signOut.mutate();
+            <UserMenu
+              session={session}
+              onSettings={() => {
+                onPantalla('account');
               }}
-            >
-              Sign out
-            </Button>
+            />
           </div>
         </div>
       </header>

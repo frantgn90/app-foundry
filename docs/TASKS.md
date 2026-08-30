@@ -401,6 +401,12 @@
 | AJ2 | Paneles de Grafana | Las métricas que importan están a la vista | TRD §13 | ✅ |
 | AJ3 | Un recorrido completo automatizado | Entrar, crear, escribir, comentar y encontrar | RNF-401 | ✅ |
 
+## Decisiones tomadas sobre requisitos
+
+| Requisito | Decisión |
+|---|---|
+| RF-206 · Editar nombre visible y avatar | **No se implementa.** Todo el perfil se hereda de GitHub y se actualiza al entrar; mantener una copia editable obligaría a decidir cuál manda cada vez que cambie allí (RF-208). La página de cuenta los muestra, en solo lectura. |
+
 ## Mejoras detectadas usando el producto
 
 > No salen de un hito: salen de abrir la aplicación y encontrarse con algo que
@@ -419,6 +425,7 @@
 | U9 | Los hilos resueltos dejan de subrayarse; el resaltado se repinta solo | Reaparecían al comentar y se apagaban al tocar el panel | ✅ |
 | U10 | Ruta completa en la cabecera y salto directo entre apps | El breadcrumb se cortaba en el workspace y cambiar de app obligaba a volver atrás | ✅ |
 | U11 | El atajo de guardar rompía la ficha al abrir una app desde cero | Hook declarado tras una salida anticipada; solo se veía sin caché, lo cazó el recorrido | ✅ |
+| U12 | Menú de cuenta y página de ajustes personales | El selector de tema ocupaba sitio permanente en la cabecera para algo que se toca una vez | ✅ |
 
 ---
 
