@@ -258,3 +258,82 @@ describe('lo que queda registrado del acceso', () => {
     expect(crudo).not.toMatch(/\b\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}\b/);
   });
 });
+
+describe('desactivar a quien sostiene apps (RF-414)', () => {
+  /** Lo que ve alguien, con sus propias políticas. */
+  async function appsQueVe(user: TestUser, workspaceId: string): Promise<string[]> {
+    const response = await h.as(user).get(`/api/v1/workspaces/${workspaceId}/apps`);
+    if (!response.ok) return [];
+    return ((await response.json()) as { items: { name: string }[] }).items.map((a) => a.name);
+  }
+
+  async function precursorDe(nombre: string): Promise<string> {
+    const filas = await h.db.execute<{ precursor_id: string }>(
+      sql`SELECT precursor_id FROM apps WHERE name = ${nombre}`,
+    );
+    return filas.rows[0]!.precursor_id;
+  }
+
+  it('su workspace personal deja de abrirse, y vuelve al reactivar', async () => {
+    const duena = await h.createUser('duena');
+    const invitada = await h.createUser('invitada');
+    await h
+      .as(duena)
+      .post(`/api/v1/workspaces/${duena.workspaceId}/invitations`, { email: invitada.email });
+    await h.as(duena).post(`/api/v1/workspaces/${duena.workspaceId}/apps`, {
+      name: 'Suya',
+      accessLevel: 'WORKSPACE_READ',
+    });
+
+    expect(await appsQueVe(invitada, duena.workspaceId)).toContain('Suya');
+
+    await h.as(jefa).patch(`/api/v1/admin/users/${duena.id}`, { status: 'DEACTIVATED' });
+
+    // Huérfanas: ni suyas ni de nadie mientras la cuenta esté parada.
+    expect(await appsQueVe(invitada, duena.workspaceId)).toEqual([]);
+
+    // Y siguen ahí: dejar de verse no es borrarse.
+    const existe = await h.db.execute(sql`SELECT 1 FROM apps WHERE name = 'Suya'`);
+    expect(existe.rows).toHaveLength(1);
+
+    await h.as(jefa).patch(`/api/v1/admin/users/${duena.id}`, { status: 'ACTIVE' });
+
+    // Vuelven solas: no hay nada que deshacer porque nada se marcó.
+    expect(await appsQueVe(invitada, duena.workspaceId)).toContain('Suya');
+  });
+
+  it('en un workspace ajeno, la app pasa a su dueño en el acto', async () => {
+    // Esconderla castigaría a todo un equipo porque alguien esté suspendido.
+    const anfitriona = await h.createUser('anfitriona');
+    const visitante = await h.createUser('visitante');
+    await h
+      .as(anfitriona)
+      .post(`/api/v1/workspaces/${anfitriona.workspaceId}/invitations`, { email: visitante.email });
+    await h.as(visitante).post(`/api/v1/workspaces/${anfitriona.workspaceId}/apps`, {
+      name: 'De la visitante',
+    });
+    expect(await precursorDe('De la visitante')).toBe(visitante.id);
+
+    await h.as(jefa).patch(`/api/v1/admin/users/${visitante.id}`, { status: 'DEACTIVATED' });
+
+    expect(await precursorDe('De la visitante')).toBe(anfitriona.id);
+    expect(await appsQueVe(anfitriona, anfitriona.workspaceId)).toContain('De la visitante');
+  });
+
+  it('queda apuntado cuándo se desactivó, para poder contar el plazo', async () => {
+    const efimera = await h.createUser('efimera');
+    await h.as(jefa).patch(`/api/v1/admin/users/${efimera.id}`, { status: 'DEACTIVATED' });
+
+    const filas = await h.db.execute<{ deactivated_at: string | null }>(
+      sql`SELECT deactivated_at FROM users WHERE id = ${efimera.id}::uuid`,
+    );
+    expect(filas.rows[0]!.deactivated_at).not.toBeNull();
+
+    // Y al volver, el reloj se borra: la cuenta queda como si nunca se hubiera ido.
+    await h.as(jefa).patch(`/api/v1/admin/users/${efimera.id}`, { status: 'ACTIVE' });
+    const tras = await h.db.execute<{ deactivated_at: string | null }>(
+      sql`SELECT deactivated_at FROM users WHERE id = ${efimera.id}::uuid`,
+    );
+    expect(tras.rows[0]!.deactivated_at).toBeNull();
+  });
+});

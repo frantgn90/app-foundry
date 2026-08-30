@@ -25,6 +25,11 @@ export const users = pgTable(
     avatarUrl: text('avatar_url'),
     platformRole: platformRoleEnum('platform_role').notNull().default('MEMBER'),
     status: userStatusEnum('status').notNull().default('ACTIVE'),
+    /*
+     * Cuándo se desactivó, para contar el plazo de gracia de sus apps (RF-414).
+     * `updated_at` no sirve: cambia por cualquier cosa.
+     */
+    deactivatedAt: timestamp('deactivated_at', { withTimezone: true }),
     lastLoginAt: timestamp('last_login_at', { withTimezone: true }),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
