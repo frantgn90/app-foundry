@@ -162,6 +162,13 @@
       "when": 1788001339743,
       "tag": "0022_notifications_invite_visibility",
       "breakpoints": true
+    },
+    {
+      "idx": 23,
+      "version": "7",
+      "when": 1788048655893,
+      "tag": "0023_app_search",
+      "breakpoints": true
     }
   ]
 }

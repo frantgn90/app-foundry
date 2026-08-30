@@ -48,6 +48,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/search": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Buscar apps
+         * @description Por nombre, descripción, etiquetas y contenido de la visión, en todos los workspaces del usuario. Cada resultado dice de cuál viene (RF-604).
+         */
+        get: operations["SearchController_buscar"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/auth/github": {
         parameters: {
             query?: never;
@@ -659,6 +679,35 @@ export interface components {
             /** @description Cuáles marcar. Si se omite, se marcan todas las pendientes. */
             ids?: string[];
         };
+        AppIconDto: {
+            /** @description Emoji de la selección curada */
+            emoji: string;
+            /** @description Color de fondo de la paleta */
+            color: string;
+        };
+        SearchHitDto: {
+            /** Format: uuid */
+            id: string;
+            name: string;
+            shortDescription: string | null;
+            status: string;
+            accessLevel: string;
+            icon: components["schemas"]["AppIconDto"];
+            isArchived: boolean;
+            /**
+             * Format: uuid
+             * @description De dónde viene el resultado: la búsqueda cruza workspaces (RF-604).
+             */
+            workspaceId: string;
+            workspaceName: string;
+            /** @description Trozo del texto donde aparece lo buscado, con las coincidencias marcadas. */
+            excerpt: string | null;
+        };
+        SearchResultsDto: {
+            items: components["schemas"]["SearchHitDto"][];
+            /** @description Lo que se buscó, ya normalizado */
+            query: string;
+        };
         CurrentUserDto: {
             /** Format: uuid */
             id: string;
@@ -735,12 +784,6 @@ export interface components {
              */
             accessLevel?: "PRIVATE" | "WORKSPACE_READ" | "WORKSPACE_WRITE";
         };
-        AppIconDto: {
-            /** @description Emoji de la selección curada */
-            emoji: string;
-            /** @description Color de fondo de la paleta */
-            color: string;
-        };
         AppSummaryDto: {
             /** Format: uuid */
             id: string;
@@ -763,6 +806,15 @@ export interface components {
             isArchived: boolean;
             /** Format: date-time */
             updatedAt: string;
+        };
+        AppListDto: {
+            items: components["schemas"]["AppSummaryDto"][];
+            /** @description Cuántas hay en total con estos filtros, no cuántas trae esta página. */
+            total: number;
+            page: number;
+            perPage: number;
+            /** @description Todas las etiquetas usadas en el workspace, para poder ofrecer el filtro sin una consulta aparte. */
+            availableTags: string[];
         };
         UpdateAppDto: {
             name?: string;
@@ -1031,6 +1083,28 @@ export interface operations {
             };
         };
     };
+    SearchController_buscar: {
+        parameters: {
+            query?: {
+                /** @description Qué buscar */
+                q?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SearchResultsDto"];
+                };
+            };
+        };
+    };
     AuthController_signIn: {
         parameters: {
             query?: never;
@@ -1255,7 +1329,21 @@ export interface operations {
     };
     AppsController_list: {
         parameters: {
-            query?: never;
+            query?: {
+                /** @description Estados separados por comas, p. ej. `IDEA,DEFINING` */
+                status?: string;
+                /** @description Niveles de acceso separados por comas */
+                accessLevel?: string;
+                /** @description Etiquetas separadas por comas; se exigen todas */
+                tag?: string;
+                /** @description Las archivadas se ocultan salvo que se pidan. */
+                archived?: "hide" | "only" | "all";
+                sort?: "updated" | "name";
+                /** @description Desde 1 */
+                page?: string;
+                /** @description Por defecto 24, como mucho 100 */
+                perPage?: string;
+            };
             header?: never;
             path: {
                 workspaceId: string;
@@ -1269,7 +1357,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["AppSummaryDto"][];
+                    "application/json": components["schemas"]["AppListDto"];
                 };
             };
         };

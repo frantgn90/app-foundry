@@ -98,6 +98,39 @@
         ]
       }
     },
+    "/api/v1/search": {
+      "get": {
+        "description": "Por nombre, descripción, etiquetas y contenido de la visión, en todos los workspaces del usuario. Cada resultado dice de cuál viene (RF-604).",
+        "operationId": "SearchController_buscar",
+        "parameters": [
+          {
+            "name": "q",
+            "required": false,
+            "in": "query",
+            "description": "Qué buscar",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SearchResultsDto"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Buscar apps",
+        "tags": [
+          "search"
+        ]
+      }
+    },
     "/api/v1/auth/github": {
       "get": {
         "operationId": "AuthController_signIn",
@@ -455,6 +488,77 @@
             "schema": {
               "type": "string"
             }
+          },
+          {
+            "name": "status",
+            "required": false,
+            "in": "query",
+            "description": "Estados separados por comas, p. ej. `IDEA,DEFINING`",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "accessLevel",
+            "required": false,
+            "in": "query",
+            "description": "Niveles de acceso separados por comas",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "tag",
+            "required": false,
+            "in": "query",
+            "description": "Etiquetas separadas por comas; se exigen todas",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "archived",
+            "required": false,
+            "in": "query",
+            "description": "Las archivadas se ocultan salvo que se pidan.",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "hide",
+                "only",
+                "all"
+              ]
+            }
+          },
+          {
+            "name": "sort",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "updated",
+                "name"
+              ]
+            }
+          },
+          {
+            "name": "page",
+            "required": false,
+            "in": "query",
+            "description": "Desde 1",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "perPage",
+            "required": false,
+            "in": "query",
+            "description": "Por defecto 24, como mucho 100",
+            "schema": {
+              "type": "string"
+            }
           }
         ],
         "responses": {
@@ -463,10 +567,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "array",
-                  "items": {
-                    "$ref": "#/components/schemas/AppSummaryDto"
-                  }
+                  "$ref": "#/components/schemas/AppListDto"
                 }
               }
             }
@@ -1474,6 +1575,95 @@
           }
         }
       },
+      "AppIconDto": {
+        "type": "object",
+        "properties": {
+          "emoji": {
+            "type": "string",
+            "description": "Emoji de la selección curada"
+          },
+          "color": {
+            "type": "string",
+            "description": "Color de fondo de la paleta"
+          }
+        },
+        "required": [
+          "emoji",
+          "color"
+        ]
+      },
+      "SearchHitDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "name": {
+            "type": "string"
+          },
+          "shortDescription": {
+            "type": "string",
+            "nullable": true
+          },
+          "status": {
+            "type": "string"
+          },
+          "accessLevel": {
+            "type": "string"
+          },
+          "icon": {
+            "$ref": "#/components/schemas/AppIconDto"
+          },
+          "isArchived": {
+            "type": "boolean"
+          },
+          "workspaceId": {
+            "type": "string",
+            "format": "uuid",
+            "description": "De dónde viene el resultado: la búsqueda cruza workspaces (RF-604)."
+          },
+          "workspaceName": {
+            "type": "string"
+          },
+          "excerpt": {
+            "type": "string",
+            "nullable": true,
+            "description": "Trozo del texto donde aparece lo buscado, con las coincidencias marcadas."
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "shortDescription",
+          "status",
+          "accessLevel",
+          "icon",
+          "isArchived",
+          "workspaceId",
+          "workspaceName",
+          "excerpt"
+        ]
+      },
+      "SearchResultsDto": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SearchHitDto"
+            }
+          },
+          "query": {
+            "type": "string",
+            "description": "Lo que se buscó, ya normalizado"
+          }
+        },
+        "required": [
+          "items",
+          "query"
+        ]
+      },
       "CurrentUserDto": {
         "type": "object",
         "properties": {
@@ -1727,23 +1917,6 @@
           "name"
         ]
       },
-      "AppIconDto": {
-        "type": "object",
-        "properties": {
-          "emoji": {
-            "type": "string",
-            "description": "Emoji de la selección curada"
-          },
-          "color": {
-            "type": "string",
-            "description": "Color de fondo de la paleta"
-          }
-        },
-        "required": [
-          "emoji",
-          "color"
-        ]
-      },
       "AppSummaryDto": {
         "type": "object",
         "properties": {
@@ -1828,6 +2001,41 @@
           "canEdit",
           "isArchived",
           "updatedAt"
+        ]
+      },
+      "AppListDto": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/AppSummaryDto"
+            }
+          },
+          "total": {
+            "type": "number",
+            "description": "Cuántas hay en total con estos filtros, no cuántas trae esta página."
+          },
+          "page": {
+            "type": "number"
+          },
+          "perPage": {
+            "type": "number"
+          },
+          "availableTags": {
+            "description": "Todas las etiquetas usadas en el workspace, para poder ofrecer el filtro sin una consulta aparte.",
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "required": [
+          "items",
+          "total",
+          "page",
+          "perPage",
+          "availableTags"
         ]
       },
       "UpdateAppDto": {

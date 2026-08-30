@@ -61,8 +61,8 @@ export function App() {
         setOpenApp(null);
         localStorage.setItem(WORKSPACE_KEY, id);
       }}
-      apps={apps.data ?? []}
-      currentApp={openApp ? apps.data?.find((a) => a.id === openApp) : undefined}
+      apps={apps.data?.items ?? []}
+      currentApp={openApp ? apps.data?.items.find((a) => a.id === openApp) : undefined}
       onSelectApp={(id) => {
         setHiloDestino(null);
         setOpenApp(id);

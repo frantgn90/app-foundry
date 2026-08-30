@@ -3,6 +3,7 @@ import {
   ArrayMaxSize,
   IsArray,
   IsIn,
+  IsNumberString,
   IsOptional,
   IsString,
   IsUrl,
@@ -115,4 +116,64 @@ export class TransferPrecursorDto {
   @ApiProperty({ format: 'uuid', description: 'Miembro del workspace que pasa a ser precursor' })
   @IsUUID()
   userId!: string;
+}
+
+export class AppListDto {
+  @ApiProperty({ type: [AppSummaryDto] }) items!: AppSummaryDto[];
+
+  @ApiProperty({
+    description: 'Cuántas hay en total con estos filtros, no cuántas trae esta página.',
+  })
+  total!: number;
+
+  @ApiProperty() page!: number;
+  @ApiProperty() perPage!: number;
+
+  @ApiProperty({
+    type: [String],
+    description:
+      'Todas las etiquetas usadas en el workspace, para poder ofrecer el filtro sin una consulta aparte.',
+  })
+  availableTags!: string[];
+}
+
+/** Filtros del listado. Todo opcional: sin nada, el listado de siempre (RF-602, RF-603). */
+export class ListAppsQueryDto {
+  @ApiPropertyOptional({ description: 'Estados separados por comas, p. ej. `IDEA,DEFINING`' })
+  @IsOptional()
+  @IsString()
+  status?: string;
+
+  @ApiPropertyOptional({ description: 'Niveles de acceso separados por comas' })
+  @IsOptional()
+  @IsString()
+  accessLevel?: string;
+
+  @ApiPropertyOptional({ description: 'Etiquetas separadas por comas; se exigen todas' })
+  @IsOptional()
+  @IsString()
+  tag?: string;
+
+  @ApiPropertyOptional({
+    enum: ['hide', 'only', 'all'],
+    description: 'Las archivadas se ocultan salvo que se pidan.',
+  })
+  @IsOptional()
+  @IsIn(['hide', 'only', 'all'])
+  archived?: 'hide' | 'only' | 'all';
+
+  @ApiPropertyOptional({ enum: ['updated', 'name'] })
+  @IsOptional()
+  @IsIn(['updated', 'name'])
+  sort?: 'updated' | 'name';
+
+  @ApiPropertyOptional({ description: 'Desde 1' })
+  @IsOptional()
+  @IsNumberString()
+  page?: string;
+
+  @ApiPropertyOptional({ description: 'Por defecto 24, como mucho 100' })
+  @IsOptional()
+  @IsNumberString()
+  perPage?: string;
 }

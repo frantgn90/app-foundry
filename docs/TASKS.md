@@ -332,18 +332,18 @@
 
 | # | Tarea | Verificación | Traza | Estado |
 |---|---|---|---|---|
-| AC1 | Columna de búsqueda mantenida por la propia base de datos | Editar la visión actualiza lo que se busca, sin que nadie lo recuerde | TRD §10, T-10 | ⬜ |
-| AC2 | Buscar por nombre, descripción y contenido, en todos tus workspaces | Un resultado dice de qué workspace viene | RF-604 | ⬜ |
-| AC3 | La búsqueda no enseña lo que no podrías abrir | Una app privada ajena no aparece ni buscándola por su nombre exacto | RF-604, RNF-401 | ⬜ |
+| AC1 | Columna de búsqueda mantenida por la propia base de datos | Editar la visión actualiza lo que se busca, sin que nadie lo recuerde | TRD §10, T-10 | ✅ |
+| AC2 | Buscar por nombre, descripción y contenido, en todos tus workspaces | Un resultado dice de qué workspace viene | RF-604 | ✅ |
+| AC3 | La búsqueda no enseña lo que no podrías abrir | Una app privada ajena no aparece ni buscándola por su nombre exacto | RF-604, RNF-401 | ✅ |
 
 ### Bloque AD — Listado: filtrar, ordenar, paginar
 
 | # | Tarea | Verificación | Traza | Estado |
 |---|---|---|---|---|
-| AD1 | Filtros por estado, etiqueta y nivel de acceso | Combinarlos acota, no se estorban entre sí | RF-602 | ⬜ |
-| AD2 | Orden por actividad y por nombre | El orden por defecto sigue siendo lo más reciente | RF-603 | ⬜ |
-| AD3 | Paginación | Cientos de apps no se traen de una vez | RF-603, RNF-201 | ⬜ |
-| AD4 | Tests del listado | Filtros, orden y páginas cuadran | RNF-401 | ⬜ |
+| AD1 | Filtros por estado, etiqueta y nivel de acceso | Combinarlos acota, no se estorban entre sí | RF-602 | ✅ |
+| AD2 | Orden por actividad y por nombre | El orden por defecto sigue siendo lo más reciente | RF-603 | ✅ |
+| AD3 | Paginación | Cientos de apps no se traen de una vez | RF-603, RNF-201 | ✅ |
+| AD4 | Tests del listado | Filtros, orden y páginas cuadran | RNF-401 | ✅ |
 
 ### Bloque AE — Encontrar desde la interfaz
 

@@ -1,6 +1,7 @@
 import { sql } from 'drizzle-orm';
 import {
   type AnyPgColumn,
+  customType,
   index,
   integer,
   pgTable,
@@ -45,6 +46,19 @@ export const apps = pgTable(
     /** Informativo en v1: no sincroniza nada (RF-417). */
     repoUrl: text('repo_url'),
     archivedAt: timestamp('archived_at', { withTimezone: true }),
+    /*
+     * Lo que se busca, mantenido por la base de datos (RF-604, TRD §10).
+     *
+     * Se declara aquí para que el esquema no mienta, pero nadie lo escribe desde
+     * la aplicación: lo recalculan disparadores cuando cambia el nombre, la
+     * descripción, el texto de la visión o las etiquetas. Dejarlo en manos de
+     * quien guarda significaría que el día que se añada otro camino de escritura
+     * —una importación, el servidor MCP— la búsqueda empezaría a mentir sin que
+     * nada fallara.
+     */
+    searchTsv: customType<{ data: string; driverData: string }>({
+      dataType: () => 'tsvector',
+    })('search_tsv'),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
   },
@@ -54,6 +68,7 @@ export const apps = pgTable(
     // workspace, así que este índice es el que sostiene la vista principal.
     index('apps_workspace_updated_idx').on(table.workspaceId, table.updatedAt),
     index('apps_precursor_idx').on(table.precursorId),
+    index('apps_search_idx').using('gin', table.searchTsv),
   ],
 );
 

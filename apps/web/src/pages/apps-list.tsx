@@ -58,8 +58,8 @@ export function AppsListPage({
           <div className="flex flex-col gap-1">
             <h1 className="text-2xl font-semibold tracking-tight">{workspace.name}</h1>
             <p className="text-sm text-[var(--color-texto-suave)]">
-              {apps.data?.length
-                ? `${String(apps.data.length)} idea${apps.data.length === 1 ? '' : 's'} here`
+              {apps.data?.total
+                ? `${String(apps.data.total)} idea${apps.data.total === 1 ? '' : 's'} here`
                 : 'No ideas here yet'}
             </p>
           </div>
@@ -115,7 +115,7 @@ export function AppsListPage({
 
       {apps.isPending && <p className="text-sm text-[var(--color-texto-suave)]">Loading…</p>}
 
-      {apps.data?.length === 0 && !creating && (
+      {apps.data?.items.length === 0 && !creating && (
         <EmptyState
           onCreate={() => {
             setCreating(true);
@@ -138,7 +138,7 @@ export function AppsListPage({
         en su orden real.
       */}
       <ul className="columns-1 gap-3 sm:columns-2">
-        {apps.data?.map((app) => (
+        {apps.data?.items.map((app) => (
           // `break-inside-avoid` impide que una tarjeta se parta entre columnas.
           <li key={app.id} className="mb-3 break-inside-avoid">
             <AppCard

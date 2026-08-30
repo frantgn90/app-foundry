@@ -257,15 +257,78 @@ export class ConflictError extends Error {
   }
 }
 
-export function useApps(workspaceId: string | undefined) {
-  return useQuery<App[]>({
-    queryKey: ['apps', workspaceId],
+export interface AppFilters {
+  status?: string[];
+  tag?: string[];
+  accessLevel?: string[];
+  archived?: 'hide' | 'only' | 'all';
+  sort?: 'updated' | 'name';
+  page?: number;
+}
+
+export interface AppList {
+  items: App[];
+  total: number;
+  page: number;
+  perPage: number;
+  availableTags: string[];
+}
+
+export function useApps(workspaceId: string | undefined, filtros: AppFilters = {}) {
+  const query = {
+    ...(filtros.status?.length ? { status: filtros.status.join(',') } : {}),
+    ...(filtros.tag?.length ? { tag: filtros.tag.join(',') } : {}),
+    ...(filtros.accessLevel?.length ? { accessLevel: filtros.accessLevel.join(',') } : {}),
+    ...(filtros.archived ? { archived: filtros.archived } : {}),
+    ...(filtros.sort ? { sort: filtros.sort } : {}),
+    ...(filtros.page && filtros.page > 1 ? { page: String(filtros.page) } : {}),
+  };
+
+  return useQuery<AppList>({
+    // Los filtros entran en la clave: cada combinación es una lista distinta y
+    // se cachean por separado, así que volver a una anterior es instantáneo.
+    queryKey: ['apps', workspaceId, query],
     enabled: Boolean(workspaceId),
     queryFn: async () => {
       const { data, error } = await api.GET('/api/v1/workspaces/{workspaceId}/apps', {
-        params: { path: { workspaceId: workspaceId ?? '' } },
+        params: { path: { workspaceId: workspaceId ?? '' }, query },
       });
       if (error || !data) throw new Error('Could not load apps');
+      return data;
+    },
+  });
+}
+
+export interface SearchHit {
+  id: string;
+  name: string;
+  shortDescription: string | null;
+  status: string;
+  accessLevel: string;
+  icon: { emoji: string; color: string };
+  isArchived: boolean;
+  workspaceId: string;
+  workspaceName: string;
+  excerpt: string | null;
+}
+
+/**
+ * Búsqueda global (RF-604).
+ *
+ * Solo se lanza a partir de dos caracteres: con uno, la consulta devolvería
+ * media base de datos y el resultado no ayudaría a nadie.
+ */
+export function useSearch(termino: string) {
+  const q = termino.trim();
+  return useQuery<{ items: SearchHit[]; query: string }>({
+    queryKey: ['search', q],
+    enabled: q.length >= 2,
+    // Lo tecleado hace un momento sigue valiendo: evita repetir la consulta al
+    // borrar una letra y volver a escribirla.
+    staleTime: 30_000,
+    queryFn: async () => {
+      const { data, error } = await api.GET('/api/v1/search', { params: { query: { q } } });
+      if (error || !data) throw new Error('Could not search');
       return data;
     },
   });

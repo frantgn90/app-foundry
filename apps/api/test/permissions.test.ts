@@ -83,17 +83,17 @@ describe('la invitación surte efecto de inmediato para quien ya tiene cuenta', 
 
 describe('qué apps ve cada uno', () => {
   it('Ana ve las tres suyas', async () => {
-    const lista = (await (
+    const { items } = (await (
       await h.as(ana).get(`/api/v1/workspaces/${ana.workspaceId}/apps`)
-    ).json()) as { name: string }[];
-    expect(lista.map((a) => a.name).sort()).toEqual(['Escritura', 'Lectura', 'Privada']);
+    ).json()) as { items: { name: string }[] };
+    expect(items.map((a) => a.name).sort()).toEqual(['Escritura', 'Lectura', 'Privada']);
   });
 
   it('Bruno ve las compartidas pero no la privada', async () => {
-    const lista = (await (
+    const { items } = (await (
       await h.as(bruno).get(`/api/v1/workspaces/${ana.workspaceId}/apps`)
-    ).json()) as { name: string }[];
-    expect(lista.map((a) => a.name).sort()).toEqual(['Escritura', 'Lectura']);
+    ).json()) as { items: { name: string }[] };
+    expect(items.map((a) => a.name).sort()).toEqual(['Escritura', 'Lectura']);
   });
 
   it('pedir directamente la privada tampoco funciona', async () => {
@@ -103,10 +103,10 @@ describe('qué apps ve cada uno', () => {
   it('Carla no ve nada del workspace de Ana, ni siquiera que existe', async () => {
     // 404 y no 403: decir «no tienes permiso» ya confirmaría que existe.
     expect((await h.as(carla).get(`/api/v1/workspaces/${ana.workspaceId}/apps`)).status).toBe(200);
-    const lista = (await (
+    const { items } = (await (
       await h.as(carla).get(`/api/v1/workspaces/${ana.workspaceId}/apps`)
-    ).json()) as unknown[];
-    expect(lista).toHaveLength(0);
+    ).json()) as { items: unknown[] };
+    expect(items).toHaveLength(0);
     expect((await h.as(carla).get(`/api/v1/apps/${apps['escritura']}`)).status).toBe(404);
   });
 });

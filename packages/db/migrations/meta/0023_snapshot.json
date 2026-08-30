@@ -1,6 +1,6 @@
 {
-  "id": "78626721-3729-4896-847d-8406efb860a7",
-  "prevId": "6cb4f49c-f6ec-4614-be35-a6b524cc7f8e",
+  "id": "71b3cb80-3517-43c9-a727-daefc695134d",
+  "prevId": "ddd0906b-f34e-40cc-bfd3-965c30fdbc73",
   "version": "7",
   "dialect": "postgresql",
   "tables": {
@@ -457,7 +457,7 @@
           "type": "text",
           "primaryKey": false,
           "notNull": true,
-          "default": "'\ud83d\uddc2\ufe0f'"
+          "default": "'🗂️'"
         },
         "icon_color": {
           "name": "icon_color",
@@ -665,6 +665,12 @@
           "primaryKey": false,
           "notNull": false
         },
+        "search_tsv": {
+          "name": "search_tsv",
+          "type": "tsvector",
+          "primaryKey": false,
+          "notNull": false
+        },
         "created_at": {
           "name": "created_at",
           "type": "timestamp with time zone",
@@ -715,6 +721,21 @@
           "isUnique": false,
           "concurrently": false,
           "method": "btree",
+          "with": {}
+        },
+        "apps_search_idx": {
+          "name": "apps_search_idx",
+          "columns": [
+            {
+              "expression": "search_tsv",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "gin",
           "with": {}
         }
       },

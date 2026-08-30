@@ -9,14 +9,19 @@ import {
   ParseUUIDPipe,
   Patch,
   Post,
+  Query,
 } from '@nestjs/common';
 import { ApiNoContentResponse, ApiOkResponse, ApiOperation, ApiTags } from '@nestjs/swagger';
 
+import type { AccessLevel, AppStatus } from '@app-foundry/core';
+
 import { CurrentUserId } from '../auth/current-user.decorator.js';
 import {
+  AppListDto,
   AppSummaryDto,
   ChangeAccessLevelDto,
   CreateAppDto,
+  ListAppsQueryDto,
   TransferPrecursorDto,
   UpdateAppDto,
 } from './apps.dto.js';
@@ -45,12 +50,25 @@ export class AppsController {
 
   @Get('workspaces/:workspaceId/apps')
   @ApiOperation({ summary: 'Apps visibles del workspace' })
-  @ApiOkResponse({ type: [AppSummaryDto] })
+  @ApiOkResponse({ type: AppListDto })
   list(
     @Param('workspaceId', ParseUUIDPipe) workspaceId: string,
     @CurrentUserId() userId: string,
-  ): Promise<AppSummaryDto[]> {
-    return this.apps.list(workspaceId, userId);
+    @Query() filtros: ListAppsQueryDto,
+  ): Promise<AppListDto> {
+    const status = lista(filtros.status) as AppStatus[] | undefined;
+    const accessLevel = lista(filtros.accessLevel) as AccessLevel[] | undefined;
+    const tags = lista(filtros.tag);
+
+    return this.apps.list(workspaceId, userId, {
+      ...(status ? { status } : {}),
+      ...(accessLevel ? { accessLevel } : {}),
+      ...(tags ? { tags } : {}),
+      archived: filtros.archived ?? 'hide',
+      sort: filtros.sort ?? 'updated',
+      ...(filtros.page === undefined ? {} : { page: Number(filtros.page) }),
+      ...(filtros.perPage === undefined ? {} : { perPage: Number(filtros.perPage) }),
+    });
   }
 
   @Get('apps/:id')
@@ -123,4 +141,19 @@ export class AppsController {
   remove(@Param('id', ParseUUIDPipe) id: string, @CurrentUserId() userId: string): Promise<void> {
     return this.apps.remove(id, userId);
   }
+}
+
+/**
+ * Varios valores llegan separados por comas.
+ *
+ * Es lo que produce una URL legible —`?status=IDEA,DEFINING`— y lo que hace que
+ * un filtro se pueda compartir pegando el enlace.
+ */
+function lista(valor: string | undefined): string[] | undefined {
+  if (valor === undefined) return undefined;
+  const partes = valor
+    .split(',')
+    .map((p) => p.trim())
+    .filter((p) => p.length > 0);
+  return partes.length > 0 ? partes : undefined;
 }

@@ -1,7 +1,13 @@
 import { ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
-import { and, desc, eq, inArray } from 'drizzle-orm';
+import { and, asc, count, desc, eq, exists, inArray, isNotNull, isNull, sql } from 'drizzle-orm';
 
-import { type AccessLevel, defaultIcon, uniqueSlug, VISION_TEMPLATE } from '@app-foundry/core';
+import {
+  type AccessLevel,
+  type AppStatus,
+  defaultIcon,
+  uniqueSlug,
+  VISION_TEMPLATE,
+} from '@app-foundry/core';
 import {
   apps,
   appTags,
@@ -9,13 +15,24 @@ import {
   documentVersions,
   users,
   workspaceMembers,
-  workspaces,
 } from '@app-foundry/db';
 
 import { AuditAction, AuditService } from '../audit/audit.service.js';
 import { NotificationsService } from '../notifications/notifications.service.js';
 import { currentTx } from '../database/request-context.js';
-import type { AppSummaryDto, CreateAppDto, UpdateAppDto } from './apps.dto.js';
+import type { AppListDto, AppSummaryDto, CreateAppDto, UpdateAppDto } from './apps.dto.js';
+
+/** Lo que se puede pedir al listar. Todo opcional: sin nada, el listado de siempre. */
+export interface ListOptions {
+  status?: AppStatus[];
+  accessLevel?: AccessLevel[];
+  tags?: string[];
+  /** `hide` (por defecto), `only` para ver solo las archivadas, `all` para todas. */
+  archived?: 'hide' | 'only' | 'all';
+  sort?: 'updated' | 'name';
+  page?: number;
+  perPage?: number;
+}
 
 @Injectable()
 export class AppsService {
@@ -120,21 +137,92 @@ export class AppsService {
    * No filtra por permisos: la RLS ya devuelve solo lo que esta persona puede
    * ver, incluidas las privadas ajenas, que sencillamente no aparecen.
    */
-  async list(workspaceId: string, userId: string): Promise<AppSummaryDto[]> {
-    const rows = await currentTx()
+  /**
+   * Listado del workspace, con filtros, orden y paginación (RF-602, RF-603).
+   *
+   * Las apps archivadas se quedan fuera salvo que se pidan: archivar es decir
+   * «esto ya no está en marcha», y si siguieran apareciendo entre las demás no
+   * habría servido de nada. Se pueden ver pidiéndolas.
+   */
+  async list(workspaceId: string, userId: string, opciones: ListOptions = {}): Promise<AppListDto> {
+    const tx = currentTx();
+    const page = Math.max(1, opciones.page ?? 1);
+    const perPage = Math.min(Math.max(opciones.perPage ?? 24, 1), 100);
+
+    const condiciones = [eq(apps.workspaceId, workspaceId)];
+
+    if (opciones.status && opciones.status.length > 0) {
+      condiciones.push(inArray(apps.status, opciones.status));
+    }
+    if (opciones.accessLevel && opciones.accessLevel.length > 0) {
+      condiciones.push(inArray(apps.accessLevel, opciones.accessLevel));
+    }
+    if (opciones.archived !== 'all') {
+      condiciones.push(
+        opciones.archived === 'only' ? isNotNull(apps.archivedAt) : isNull(apps.archivedAt),
+      );
+    }
+    if (opciones.tags && opciones.tags.length > 0) {
+      // Todas las etiquetas pedidas, no cualquiera: filtrar es acotar, y quien
+      // marca dos espera lo que cumple ambas.
+      for (const tag of opciones.tags) {
+        condiciones.push(
+          exists(
+            tx
+              .select({ uno: sql`1` })
+              .from(appTags)
+              .where(and(eq(appTags.appId, apps.id), eq(appTags.tag, tag))),
+          ),
+        );
+      }
+    }
+
+    const donde = and(...condiciones);
+    const orden =
+      opciones.sort === 'name'
+        ? [asc(apps.name)]
+        : // Por defecto, lo último tocado arriba: es lo que se busca al entrar.
+          [desc(apps.updatedAt)];
+
+    const rows = await tx
       .select({
         app: apps,
         precursorHandle: users.handle,
-        ownerId: workspaces.ownerId,
       })
       .from(apps)
       .innerJoin(users, eq(users.id, apps.precursorId))
-      .innerJoin(workspaces, eq(workspaces.id, apps.workspaceId))
-      .where(eq(apps.workspaceId, workspaceId))
-      .orderBy(desc(apps.updatedAt));
+      .where(donde)
+      .orderBy(...orden)
+      .limit(perPage)
+      .offset((page - 1) * perPage);
+
+    const [total] = await tx.select({ n: count() }).from(apps).where(donde);
 
     const tags = await this.tagsFor(rows.map((r) => r.app.id));
-    return rows.map((r) => this.toSummary(r.app, r.precursorHandle, userId, tags));
+    return {
+      items: rows.map((r) => this.toSummary(r.app, r.precursorHandle, userId, tags)),
+      total: total?.n ?? 0,
+      page,
+      perPage,
+      availableTags: await this.tagsDelWorkspace(workspaceId),
+    };
+  }
+
+  /**
+   * Las etiquetas que existen en el workspace.
+   *
+   * Van con el listado y no en un endpoint aparte porque se necesitan a la vez:
+   * el filtro se dibuja junto a los resultados, y pedirlas por separado sería
+   * una segunda vuelta para pintar la misma pantalla.
+   */
+  private async tagsDelWorkspace(workspaceId: string): Promise<string[]> {
+    const filas = await currentTx()
+      .selectDistinct({ tag: appTags.tag })
+      .from(appTags)
+      .innerJoin(apps, eq(apps.id, appTags.appId))
+      .where(eq(apps.workspaceId, workspaceId))
+      .orderBy(asc(appTags.tag));
+    return filas.map((f) => f.tag);
   }
 
   async get(appId: string, userId: string): Promise<AppSummaryDto> {

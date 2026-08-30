@@ -1,6 +1,6 @@
 {
-  "id": "6cb4f49c-f6ec-4614-be35-a6b524cc7f8e",
-  "prevId": "02d9e4d4-ae00-45dc-91e8-6a872b78fa55",
+  "id": "6cf4ac65-1e70-44df-a915-00947fce0c1a",
+  "prevId": "78626721-3729-4896-847d-8406efb860a7",
   "version": "7",
   "dialect": "postgresql",
   "tables": {
@@ -457,7 +457,7 @@
           "type": "text",
           "primaryKey": false,
           "notNull": true,
-          "default": "'🗂️'"
+          "default": "'\ud83d\uddc2\ufe0f'"
         },
         "icon_color": {
           "name": "icon_color",
