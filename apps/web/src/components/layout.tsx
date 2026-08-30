@@ -5,6 +5,7 @@ import { cn } from '../lib/utils.js';
 import { ICON_BACKGROUNDS } from './icon-picker.js';
 import { backgroundStyle } from './workspace-background.js';
 import { Logo } from './logo.js';
+import { StatusPill, VisibilityMark } from './app-status.js';
 import { NotificationBell, type NotificationTarget } from './notification-bell.js';
 import { UserMenu } from './user-menu.js';
 import { Badge } from './ui/badge.js';
@@ -91,6 +92,13 @@ export function Layout({
             }))}
             selectedId={current?.id}
             onSelect={onSelect}
+            {...(currentApp && current
+              ? {
+                  onPrimary: () => {
+                    onSelect(current.id);
+                  },
+                }
+              : {})}
           />
 
           {/* El tramo de la app solo existe mientras haya una abierta. */}
@@ -99,7 +107,6 @@ export function Layout({
               <Separator />
               <Dropdown
                 label={currentApp.name}
-                badge={currentApp.isArchived ? <Badge>Archived</Badge> : null}
                 options={apps.map((a) => ({
                   id: a.id,
                   label: a.name,
@@ -110,6 +117,18 @@ export function Layout({
                 onSelect={onSelectApp}
                 empty="No other apps here yet"
               />
+
+              {/*
+                El estado, la visibilidad y de quién es la app viajan con su
+                nombre en la ruta, que es donde ya se está mirando para saber
+                dónde se está. Así la ficha no necesita una cabecera propia sólo
+                para repetirlo.
+              */}
+              <StatusPill status={currentApp.isArchived ? 'ARCHIVED' : currentApp.status} />
+              <VisibilityMark accessLevel={currentApp.accessLevel} />
+              <span className="hidden text-xs text-[var(--color-texto-suave)] sm:inline">
+                @{currentApp.precursorHandle}
+              </span>
             </>
           )}
 
@@ -187,6 +206,7 @@ function Dropdown({
   options,
   selectedId,
   onSelect,
+  onPrimary,
   empty,
 }: {
   label: string;
@@ -195,6 +215,15 @@ function Dropdown({
   options: Option[];
   selectedId: string | undefined;
   onSelect: (id: string) => void;
+  /**
+   * Qué hace pulsar el nombre, si hace algo.
+   *
+   * Con esto el tramo se parte en dos: el texto lleva a su sitio de un clic y la
+   * flecha abre la lista. Sin ello, volver al listado desde una app costaría
+   * abrir un menú y elegir en él lo que ya está seleccionado, que es un rodeo
+   * para la navegación más frecuente que hay aquí.
+   */
+  onPrimary?: () => void;
   empty?: string;
 }) {
   const [open, setOpen] = useState(false);
@@ -219,25 +248,54 @@ function Dropdown({
   const otras = options.filter((o) => o.id !== selectedId);
 
   return (
-    <div className="relative" ref={caja}>
-      <button
-        onClick={() => {
-          setOpen((v) => !v);
-        }}
-        className={cn(
-          'flex max-w-52 items-center gap-2 rounded-lg px-2 py-1.5 text-sm',
-          'hover:bg-[var(--color-borde)]/40',
-        )}
-        aria-haspopup="listbox"
-        aria-expanded={open}
-      >
-        {icon}
-        <span className="truncate">{label}</span>
-        {badge}
-        <svg viewBox="0 0 12 12" className="size-3 shrink-0 opacity-60" aria-hidden>
-          <path d="M2 4.5 6 8.5 10 4.5" fill="none" stroke="currentColor" strokeWidth="1.5" />
-        </svg>
-      </button>
+    <div className="relative flex items-center" ref={caja}>
+      {onPrimary ? (
+        <>
+          <button
+            onClick={onPrimary}
+            className={cn(
+              'flex max-w-52 items-center gap-2 rounded-l-lg py-1.5 pl-2 pr-1 text-sm',
+              'hover:bg-[var(--color-borde)]/40',
+            )}
+          >
+            {icon}
+            <span className="truncate">{label}</span>
+            {badge}
+          </button>
+          <button
+            onClick={() => {
+              setOpen((v) => !v);
+            }}
+            aria-haspopup="listbox"
+            aria-expanded={open}
+            aria-label={`Switch from ${label}`}
+            className="rounded-r-lg py-1.5 pl-0.5 pr-2 hover:bg-[var(--color-borde)]/40"
+          >
+            <svg viewBox="0 0 12 12" className="size-3 shrink-0 opacity-60" aria-hidden>
+              <path d="M2 4.5 6 8.5 10 4.5" fill="none" stroke="currentColor" strokeWidth="1.5" />
+            </svg>
+          </button>
+        </>
+      ) : (
+        <button
+          onClick={() => {
+            setOpen((v) => !v);
+          }}
+          className={cn(
+            'flex max-w-52 items-center gap-2 rounded-lg px-2 py-1.5 text-sm',
+            'hover:bg-[var(--color-borde)]/40',
+          )}
+          aria-haspopup="listbox"
+          aria-expanded={open}
+        >
+          {icon}
+          <span className="truncate">{label}</span>
+          {badge}
+          <svg viewBox="0 0 12 12" className="size-3 shrink-0 opacity-60" aria-hidden>
+            <path d="M2 4.5 6 8.5 10 4.5" fill="none" stroke="currentColor" strokeWidth="1.5" />
+          </svg>
+        </button>
+      )}
 
       {open && (
         <ul

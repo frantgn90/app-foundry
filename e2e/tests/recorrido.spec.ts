@@ -36,8 +36,10 @@ test('de crear una app a encontrarla por su contenido', async ({ page, context }
     await page.getByRole('button', { name: 'Create', exact: true }).click();
 
     // Crear entra directamente a la ficha: quedarse en la lista sería dejar el
-    // trabajo a medias.
-    await expect(page.getByRole('heading', { name: 'Telescopio' })).toBeVisible();
+    // trabajo a medias. El nombre se lee en la ruta de arriba; el encabezado
+    // existe pero no se dibuja, así que se comprueba que está, no que se vea.
+    await expect(page.getByRole('heading', { name: 'Telescopio' })).toHaveCount(1);
+    await expect(page.getByRole('button', { name: /Telescopio/ })).toBeVisible();
   });
 
   await test.step('escribir la visión', async () => {
@@ -120,7 +122,7 @@ test('de crear una app a encontrarla por su contenido', async ({ page, context }
     await expect(resultado).toBeVisible();
 
     await resultado.click();
-    await expect(page.getByRole('heading', { name: 'Telescopio' })).toBeVisible();
+    await expect(page.getByRole('button', { name: /Telescopio/ })).toBeVisible();
   });
 
   expect(erroresDePagina, 'nada debe romperse durante el recorrido').toEqual([]);

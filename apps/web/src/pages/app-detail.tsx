@@ -27,7 +27,7 @@ import { DiffView } from '../components/diff-view.js';
 import { MarkdownEditor } from '../components/editor.js';
 import { EditToggle } from '../components/vision-controls.js';
 import { Markdown } from '../components/markdown.js';
-import { StatusPill, TagList, VisibilityMark } from '../components/app-status.js';
+import { TagList } from '../components/app-status.js';
 import { Button } from '../components/ui/button.js';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card.js';
 import { useShortcuts } from '../lib/shortcuts.js';
@@ -282,45 +282,11 @@ export function AppDetailPage({
   return (
     <div className="flex flex-col gap-6">
       {/*
-        Una sola línea para volver y para saber dónde se está.
-        
-        Lo que había debajo se ha repartido: la versión se lee en la pestaña del
-        documento, que es lo que versiona, y los comentarios abiertos ya los
-        cuenta su propio panel. Repetirlos aquí gastaba una línea entera de
-        pantalla en decir dos veces lo mismo.
+        El nombre sigue siendo el encabezado de esta página aunque se lea en la
+        ruta de arriba: de él cuelgan la navegación por encabezados y lo que
+        anuncia un lector de pantalla al llegar.
       */}
-      <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
-        <button
-          onClick={onBack}
-          className="shrink-0 text-sm text-[var(--color-texto-suave)] hover:underline"
-        >
-          ← All apps
-        </button>
-
-        <span className="text-[var(--color-borde)]" aria-hidden>
-          |
-        </span>
-
-        <span className="flex min-w-0 items-center gap-2">
-          <span className="text-lg leading-7" aria-hidden>
-            {app.data.icon.emoji}
-          </span>
-          <h1 className="min-w-0 truncate text-lg font-semibold tracking-tight">{app.data.name}</h1>
-          <StatusPill status={app.data.isArchived ? 'ARCHIVED' : app.data.status} />
-          <VisibilityMark accessLevel={app.data.accessLevel} />
-          {/* El precursor se queda: la ficha tiene que decir de quién es la app
-              (RF-607), y es el único sitio donde ya se dice. */}
-          <span className="shrink-0 text-xs text-[var(--color-texto-suave)]">
-            @{app.data.precursorHandle}
-          </span>
-        </span>
-
-        {/* Las etiquetas al otro extremo: son clasificación de quien escribe, no
-            identidad de la app, y ahí no compiten con el nombre. */}
-        <span className="ml-auto">
-          <TagList tags={app.data.tags} />
-        </span>
-      </div>
+      <h1 className="sr-only">{app.data.name}</h1>
 
       <nav className="flex items-center gap-1 border-b border-[var(--color-borde)]">
         {(['vision', 'history', 'settings'] as const).map((t) => (
@@ -344,6 +310,13 @@ export function AppDetailPage({
             )}
           </button>
         ))}
+
+        {/* Las etiquetas ocupan el hueco que dejan las pestañas, en vez de una
+            línea propia: son clasificación, se consultan de reojo y no merecen
+            alto de pantalla para ellas solas. */}
+        <span className="ml-auto pb-1">
+          <TagList tags={app.data.tags} />
+        </span>
       </nav>
 
       {conflict && (
