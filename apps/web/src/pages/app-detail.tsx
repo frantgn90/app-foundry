@@ -307,16 +307,22 @@ export function AppDetailPage({
         hace más falta al documento, que es a lo que se viene.
       */}
       <header className="flex flex-wrap items-start justify-between gap-x-4 gap-y-2">
-        <div className="flex min-w-0 items-baseline gap-3">
-          <span className="text-2xl leading-none" aria-hidden>
+        <div className="flex min-w-0 items-start gap-3">
+          {/* Misma altura de línea que el título, en lugar de empujarlo con un
+              relleno a ojo: así se centra con él por construcción y sigue
+              cuadrando si algún día cambia el tamaño del nombre. */}
+          <span className="text-2xl leading-8" aria-hidden>
             {app.data.icon.emoji}
           </span>
           <div className="flex min-w-0 flex-col gap-1.5">
-            <div className="flex flex-wrap items-baseline gap-x-2.5 gap-y-1">
+            {/*
+              Centrados y no alineados por la línea base: con un título de
+              veinticuatro píxeles al lado de un texto de doce, la base común
+              deja lo pequeño cinco píxeles más abajo de su sitio. Se ve.
+            */}
+            <div className="flex flex-wrap items-center gap-x-2.5 gap-y-1">
               <h1 className="text-2xl font-semibold tracking-tight">{app.data.name}</h1>
-              {/* Estado y visibilidad se alinean con el texto, no con la base de
-                  la línea: al lado de un título de 24px quedarían hundidos. */}
-              <span className="flex items-center gap-2.5 self-center">
+              <span className="flex items-center gap-2.5">
                 <StatusPill status={app.data.isArchived ? 'ARCHIVED' : app.data.status} />
                 <VisibilityMark accessLevel={app.data.accessLevel} />
               </span>
