@@ -231,11 +231,66 @@ export class WorkspacesService {
     });
   }
 
+  /**
+   * Traspasa al dueño las apps de quien deja el workspace (RF-413).
+   *
+   * Se hace **antes** de borrar la membresía, y no es un detalle: el aviso al
+   * dueño lo escribe quien está ejecutando esto, y las políticas exigen que
+   * quien escribe un aviso pertenezca al workspace. Hecho después, quien se
+   * marcha ya no sería miembro y el aviso sería rechazado.
+   */
+  private async heredarApps(workspaceId: string, aQuien: string, actor: string): Promise<void> {
+    const heredadas = await currentTx().execute<{
+      app_id: string;
+      app_name: string;
+      new_precursor: string;
+    }>(sql`SELECT * FROM workspace_inherit_apps(${workspaceId}::uuid, ${aQuien}::uuid)`);
+
+    if (heredadas.rows.length === 0) return;
+    const dueno = heredadas.rows[0]!.new_precursor;
+
+    for (const fila of heredadas.rows) {
+      await this.audit.record({
+        actorId: actor,
+        action: AuditAction.APP_PRECURSOR_INHERITED,
+        resourceType: 'app',
+        resourceId: fila.app_id,
+        workspaceId,
+        // Quién lo deja y quién lo recibe; nunca nada del contenido (RF-706).
+        metadata: { from: aQuien, to: dueno },
+      });
+    }
+
+    const [ws] = await currentTx()
+      .select({ name: workspaces.name })
+      .from(workspaces)
+      .where(eq(workspaces.id, workspaceId));
+    const [quien] = await currentTx()
+      .select({ handle: users.handle })
+      .from(users)
+      .where(eq(users.id, aQuien));
+
+    await this.notifications.emit({
+      type: 'APPS_INHERITED',
+      entorno: { actor, destinatario: dueno },
+      workspaceId,
+      payload: {
+        actorHandle: quien?.handle ?? '',
+        workspaceName: ws?.name ?? '',
+        count: heredadas.rows.length,
+        // Los nombres hacen el aviso legible sin tener que ir a mirar.
+        appNames: heredadas.rows.map((f) => f.app_name).slice(0, 5),
+      },
+    });
+  }
+
   async removeMember(workspaceId: string, aQuien: string, userId: string): Promise<void> {
     this.enforce(await this.adminDecision(workspaceId, userId));
     if (aQuien === userId) {
       throw new ForbiddenException('El dueño no puede expulsarse de su propio workspace');
     }
+
+    await this.heredarApps(workspaceId, aQuien, userId);
 
     await currentTx()
       .delete(workspaceMembers)
@@ -263,6 +318,8 @@ export class WorkspacesService {
         membership: this.membership(workspaceId, userId, rol),
       }),
     );
+
+    await this.heredarApps(workspaceId, userId, userId);
 
     await currentTx()
       .delete(workspaceMembers)

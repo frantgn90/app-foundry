@@ -205,8 +205,15 @@ function LeaveCard({ workspaceId, name }: { workspaceId: string; name: string })
     <Card>
       <CardHeader>
         <CardTitle>Leave this workspace</CardTitle>
+        {/*
+          Dos cosas distintas que hay que decir antes, no después (RF-308,
+          RF-413): lo que escribiste sigue siendo tuyo, pero las apps que
+          empezaste aquí no se van contigo — se quedan y pasan a manos del dueño.
+          Quien se marcha pensando que se lleva sus ideas se lleva una sorpresa.
+        */}
         <CardDescription>
-          You&apos;ll lose access to {name}. Anything you wrote stays, credited to you.
+          You&apos;ll lose access to {name}. Versions you wrote stay, credited to you — and any app
+          you started here stays too: the workspace owner becomes its precursor.
         </CardDescription>
       </CardHeader>
       <CardContent>

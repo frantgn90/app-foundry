@@ -20,6 +20,7 @@ export const AuditAction = {
   APP_UNARCHIVED: 'app.unarchived',
   APP_DELETED: 'app.deleted',
   APP_PRECURSOR_TRANSFERRED: 'app.precursor_transferred',
+  APP_PRECURSOR_INHERITED: 'app.precursor_inherited',
   DOCUMENT_VERSION_CREATED: 'document.version_created',
   DOCUMENT_RESTORED: 'document.restored',
   COMMENT_THREAD_CREATED: 'comment.thread_created',

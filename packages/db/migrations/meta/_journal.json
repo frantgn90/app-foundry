@@ -169,6 +169,13 @@
       "when": 1788048655893,
       "tag": "0023_app_search",
       "breakpoints": true
+    },
+    {
+      "idx": 24,
+      "version": "7",
+      "when": 1788048656893,
+      "tag": "0024_inherit_apps",
+      "breakpoints": true
     }
   ]
 }
