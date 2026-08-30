@@ -25,6 +25,7 @@ import { MentionInput } from '../components/mention-input.js';
 import { AppSettingsPage } from './app-settings.js';
 import { DiffView } from '../components/diff-view.js';
 import { MarkdownEditor } from '../components/editor.js';
+import { VisionControls } from '../components/vision-controls.js';
 import { Markdown } from '../components/markdown.js';
 import { StatusPill, TagList, VisibilityMark } from '../components/app-status.js';
 import { Button } from '../components/ui/button.js';
@@ -32,7 +33,10 @@ import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card.
 import { useShortcuts } from '../lib/shortcuts.js';
 import { cn } from '../lib/utils.js';
 
-type Tab = 'read' | 'edit' | 'history' | 'settings';
+type Tab = 'vision' | 'history' | 'settings';
+
+/** Cómo se está mirando el documento dentro de su pestaña. */
+type Vista = 'plain' | 'rendered';
 
 /** Clave del borrador local, por app: no se mezclan entre sí (RF-506). */
 const draftKey = (appId: string) => `app-foundry:draft:${appId}`;
@@ -55,7 +59,14 @@ export function AppDetailPage({
   const save = useSaveDocument(appId);
   const restore = useRestoreVersion(appId);
 
-  const [tab, setTab] = useState<Tab>('read');
+  const [tab, setTab] = useState<Tab>('vision');
+  /*
+   * Leer y escribir dejan de ser sitios distintos y pasan a ser dos
+   * interruptores sobre el mismo documento: se puede pasar de uno a otro sin
+   * perder de vista dónde se estaba.
+   */
+  const [editando, setEditando] = useState(false);
+  const [vista, setVista] = useState<Vista>('rendered');
   const [draft, setDraft] = useState<string | null>(null);
   const [conflict, setConflict] = useState<SaveConflict | null>(null);
   const [comparing, setComparing] = useState<string | null>(null);
@@ -72,7 +83,7 @@ export function AppDetailPage({
     if (initialThreadId === null) return;
     setSelectedThread(initialThreadId);
     setScrollToThread(true);
-    setTab('read');
+    setTab('vision');
   }, [initialThreadId]);
 
   // La selección pendiente se guarda al soltar el ratón, pero el formulario no
@@ -185,7 +196,17 @@ export function AppDetailPage({
       observador.disconnect();
     };
     // `anchorsKey` resume la lista de anclas, que se reconstruye en cada render.
-  }, [anchorsKey, selectedThread, pendingSelection, tab, scrollToThread, document.data?.content]);
+  }, [
+    anchorsKey,
+    selectedThread,
+    pendingSelection,
+    tab,
+    vista,
+    editando,
+    scrollToThread,
+    document.data?.content,
+    draft,
+  ]);
 
   // Borrador local: cerrar la pestaña a media edición no debería perder el
   // texto. No genera versiones, solo sobrevive a un accidente (RF-506).
@@ -202,7 +223,11 @@ export function AppDetailPage({
     if (!document.data || draft !== null) return;
     const saved = localStorage.getItem(draftKey(appId));
     setDraft(saved ?? document.data.content);
-    if (saved && saved !== document.data.content) setTab('edit');
+    // Si había borrador sin guardar, se vuelve a donde se estaba escribiendo.
+    if (saved && saved !== document.data.content) {
+      setEditando(true);
+      setVista('plain');
+    }
   }, [document.data, draft, appId]);
 
   if (app.isPending || document.isPending) {
@@ -213,6 +238,16 @@ export function AppDetailPage({
   }
 
   const content = draft ?? document.data.content;
+
+  /*
+   * Escribiendo, lo renderizado es el borrador: una previsualización que enseña
+   * la versión guardada no previsualiza nada.
+   *
+   * Y por eso mismo los comentarios no se pintan mientras se escribe: están
+   * anclados a posiciones de la versión guardada, y sobre un texto que aún se
+   * está tocando señalarían el sitio equivocado.
+   */
+  const contenidoVisible = editando ? content : document.data.content;
   const openThreads = (threads.data ?? []).filter((t) => t.status === 'OPEN').length;
   const hasUnsavedChanges = content !== document.data.content;
 
@@ -236,7 +271,7 @@ export function AppDetailPage({
   }
 
   guardarConTeclado.current = () => {
-    if (tab === 'edit') onSave();
+    if (editando) onSave();
   };
 
   function onSave() {
@@ -247,7 +282,7 @@ export function AppDetailPage({
       {
         onSuccess: () => {
           localStorage.removeItem(draftKey(appId));
-          setTab('read');
+          setTab('vision');
         },
         onError: (error) => {
           if (error instanceof ConflictError) setConflict(error.detail);
@@ -295,28 +330,46 @@ export function AppDetailPage({
         </div>
       </header>
 
-      <nav className="flex gap-1 border-b border-[var(--color-borde)]">
-        {(['read', 'edit', 'history', 'settings'] as const).map((t) => (
+      <nav className="flex items-center gap-1 border-b border-[var(--color-borde)]">
+        {(['vision', 'history', 'settings'] as const).map((t) => (
           <button
             key={t}
             onClick={() => {
               setTab(t);
             }}
-            disabled={t === 'edit' && !document.data?.canEdit}
             className={cn(
-              'relative px-3 py-2 text-sm capitalize disabled:cursor-not-allowed disabled:opacity-40',
+              'relative px-3 py-2 text-sm',
+              t === 'vision' ? '' : 'capitalize',
               tab === t
                 ? 'font-medium text-[var(--color-texto)]'
                 : 'text-[var(--color-texto-suave)] hover:text-[var(--color-texto)]',
             )}
           >
-            {t}
-            {t === 'edit' && hasUnsavedChanges && ' •'}
+            {t === 'vision' ? 'VISION.md' : t}
+            {t === 'vision' && hasUnsavedChanges && ' •'}
             {tab === t && (
               <span className="absolute inset-x-2 -bottom-px h-0.5 bg-[var(--color-acento)]" />
             )}
           </button>
         ))}
+
+        {/* Los controles viven en la misma barra que las pestañas: son de la
+            pestaña abierta, no de la página. */}
+        {tab === 'vision' && (
+          <span className="ml-auto pb-1">
+            <VisionControls
+              editando={editando}
+              vista={vista}
+              puedeEditar={document.data.canEdit}
+              onEditando={(valor) => {
+                setEditando(valor);
+                // Escribir es sobre el texto, así que activarlo lleva al crudo.
+                if (valor) setVista('plain');
+              }}
+              onVista={setVista}
+            />
+          </span>
+        )}
       </nav>
 
       {conflict && (
@@ -328,7 +381,7 @@ export function AppDetailPage({
         />
       )}
 
-      {tab === 'read' && (
+      {tab === 'vision' && vista === 'rendered' && (
         <div className="grid gap-6 lg:grid-cols-[1fr_20rem]">
           <div className="flex flex-col gap-3">
             {/*
@@ -341,6 +394,9 @@ export function AppDetailPage({
               ref={readingRef}
               onMouseUp={(event) => {
                 if (!document.data || !readingRef.current) return;
+                // Mientras se escribe, lo que se ve es el borrador: comentar ahí
+                // anclaría el hilo a posiciones de un texto que no está guardado.
+                if (editando) return;
 
                 const selection = resolveSelection(document.data.content, readingRef.current);
                 if (selection) {
@@ -361,7 +417,7 @@ export function AppDetailPage({
                 if (hit) setSelectedThread(hit.threadId);
               }}
             >
-              <Markdown content={document.data.content} />
+              <Markdown content={contenidoVisible} />
             </Card>
 
             {menuAt && pendingSelection && !composing && (
@@ -435,19 +491,35 @@ export function AppDetailPage({
         </div>
       )}
 
-      {tab === 'edit' && document.data.canEdit && (
+      {tab === 'vision' && vista === 'plain' && (
         <div className="flex flex-col gap-3">
-          <Card className="px-6">
-            <MarkdownEditor value={content} onChange={setDraft} onSave={onSave} />
+          {/*
+            El mismo editor se use para escribir o solo para mirar: con la
+            edición apagada el texto se ve igual, con sus números de línea, y
+            solo cambia que no admite teclas. Así pasar de leer a escribir no
+            mueve nada de sitio.
+          */}
+          <Card className="px-4">
+            <MarkdownEditor
+              value={content}
+              onChange={setDraft}
+              onSave={onSave}
+              disabled={!editando}
+            />
           </Card>
-          <div className="flex items-center gap-3">
-            <Button onClick={onSave} disabled={save.isPending || !hasUnsavedChanges}>
-              {save.isPending ? 'Saving…' : 'Save version'}
-            </Button>
-            <span className="text-xs text-[var(--color-texto-suave)]">
-              {hasUnsavedChanges ? 'Unsaved changes, kept locally' : 'Everything saved'} · ⌘S
-            </span>
-          </div>
+        </div>
+      )}
+
+      {/* Guardar está mientras se escriba, se esté mirando el texto o el
+          resultado: previsualizar no es dejar de editar. */}
+      {tab === 'vision' && editando && (
+        <div className="flex items-center gap-3">
+          <Button onClick={onSave} disabled={save.isPending || !hasUnsavedChanges}>
+            {save.isPending ? 'Saving…' : 'Save version'}
+          </Button>
+          <span className="text-xs text-[var(--color-texto-suave)]">
+            {hasUnsavedChanges ? 'Unsaved changes, kept locally' : 'Everything saved'} · ⌘S
+          </span>
         </div>
       )}
 
@@ -492,7 +564,7 @@ export function AppDetailPage({
                           restore.mutate(version.id, {
                             onSuccess: (updated) => {
                               setDraft(updated.content);
-                              setTab('read');
+                              setTab('vision');
                             },
                           });
                         }}

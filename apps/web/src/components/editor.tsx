@@ -1,6 +1,13 @@
 import { markdown } from '@codemirror/lang-markdown';
 import { EditorState } from '@codemirror/state';
-import { EditorView, keymap, placeholder as placeholderExt } from '@codemirror/view';
+import {
+  EditorView,
+  highlightActiveLine,
+  highlightActiveLineGutter,
+  keymap,
+  lineNumbers,
+  placeholder as placeholderExt,
+} from '@codemirror/view';
 import { defaultKeymap, history, historyKeymap } from '@codemirror/commands';
 import { useEffect, useRef } from 'react';
 
@@ -13,6 +20,10 @@ interface Props {
 
 /**
  * Editor de markdown sobre CodeMirror 6.
+ *
+ * Se usa también para **mirar** el texto en crudo, no solo para escribirlo: la
+ * misma pieza con la edición apagada. Así el documento se ve igual se pueda
+ * tocar o no, y pasar de leer a escribir no cambia el texto de sitio.
  *
  * CodeMirror mantiene su propio estado, así que se crea una vez y se destruye
  * al desmontar; React no vuelve a tocarlo salvo que el valor cambie **desde
@@ -47,6 +58,12 @@ export function MarkdownEditor({ value, onChange, onSave, disabled = false }: Pr
           ...historyKeymap,
         ]),
         markdown(),
+        // Los números de línea son lo que convierte esto en un editor de texto
+        // a la vista: dan referencia para hablar de «lo de la línea 40» y hacen
+        // evidente que se está mirando el original y no el resultado.
+        lineNumbers(),
+        highlightActiveLine(),
+        highlightActiveLineGutter(),
         EditorView.lineWrapping,
         placeholderExt('Write your vision…'),
         EditorView.updateListener.of((update) => {
@@ -63,8 +80,25 @@ export function MarkdownEditor({ value, onChange, onSave, disabled = false }: Pr
             caretColor: 'var(--color-acento)',
           },
           '&.cm-focused': { outline: 'none' },
-          '.cm-gutters': { display: 'none' },
-          '.cm-activeLine': { backgroundColor: 'transparent' },
+          '.cm-gutters': {
+            backgroundColor: 'transparent',
+            border: 'none',
+            color: 'var(--color-texto-suave)',
+            // Apagados: son una referencia, no contenido. Han de poder ignorarse
+            // mientras se lee y estar ahí cuando se buscan.
+            opacity: '0.45',
+            paddingRight: '12px',
+            fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace',
+          },
+          '.cm-lineNumbers .cm-gutterElement': { minWidth: '2.2ch' },
+          // La línea activa solo se marca cuando se puede escribir: leyendo, un
+          // resaltado que sigue al cursor del ratón distrae sin aportar nada.
+          '.cm-activeLine': { backgroundColor: disabled ? 'transparent' : 'var(--color-borde)' },
+          '.cm-activeLineGutter': {
+            backgroundColor: 'transparent',
+            color: disabled ? 'inherit' : 'var(--color-texto)',
+            opacity: disabled ? '0.45' : '1',
+          },
         }),
       ],
     });
