@@ -52,7 +52,10 @@ export function CommentsPanel({
 
   return (
     <aside className="flex flex-col gap-3">
-      <header className="flex items-center justify-between gap-2">
+      {/* Altura fija, la misma que la fila de controles de la otra columna: es
+          lo que hace que la caja del documento y el primer comentario empiecen
+          a la misma altura. */}
+      <header className="flex h-8 items-center justify-between gap-2">
         <h2 className="text-sm font-medium">
           Conversation
           {open.length > 0 && (

@@ -352,24 +352,6 @@ export function AppDetailPage({
             )}
           </button>
         ))}
-
-        {/* Los controles viven en la misma barra que las pestañas: son de la
-            pestaña abierta, no de la página. */}
-        {tab === 'vision' && (
-          <span className="ml-auto pb-1">
-            <VisionControls
-              editando={editando}
-              vista={vista}
-              puedeEditar={document.data.canEdit}
-              onEditando={(valor) => {
-                setEditando(valor);
-                // Escribir es sobre el texto, así que activarlo lleva al crudo.
-                if (valor) setVista('plain');
-              }}
-              onVista={setVista}
-            />
-          </span>
-        )}
       </nav>
 
       {conflict && (
@@ -381,85 +363,127 @@ export function AppDetailPage({
         />
       )}
 
-      {tab === 'vision' && vista === 'rendered' && (
+      {tab === 'vision' && (
+        /*
+         * Las dos vistas comparten la misma rejilla, así que la conversación
+         * sigue al lado tanto si se mira el texto compuesto como el original.
+         *
+         * Las dos cabeceras —los controles a la izquierda, el título de la
+         * conversación a la derecha— tienen la misma altura fija, de modo que lo
+         * que va debajo empieza al mismo nivel en ambas columnas: el borde
+         * superior de la caja y el del primer comentario coinciden.
+         */
         <div className="grid gap-6 lg:grid-cols-[1fr_20rem]">
           <div className="flex flex-col gap-3">
-            {/*
+            <div className="flex h-8 items-center justify-end">
+              <VisionControls
+                editando={editando}
+                vista={vista}
+                puedeEditar={document.data.canEdit}
+                onEditando={(valor) => {
+                  setEditando(valor);
+                  // Escribir es sobre el texto, así que activarlo lleva al crudo.
+                  if (valor) setVista('plain');
+                }}
+                onVista={setVista}
+              />
+            </div>
+
+            {vista === 'rendered' ? (
+              <>
+                {/*
               Al soltar el ratón se mira si hay una selección utilizable. Si no
               se puede resolver a una posición del markdown, no se ofrece
               comentar: mejor no ofrecerlo que anclar en un sitio inventado.
             */}
-            <Card
-              className="p-6"
-              ref={readingRef}
-              onMouseUp={(event) => {
-                if (!document.data || !readingRef.current) return;
-                // Mientras se escribe, lo que se ve es el borrador: comentar ahí
-                // anclaría el hilo a posiciones de un texto que no está guardado.
-                if (editando) return;
+                <Card
+                  className="p-6"
+                  ref={readingRef}
+                  onMouseUp={(event) => {
+                    if (!document.data || !readingRef.current) return;
+                    // Mientras se escribe, lo que se ve es el borrador: comentar ahí
+                    // anclaría el hilo a posiciones de un texto que no está guardado.
+                    if (editando) return;
 
-                const selection = resolveSelection(document.data.content, readingRef.current);
-                if (selection) {
-                  setPendingSelection(selection);
-                  setMenuAt({ top: event.clientY, left: event.clientX });
-                  return;
-                }
+                    const selection = resolveSelection(document.data.content, readingRef.current);
+                    if (selection) {
+                      setPendingSelection(selection);
+                      setMenuAt({ top: event.clientY, left: event.clientX });
+                      return;
+                    }
 
-                // Sin selección, un clic sobre un fragmento comentado lleva a su
-                // hilo: es el camino inverso al del resaltado.
-                setPendingSelection(null);
-                setMenuAt(null);
-                const offset = sourceOffsetAt(readingRef.current, event.clientX, event.clientY);
-                const hit =
-                  offset === null
-                    ? undefined
-                    : anchorRanges.find((a) => offset >= a.start && offset <= a.end);
-                if (hit) setSelectedThread(hit.threadId);
-              }}
-            >
-              <Markdown content={contenidoVisible} />
-            </Card>
-
-            {menuAt && pendingSelection && !composing && (
-              <SelectionMenu
-                position={menuAt}
-                onComment={() => {
-                  setComposing(true);
-                  setMenuAt(null);
-                }}
-              />
-            )}
-
-            {composing && pendingSelection && (
-              <Card className="flex flex-col gap-2 border-[var(--color-acento)]/40 p-4">
-                <p className="text-xs text-[var(--color-texto-suave)]">Commenting on:</p>
-                <blockquote className="border-l-2 border-[var(--color-acento)]/50 pl-2 text-sm italic">
-                  {pendingSelection.quote}
-                </blockquote>
-                <MentionInput
-                  value={selectionDraft}
-                  onChange={setSelectionDraft}
-                  onSubmit={() => {
-                    postInlineComment();
+                    // Sin selección, un clic sobre un fragmento comentado lleva a su
+                    // hilo: es el camino inverso al del resaltado.
+                    setPendingSelection(null);
+                    setMenuAt(null);
+                    const offset = sourceOffsetAt(readingRef.current, event.clientX, event.clientY);
+                    const hit =
+                      offset === null
+                        ? undefined
+                        : anchorRanges.find((a) => offset >= a.start && offset <= a.end);
+                    if (hit) setSelectedThread(hit.threadId);
                   }}
-                  people={people.data ?? []}
-                  autoFocus
-                />
-                <div className="flex gap-2">
-                  <Button onClick={postInlineComment} disabled={!selectionDraft.trim()}>
-                    Comment
-                  </Button>
-                  <Button
-                    variant="secondary"
-                    onClick={() => {
-                      setPendingSelection(null);
-                      setSelectionDraft('');
-                      setComposing(false);
+                >
+                  <Markdown content={contenidoVisible} />
+                </Card>
+
+                {menuAt && pendingSelection && !composing && (
+                  <SelectionMenu
+                    position={menuAt}
+                    onComment={() => {
+                      setComposing(true);
+                      setMenuAt(null);
                     }}
-                  >
-                    Cancel
-                  </Button>
-                </div>
+                  />
+                )}
+
+                {composing && pendingSelection && (
+                  <Card className="flex flex-col gap-2 border-[var(--color-acento)]/40 p-4">
+                    <p className="text-xs text-[var(--color-texto-suave)]">Commenting on:</p>
+                    <blockquote className="border-l-2 border-[var(--color-acento)]/50 pl-2 text-sm italic">
+                      {pendingSelection.quote}
+                    </blockquote>
+                    <MentionInput
+                      value={selectionDraft}
+                      onChange={setSelectionDraft}
+                      onSubmit={() => {
+                        postInlineComment();
+                      }}
+                      people={people.data ?? []}
+                      autoFocus
+                    />
+                    <div className="flex gap-2">
+                      <Button onClick={postInlineComment} disabled={!selectionDraft.trim()}>
+                        Comment
+                      </Button>
+                      <Button
+                        variant="secondary"
+                        onClick={() => {
+                          setPendingSelection(null);
+                          setSelectionDraft('');
+                          setComposing(false);
+                        }}
+                      >
+                        Cancel
+                      </Button>
+                    </div>
+                  </Card>
+                )}
+              </>
+            ) : (
+              /*
+                El mismo editor se use para escribir o solo para mirar: con la
+                edición apagada el texto se ve igual, con sus números de línea, y
+                solo cambia que no admite teclas. Así pasar de leer a escribir no
+                mueve nada de sitio.
+              */
+              <Card className="px-4">
+                <MarkdownEditor
+                  value={content}
+                  onChange={setDraft}
+                  onSave={onSave}
+                  disabled={!editando}
+                />
               </Card>
             )}
           </div>
@@ -488,25 +512,6 @@ export function AppDetailPage({
               deleteComment.mutate(commentId);
             }}
           />
-        </div>
-      )}
-
-      {tab === 'vision' && vista === 'plain' && (
-        <div className="flex flex-col gap-3">
-          {/*
-            El mismo editor se use para escribir o solo para mirar: con la
-            edición apagada el texto se ve igual, con sus números de línea, y
-            solo cambia que no admite teclas. Así pasar de leer a escribir no
-            mueve nada de sitio.
-          */}
-          <Card className="px-4">
-            <MarkdownEditor
-              value={content}
-              onChange={setDraft}
-              onSave={onSave}
-              disabled={!editando}
-            />
-          </Card>
         </div>
       )}
 
