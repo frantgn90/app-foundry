@@ -42,7 +42,7 @@ test('de crear una app a encontrarla por su contenido', async ({ page, context }
 
   await test.step('escribir la visión', async () => {
     // Leer y escribir son ahora dos interruptores sobre el mismo documento.
-    await page.getByRole('radio', { name: 'Editing' }).click();
+    await page.getByRole('radio', { name: 'Edit' }).click();
 
     const editor = page.locator('.cm-content');
     await editor.click();
@@ -52,7 +52,6 @@ test('de crear una app a encontrarla por su contenido', async ({ page, context }
     );
 
     await page.getByRole('button', { name: /^Save/ }).click();
-    await page.getByRole('radio', { name: 'Reading' }).click();
     await page.getByRole('radio', { name: 'Preview' }).click();
     await expect(page.getByText('Nobody remembers why a feature was dropped.')).toBeVisible();
   });

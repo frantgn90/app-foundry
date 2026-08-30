@@ -1,6 +1,17 @@
 @import 'tailwindcss';
 
 /*
+ * IBM Plex Mono para el editor.
+ *
+ * Se sirve desde el propio paquete y no desde Google Fonts: así no hay una
+ * petición a un tercero en cada carga —que además le diría a Google quién entra
+ * aquí y cuándo—, funciona sin conexión y no depende de que un servicio ajeno
+ * siga en pie. Solo el peso normal: es lo único que usa el editor, y cada peso
+ * extra son cientos de kilobytes que alguien tendría que descargar.
+ */
+@import '@fontsource/ibm-plex-mono/400.css';
+
+/*
  * Tema del producto.
  *
  * Los colores se declaran como variables y el modo oscuro cambia sus valores,

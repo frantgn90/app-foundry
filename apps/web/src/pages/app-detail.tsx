@@ -35,9 +35,6 @@ import { cn } from '../lib/utils.js';
 
 type Tab = 'vision' | 'history' | 'settings';
 
-/** Cómo se está mirando el documento dentro de su pestaña. */
-type Vista = 'plain' | 'rendered';
-
 /** Clave del borrador local, por app: no se mezclan entre sí (RF-506). */
 const draftKey = (appId: string) => `app-foundry:draft:${appId}`;
 
@@ -61,9 +58,9 @@ export function AppDetailPage({
 
   const [tab, setTab] = useState<Tab>('vision');
   /*
-   * Leer y escribir dejan de ser sitios distintos y pasan a ser dos
-   * interruptores sobre el mismo documento: se puede pasar de uno a otro sin
-   * perder de vista dónde se estaba.
+   * Leer y escribir dejan de ser sitios distintos y pasan a ser un interruptor
+   * sobre el mismo documento: se puede pasar de uno a otro sin perder de vista
+   * dónde se estaba. Leer muestra el texto compuesto; escribir, el markdown.
    */
   const [editando, setEditando] = useState(false);
   /*
@@ -72,7 +69,6 @@ export function AppDetailPage({
    * contador en el botón evita que se olvide que sigue ahí.
    */
   const [conversacionAbierta, setConversacionAbierta] = useState(true);
-  const [vista, setVista] = useState<Vista>('rendered');
   const [draft, setDraft] = useState<string | null>(null);
   const [conflict, setConflict] = useState<SaveConflict | null>(null);
   const [comparing, setComparing] = useState<string | null>(null);
@@ -207,7 +203,6 @@ export function AppDetailPage({
     selectedThread,
     pendingSelection,
     tab,
-    vista,
     editando,
     scrollToThread,
     document.data?.content,
@@ -229,10 +224,7 @@ export function AppDetailPage({
     const saved = localStorage.getItem(draftKey(appId));
     setDraft(saved ?? document.data.content);
     // Si había borrador sin guardar, se vuelve a donde se estaba escribiendo.
-    if (saved && saved !== document.data.content) {
-      setEditando(true);
-      setVista('plain');
-    }
+    if (saved && saved !== document.data.content) setEditando(true);
   }, [document.data, draft, appId]);
 
   if (app.isPending || document.isPending) {
@@ -244,14 +236,6 @@ export function AppDetailPage({
 
   const content = draft ?? document.data.content;
 
-  /*
-   * Escribiendo se mira el texto, siempre.
-   *
-   * La vista se deriva en lugar de confiar en que el interruptor la haya puesto
-   * bien: así el estado «editando sobre el resultado» no puede llegar a
-   * representarse, venga de donde venga el cambio.
-   */
-  const vistaEfectiva: Vista = editando ? 'plain' : vista;
   const openThreads = (threads.data ?? []).filter((t) => t.status === 'OPEN').length;
   const hasUnsavedChanges = content !== document.data.content;
 
@@ -416,14 +400,8 @@ export function AppDetailPage({
 
               <VisionControls
                 editando={editando}
-                vista={vista}
                 puedeEditar={document.data.canEdit}
-                onEditando={(valor) => {
-                  setEditando(valor);
-                  // Escribir es sobre el texto, así que activarlo lleva al crudo.
-                  if (valor) setVista('plain');
-                }}
-                onVista={setVista}
+                onEditando={setEditando}
               />
 
               <a
@@ -440,7 +418,7 @@ export function AppDetailPage({
               </a>
             </div>
 
-            {vistaEfectiva === 'rendered' ? (
+            {!editando ? (
               <>
                 {/*
               Al soltar el ratón se mira si hay una selección utilizable. Si no

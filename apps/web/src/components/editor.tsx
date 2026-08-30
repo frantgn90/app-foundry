@@ -75,7 +75,9 @@ export function MarkdownEditor({ value, onChange, onSave, disabled = false }: Pr
         EditorView.theme({
           '&': { fontSize: '14px', backgroundColor: 'transparent' },
           '.cm-content': {
-            fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace',
+            // La de siempre queda detrás por si la fuente no llegara a cargar:
+            // el editor tiene que seguir siendo monoespaciado pase lo que pase.
+            fontFamily: '"IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, monospace',
             padding: '16px 0',
             caretColor: 'var(--color-acento)',
           },
@@ -88,7 +90,7 @@ export function MarkdownEditor({ value, onChange, onSave, disabled = false }: Pr
             // mientras se lee y estar ahí cuando se buscan.
             opacity: '0.45',
             paddingRight: '12px',
-            fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace',
+            fontFamily: '"IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, monospace',
           },
           '.cm-lineNumbers .cm-gutterElement': { minWidth: '2.2ch' },
           // La línea activa solo se marca cuando se puede escribir: leyendo, un
