@@ -2371,6 +2371,10 @@
           "isArchived": {
             "type": "boolean"
           },
+          "openThreads": {
+            "type": "number",
+            "description": "Conversaciones abiertas sobre la app (RF-811)."
+          },
           "updatedAt": {
             "type": "string",
             "format": "date-time"
@@ -2390,6 +2394,7 @@
           "isPrecursor",
           "canEdit",
           "isArchived",
+          "openThreads",
           "updatedAt"
         ]
       },

@@ -971,6 +971,8 @@ export interface components {
             /** @description Si quien consulta puede editarla */
             canEdit: boolean;
             isArchived: boolean;
+            /** @description Conversaciones abiertas sobre la app (RF-811). */
+            openThreads: number;
             /** Format: date-time */
             updatedAt: string;
         };

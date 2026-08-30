@@ -11,6 +11,7 @@ import {
 import {
   apps,
   appTags,
+  commentThreads,
   documents,
   documentVersions,
   users,
@@ -201,9 +202,14 @@ export class AppsService {
 
     const [total] = await tx.select({ n: count() }).from(apps).where(donde);
 
-    const tags = await this.tagsFor(rows.map((r) => r.app.id));
+    const ids = rows.map((r) => r.app.id);
+    const tags = await this.tagsFor(ids);
+    const hilos = await this.hilosAbiertos(ids);
+
     return {
-      items: rows.map((r) => this.toSummary(r.app, r.precursorHandle, userId, tags)),
+      items: rows.map((r) =>
+        this.toSummary(r.app, r.precursorHandle, userId, tags, hilos.get(r.app.id) ?? 0),
+      ),
       total: total?.n ?? 0,
       page,
       perPage,
@@ -237,7 +243,8 @@ export class AppsService {
 
     if (!row) throw new NotFoundException('The app does not exist');
     const tags = await this.tagsFor([appId]);
-    return this.toSummary(row.app, row.precursorHandle, userId, tags);
+    const hilos = await this.hilosAbiertos([appId]);
+    return this.toSummary(row.app, row.precursorHandle, userId, tags, hilos.get(appId) ?? 0);
   }
 
   async update(appId: string, body: UpdateAppDto, userId: string): Promise<AppSummaryDto> {
@@ -461,6 +468,7 @@ export class AppsService {
     precursorHandle: string,
     userId: string,
     tags: Map<string, string[]>,
+    hilosAbiertos = 0,
   ): AppSummaryDto {
     const isPrecursor = app.precursorId === userId;
     return {
@@ -477,7 +485,27 @@ export class AppsService {
       isPrecursor,
       canEdit: app.archivedAt === null && (isPrecursor || app.accessLevel === 'WORKSPACE_WRITE'),
       isArchived: app.archivedAt !== null,
+      openThreads: hilosAbiertos,
       updatedAt: app.updatedAt.toISOString(),
     };
+  }
+
+  /**
+   * Cuántas conversaciones abiertas tiene cada app (RF-811).
+   *
+   * En una sola consulta para toda la página y no una por app: con veinticuatro
+   * tarjetas serían veinticuatro viajes a la base de datos para pintar un
+   * número pequeño en cada una.
+   */
+  private async hilosAbiertos(appIds: string[]): Promise<Map<string, number>> {
+    if (appIds.length === 0) return new Map();
+
+    const filas = await currentTx()
+      .select({ appId: commentThreads.appId, n: count() })
+      .from(commentThreads)
+      .where(and(inArray(commentThreads.appId, appIds), eq(commentThreads.status, 'OPEN')))
+      .groupBy(commentThreads.appId);
+
+    return new Map(filas.map((f) => [f.appId, f.n]));
   }
 }

@@ -38,6 +38,9 @@ export class AppSummaryDto {
   @ApiProperty({ description: 'Si quien consulta es su precursor' }) isPrecursor!: boolean;
   @ApiProperty({ description: 'Si quien consulta puede editarla' }) canEdit!: boolean;
   @ApiProperty() isArchived!: boolean;
+
+  @ApiProperty({ description: 'Conversaciones abiertas sobre la app (RF-811).' })
+  openThreads!: number;
   @ApiProperty({ format: 'date-time' }) updatedAt!: string;
 }
 

@@ -297,9 +297,31 @@ function AppCard({ app, onOpen }: { app: App; onOpen: () => void }) {
         </p>
       )}
 
-      {/* Las etiquetas van al pie y en tono apagado: son clasificación de quien
-          escribe, no información del sistema. */}
-      <TagList tags={app.tags} />
+      <span className="flex flex-wrap items-center gap-x-3 gap-y-1.5">
+        {/* Las etiquetas van al pie y en tono apagado: son clasificación de
+            quien escribe, no información del sistema. */}
+        <TagList tags={app.tags} />
+
+        {/* Y las conversaciones abiertas al final (RF-811): dice dónde hay algo
+            esperando respuesta sin tener que entrar a mirar. */}
+        {app.openThreads > 0 && (
+          <span className="flex items-center gap-1 text-xs text-[var(--color-texto-suave)]">
+            <svg
+              viewBox="0 0 16 16"
+              className="size-3.5"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="1.4"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              aria-hidden
+            >
+              <path d="M13.5 8.5a4.5 4.5 0 0 1-4.5 4.5H6l-3 2v-2.6A4.5 4.5 0 0 1 2.5 8V7a4.5 4.5 0 0 1 4.5-4.5h2A4.5 4.5 0 0 1 13.5 7Z" />
+            </svg>
+            {app.openThreads}
+          </span>
+        )}
+      </span>
     </Card>
   );
 }

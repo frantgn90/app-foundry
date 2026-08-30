@@ -219,6 +219,7 @@ export interface App {
   isPrecursor: boolean;
   canEdit: boolean;
   isArchived: boolean;
+  openThreads: number;
   updatedAt: string;
 }
 

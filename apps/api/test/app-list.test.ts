@@ -6,7 +6,14 @@ let h: Harness;
 let ana: TestUser;
 
 interface Listado {
-  items: { id: string; name: string; status: string; isArchived: boolean; tags: string[] }[];
+  items: {
+    id: string;
+    name: string;
+    status: string;
+    isArchived: boolean;
+    tags: string[];
+    openThreads: number;
+  }[];
   total: number;
   page: number;
   perPage: number;
@@ -130,5 +137,32 @@ describe('paginar', () => {
     // Sin tope, un `perPage=100000` traería el workspace entero de una vez.
     const { perPage } = await listar('?perPage=100000');
     expect(perPage).toBe(100);
+  });
+});
+
+describe('conversaciones abiertas (RF-811)', () => {
+  it('el listado dice cuántas tiene cada app', async () => {
+    const { items } = await listar('?archived=all');
+    const beta = items.find((a) => a.name === 'Beta')!;
+    expect(beta.openThreads).toBe(0);
+
+    await h.as(ana).post(`/api/v1/apps/${beta.id}/threads`, { body: 'Una duda' });
+    await h.as(ana).post(`/api/v1/apps/${beta.id}/threads`, { body: 'Y otra' });
+
+    const despues = await listar('?archived=all');
+    expect(despues.items.find((a) => a.name === 'Beta')!.openThreads).toBe(2);
+  });
+
+  it('no cuenta las resueltas: lo que importa es lo que sigue esperando', async () => {
+    const { items } = await listar('?archived=all');
+    const beta = items.find((a) => a.name === 'Beta')!;
+    const hilos = (await (await h.as(ana).get(`/api/v1/apps/${beta.id}/threads`)).json()) as {
+      id: string;
+    }[];
+
+    await h.as(ana).post(`/api/v1/threads/${hilos[0]!.id}/resolve`);
+
+    const despues = await listar('?archived=all');
+    expect(despues.items.find((a) => a.name === 'Beta')!.openThreads).toBe(1);
   });
 });
