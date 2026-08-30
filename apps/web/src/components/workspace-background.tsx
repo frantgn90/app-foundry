@@ -7,14 +7,15 @@ import type { WorkspaceBackground } from '@app-foundry/core';
  * aplicación, pesan nada y se adaptan solos al tema claro y oscuro. La base de
  * datos guarda únicamente cuál está elegido.
  *
- * Todos son suaves a propósito. Un fondo de cabecera compite con el contenido
- * si tiene demasiado contraste, y lo que hay que leer son los nombres de las
- * apps, no el decorado.
+ * Todos son suaves a propósito, y más desde que ocupan la página entera en vez
+ * de una tarjeta: lo que hay que leer son los nombres de las apps, no el
+ * decorado. `plain` es el fondo normal de la aplicación, de modo que no elegir
+ * nada deja la pantalla exactamente como estaba.
  */
 export const BACKGROUNDS: Record<WorkspaceBackground, { label: string; style: string }> = {
   plain: {
     label: 'Plain',
-    style: 'bg-[var(--color-superficie)]',
+    style: 'bg-[var(--color-fondo)]',
   },
   dawn: {
     label: 'Dawn',
@@ -40,12 +41,12 @@ export const BACKGROUNDS: Record<WorkspaceBackground, { label: string; style: st
     label: 'Grid',
     // Patrón dibujado con degradados repetidos: sin imágenes que descargar.
     style:
-      'bg-[var(--color-superficie)] [background-image:repeating-linear-gradient(0deg,var(--color-borde)_0_1px,transparent_1px_20px),repeating-linear-gradient(90deg,var(--color-borde)_0_1px,transparent_1px_20px)]',
+      'bg-[var(--color-fondo)] [background-image:repeating-linear-gradient(0deg,var(--color-borde)_0_1px,transparent_1px_20px),repeating-linear-gradient(90deg,var(--color-borde)_0_1px,transparent_1px_20px)]',
   },
   dots: {
     label: 'Dots',
     style:
-      'bg-[var(--color-superficie)] [background-image:radial-gradient(var(--color-borde)_1.2px,transparent_1.2px)] [background-size:16px_16px]',
+      'bg-[var(--color-fondo)] [background-image:radial-gradient(var(--color-borde)_1.2px,transparent_1.2px)] [background-size:16px_16px]',
   },
 };
 

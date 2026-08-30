@@ -13,10 +13,13 @@ import { statusLabel, STATUSES } from './app-status.js';
 export function AppFiltersBar({
   filtros,
   etiquetas,
+  total,
   onChange,
 }: {
   filtros: AppFilters;
   etiquetas: string[];
+  /** Cuántas hay con los filtros puestos. */
+  total: number;
   onChange: (siguiente: AppFilters) => void;
 }) {
   const activos =
@@ -35,6 +38,20 @@ export function AppFiltersBar({
 
   return (
     <div className="flex flex-wrap items-center gap-x-3 gap-y-2 text-xs">
+      {/*
+        El recuento va con los filtros y no en una cabecera aparte: es la
+        respuesta a lo que se acaba de marcar, y al lado de los chips se ve subir
+        y bajar mientras se acota. Cuando hay algo puesto, el número deja de ser
+        «cuántas hay» y pasa a ser «cuántas quedan», así que lo dice.
+      */}
+      <span className="shrink-0 text-[var(--color-texto-suave)]">
+        {total} {total === 1 ? 'idea' : 'ideas'}
+        {activos > 0 && ' match'}
+      </span>
+      <span className="text-[var(--color-borde)]" aria-hidden>
+        |
+      </span>
+
       <span className="flex flex-wrap items-center gap-1">
         {STATUSES.map((estado) => (
           <Chip
@@ -87,7 +104,7 @@ export function AppFiltersBar({
             onChange={(e) => {
               onChange({ ...filtros, sort: e.target.value as 'updated' | 'name', page: 1 });
             }}
-            className="rounded border border-[var(--color-borde)] bg-transparent px-1 py-0.5 text-xs"
+            className="rounded border border-[var(--color-borde)] bg-[var(--color-superficie)] px-1 py-0.5 text-xs"
           >
             <option value="updated">Recent</option>
             <option value="name">Name</option>
@@ -124,9 +141,16 @@ function Chip({
       aria-pressed={activo}
       className={cn(
         'rounded-full border px-2 py-0.5 transition',
+        /*
+         * Fondo opaco y no transparente: estos controles se ven sobre el fondo
+         * del workspace, que puede ser un degradado, y un relleno translúcido se
+         * mezclaría con él dejando cada chip de un color distinto según dónde
+         * caiga. El activo lleva el tinte del acento ya mezclado contra la
+         * superficie, por lo mismo.
+         */
         activo
-          ? 'border-[var(--color-acento)] bg-[var(--color-acento)]/10 text-[var(--color-acento)]'
-          : 'border-[var(--color-borde)] text-[var(--color-texto-suave)] hover:border-[var(--color-texto-suave)]',
+          ? 'border-[var(--color-acento)] bg-[color-mix(in_oklab,var(--color-acento)_14%,var(--color-superficie))] text-[var(--color-acento)]'
+          : 'border-[var(--color-borde)] bg-[var(--color-superficie)] text-[var(--color-texto-suave)] hover:border-[var(--color-texto-suave)]',
       )}
     >
       {children}

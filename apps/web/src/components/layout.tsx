@@ -3,6 +3,7 @@ import { useEffect, useRef, useState } from 'react';
 import type { App, Session, Workspace } from '../lib/api.js';
 import { cn } from '../lib/utils.js';
 import { ICON_BACKGROUNDS } from './icon-picker.js';
+import { backgroundStyle } from './workspace-background.js';
 import { Logo } from './logo.js';
 import { NotificationBell, type NotificationTarget } from './notification-bell.js';
 import { UserMenu } from './user-menu.js';
@@ -48,6 +49,23 @@ export function Layout({
 }: Props) {
   return (
     <div className="min-h-screen">
+      {/*
+        El fondo del workspace ocupa la página entera, no una tarjeta.
+        
+        Va fijo y por detrás de todo para que no se desplace al hacer scroll: un
+        degradado que sube con el contenido delata el truco y marea. Solo se pinta
+        estando en un workspace, porque la administración y los ajustes de la
+        cuenta no son de ninguno.
+      */}
+      {pantalla === 'workspace' && current && (
+        <div
+          className={cn(
+            'pointer-events-none fixed inset-0 -z-10',
+            backgroundStyle(current.background),
+          )}
+          aria-hidden
+        />
+      )}
       <header className="border-b border-[var(--color-borde)] bg-[var(--color-superficie)]">
         <div className="mx-auto flex h-14 max-w-5xl items-center gap-1 px-6">
           {/*
