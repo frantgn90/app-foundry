@@ -93,3 +93,23 @@ export class InvitationDto {
   @ApiProperty({ format: 'date-time' })
   createdAt!: string;
 }
+
+export class WorkspaceAuditEntryDto {
+  @ApiProperty({ format: 'uuid' }) id!: string;
+  @ApiProperty({ nullable: true, type: String }) actorHandle!: string | null;
+
+  @ApiProperty({ description: 'Qué se hizo, en forma de identificador estable.' })
+  action!: string;
+
+  @ApiProperty({ nullable: true, type: String }) resourceType!: string | null;
+  @ApiProperty({ format: 'uuid', nullable: true, type: String }) resourceId!: string | null;
+
+  @ApiProperty({
+    type: 'object',
+    additionalProperties: true,
+    description: 'Identificadores y valores de enum. Nunca contenido (RF-706).',
+  })
+  metadata!: Record<string, unknown>;
+
+  @ApiProperty({ format: 'date-time' }) createdAt!: string;
+}

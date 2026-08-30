@@ -284,6 +284,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/workspaces/{id}/audit": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Actividad del workspace
+         * @description Solo para su dueño. Registra qué pasó, nunca qué decía: ni contenido ni credenciales (RF-704, RF-706).
+         */
+        get: operations["WorkspacesController_audit"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/workspaces/{id}/invitations": {
         parameters: {
             query?: never;
@@ -888,6 +908,22 @@ export interface components {
             /** @enum {string} */
             role: "OWNER" | "MEMBER";
         };
+        WorkspaceAuditEntryDto: {
+            /** Format: uuid */
+            id: string;
+            actorHandle: string | null;
+            /** @description Qué se hizo, en forma de identificador estable. */
+            action: string;
+            resourceType: string | null;
+            /** Format: uuid */
+            resourceId: string | null;
+            /** @description Identificadores y valores de enum. Nunca contenido (RF-706). */
+            metadata: {
+                [key: string]: unknown;
+            };
+            /** Format: date-time */
+            createdAt: string;
+        };
         InvitationDto: {
             /** Format: uuid */
             id: string;
@@ -1479,6 +1515,27 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+        };
+    };
+    WorkspacesController_audit: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WorkspaceAuditEntryDto"][];
+                };
             };
         };
     };

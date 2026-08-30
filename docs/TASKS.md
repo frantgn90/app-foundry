@@ -390,8 +390,8 @@
 | # | Tarea | Verificación | Traza | Estado |
 |---|---|---|---|---|
 | AI1 | Un administrador consulta los eventos de plataforma | Filtra por persona y por fecha, y no ve contenido | RF-703, RF-706 | ✅ |
-| AI2 | El dueño de un workspace consulta lo suyo | Y solo lo suyo | RF-704 | ⬜ |
-| AI3 | Interfaz de ambas cosas | Se entiende qué pasó sin leer identificadores | RF-703, RF-704 | ⬜ |
+| AI2 | El dueño de un workspace consulta lo suyo | Y solo lo suyo | RF-704 | ✅ |
+| AI3 | Interfaz de ambas cosas | Se entiende qué pasó sin leer identificadores | RF-703, RF-704 | ✅ |
 
 ### Bloque AJ — Poner esto en marcha
 

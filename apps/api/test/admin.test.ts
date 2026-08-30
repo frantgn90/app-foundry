@@ -185,3 +185,76 @@ describe('auditoría de plataforma', () => {
     expect((await h.as(mirona).get('/api/v1/admin/audit')).status).toBe(403);
   });
 });
+
+describe('actividad de un workspace', () => {
+  it('la ve su dueño', async () => {
+    // RF-704: lo que pasa dentro es asunto del dueño del workspace, no del
+    // administrador de la instancia.
+    await h.as(otra).post(`/api/v1/workspaces/${otra.workspaceId}/apps`, { name: 'Otra más' });
+
+    const response = await h.as(otra).get(`/api/v1/workspaces/${otra.workspaceId}/audit`);
+    const entradas = (await response.json()) as { action: string; actorHandle: string }[];
+
+    expect(response.status).toBe(200);
+    expect(entradas.map((e) => e.action)).toContain('app.created');
+    expect(entradas[0]!.actorHandle).toBe('otra');
+  });
+
+  it('y nadie más, ni siquiera un administrador de la instancia', async () => {
+    // Es la línea que separa administrar la instancia de leer los workspaces
+    // ajenos (D-6). El administrador no es miembro de este.
+    const response = await h.as(jefa).get(`/api/v1/workspaces/${otra.workspaceId}/audit`);
+    expect(response.status).toBe(403);
+  });
+
+  it('no lleva nada de lo que se escribió', async () => {
+    // RF-706: registra qué pasó, no qué decía.
+    const response = await h.as(otra).get(`/api/v1/workspaces/${otra.workspaceId}/audit`);
+    const crudo = JSON.stringify(await response.json());
+
+    expect(crudo).not.toContain('# ');
+    expect(crudo).not.toContain('token');
+  });
+});
+
+describe('lo que queda registrado del acceso', () => {
+  it('entrar y darse de alta dejan rastro (RF-701)', async () => {
+    // Sin esto, la auditoría de plataforma estaba vacía: las acciones existían
+    // como constantes pero no las escribía nadie.
+    //
+    // Se entra por el camino real y no sembrando filas: es justo lo que ocurre
+    // al entrar lo que se está comprobando.
+    await h.signIn('recien-llegada');
+
+    const response = await h.as(jefa).get('/api/v1/admin/audit');
+    const acciones = ((await response.json()) as { action: string }[]).map((e) => e.action);
+
+    expect(acciones).toContain('user.created');
+    expect(acciones).toContain('session.started');
+  });
+
+  it('la segunda vez ya no es un alta, pero sí una sesión', async () => {
+    const antes = await h.as(jefa).get('/api/v1/admin/audit');
+    const previas = (await antes.json()) as { action: string }[];
+    const altasPrevias = previas.filter((e) => e.action === 'user.created').length;
+
+    await h.signIn('recien-llegada');
+
+    const response = await h.as(jefa).get('/api/v1/admin/audit');
+    const entradas = (await response.json()) as { action: string }[];
+
+    expect(entradas.filter((e) => e.action === 'user.created')).toHaveLength(altasPrevias);
+    expect(entradas.filter((e) => e.action === 'session.started').length).toBeGreaterThan(
+      previas.filter((e) => e.action === 'session.started').length,
+    );
+  });
+
+  it('sin nada que identifique el dispositivo ni la conexión', async () => {
+    // RF-706, RNF-112: registra qué pasó, no desde dónde.
+    const response = await h.as(jefa).get('/api/v1/admin/audit');
+    const crudo = JSON.stringify(await response.json());
+
+    expect(crudo).not.toContain('Mozilla');
+    expect(crudo).not.toMatch(/\b\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}\b/);
+  });
+});

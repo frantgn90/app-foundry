@@ -17,6 +17,7 @@ import {
 } from '@app-foundry/db';
 
 import { AppModule } from '../src/app.module.js';
+import { AuthService } from '../src/auth/auth.service.js';
 import { DatabaseExceptionFilter } from '../src/database/database-exception.filter.js';
 
 export interface TestUser {
@@ -34,6 +35,14 @@ export interface Harness {
   /** URL del Redis real, para poder publicar como si fuera otra instancia. */
   redisUrl: string;
   createUser: (handle: string) => Promise<TestUser>;
+  /**
+   * Da de alta a alguien por el mismo camino que el login real.
+   *
+   * `createUser` siembra las filas directamente, que es más rápido y sirve para
+   * casi todo. Esto pasa por el servicio de autenticación, y es lo que hace
+   * falta cuando lo que se comprueba es justo lo que ocurre al entrar.
+   */
+  signIn: (handle: string) => Promise<{ id: string }>;
   as: (user: TestUser) => RequestHelper;
   anonymous: () => RequestHelper;
   stop: () => Promise<void>;
@@ -149,8 +158,26 @@ export async function startHarness(): Promise<Harness> {
     };
   }
 
+  async function signIn(handle: string): Promise<{ id: string }> {
+    const auth = app.get(AuthService);
+    // El identificador de GitHub es estable para una misma persona: entrar dos
+    // veces con el mismo handle tiene que ser la misma cuenta, no dos.
+    const githubId =
+      800_000 +
+      [...handle].reduce((total, letra) => (total * 31 + letra.charCodeAt(0)) % 99_991, 7);
+    const user = await auth.provision({
+      githubId,
+      handle,
+      email: `${handle}@example.com`,
+      displayName: handle,
+      avatarUrl: null,
+    });
+    return { id: user.id };
+  }
+
   return {
     redisUrl: redis.getConnectionUrl(),
+    signIn,
     baseUrl: url,
     db: seeding.db,
     createUser,

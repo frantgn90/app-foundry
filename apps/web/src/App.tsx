@@ -4,9 +4,11 @@ import { Layout } from './components/layout.js';
 import { AppDetailPage } from './pages/app-detail.js';
 import { AppsListPage } from './pages/apps-list.js';
 import { LoginPage } from './pages/login.js';
+import { WorkspaceActivityPage } from './pages/workspace-activity.js';
 import { WorkspacePage } from './pages/workspace.js';
 import { WorkspaceSettingsPage } from './pages/workspace-settings.js';
 import { type AppFilters, useApps, useSession, useWorkspaces } from './lib/api.js';
+import { AdminPage } from './pages/admin.js';
 import { SearchDialog } from './components/search-dialog.js';
 import { ShortcutsHelp } from './components/shortcuts-help.js';
 import { useShortcuts } from './lib/shortcuts.js';
@@ -37,7 +39,9 @@ export function App() {
     localStorage.getItem(WORKSPACE_KEY),
   );
   const [openApp, setOpenApp] = useState<string | null>(null);
-  const [view, setView] = useState<'apps' | 'settings' | 'people'>('apps');
+  const [view, setView] = useState<'apps' | 'settings' | 'people' | 'activity'>('apps');
+  // La administración es de la instancia, no de un workspace: vive aparte.
+  const [admin, setAdmin] = useState(false);
   /** Hilo al que hay que ir tras abrir una app desde un aviso (RF-904). */
   const [hiloDestino, setHiloDestino] = useState<string | null>(null);
   const [filtros, setFiltros] = useState<AppFilters>(filtrosGuardados);
@@ -123,6 +127,10 @@ export function App() {
         setHiloDestino(null);
         setOpenApp(id);
       }}
+      admin={admin}
+      onToggleAdmin={() => {
+        setAdmin((v) => !v);
+      }}
       onOpenNotification={(destino) => {
         /*
          * Un aviso lleva al sitio exacto, no a la puerta (RF-904). Si es de otro
@@ -139,9 +147,11 @@ export function App() {
         if (!destino.appId) setView(destino.threadId ? 'apps' : 'people');
       }}
     >
-      {!current && <Screen text="Preparing your workspace…" />}
+      {admin && <AdminPage />}
 
-      {current && openApp && (
+      {!admin && !current && <Screen text="Preparing your workspace…" />}
+
+      {!admin && current && openApp && (
         <AppDetailPage
           appId={openApp}
           workspaceId={current.id}
@@ -153,10 +163,17 @@ export function App() {
         />
       )}
 
-      {current && !openApp && (
+      {!admin && current && !openApp && (
         <div className="flex flex-col gap-6">
           <nav className="flex gap-4 text-sm">
-            {(['apps', 'settings', 'people'] as const).map((v) => (
+            {(
+              [
+                'apps',
+                'settings',
+                'people',
+                ...(current.role === 'OWNER' ? (['activity'] as const) : []),
+              ] as const
+            ).map((v) => (
               <button
                 key={v}
                 onClick={() => {
@@ -168,7 +185,13 @@ export function App() {
                     : 'text-[var(--color-texto-suave)] hover:text-[var(--color-texto)]'
                 }
               >
-                {v === 'apps' ? 'Apps' : v === 'settings' ? 'Settings' : 'People & invitations'}
+                {v === 'apps'
+                  ? 'Apps'
+                  : v === 'settings'
+                    ? 'Settings'
+                    : v === 'people'
+                      ? 'People & invitations'
+                      : 'Activity'}
               </button>
             ))}
           </nav>
@@ -187,6 +210,7 @@ export function App() {
           )}
           {view === 'settings' && <WorkspaceSettingsPage workspace={current} />}
           {view === 'people' && <WorkspacePage workspace={current} />}
+          {view === 'activity' && <WorkspaceActivityPage workspace={current} />}
         </div>
       )}
       {buscando && (

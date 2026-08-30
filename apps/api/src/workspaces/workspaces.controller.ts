@@ -19,6 +19,7 @@ import {
   MemberDto,
   UpdateWorkspaceDto,
   WorkspaceDto,
+  WorkspaceAuditEntryDto,
 } from './workspaces.dto.js';
 import { WorkspacesService } from './workspaces.service.js';
 
@@ -70,6 +71,17 @@ export class WorkspacesController {
   @ApiNoContentResponse()
   leave(@Param('id', ParseUUIDPipe) id: string, @CurrentUserId() userId: string): Promise<void> {
     return this.workspaces.leave(id, userId);
+  }
+
+  @Get(':id/audit')
+  @ApiOperation({
+    summary: 'Actividad del workspace',
+    description:
+      'Solo para su dueño. Registra qué pasó, nunca qué decía: ni contenido ni credenciales (RF-704, RF-706).',
+  })
+  @ApiOkResponse({ type: [WorkspaceAuditEntryDto] })
+  audit(@Param('id', ParseUUIDPipe) id: string): Promise<WorkspaceAuditEntryDto[]> {
+    return this.workspaces.actividad(id);
   }
 
   @Get(':id/invitations')

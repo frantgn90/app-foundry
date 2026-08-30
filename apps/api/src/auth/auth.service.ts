@@ -1,7 +1,7 @@
 import { Inject, Injectable, Logger } from '@nestjs/common';
 import { sql } from 'drizzle-orm';
 
-import { type Database, workspaceMembers, workspaces } from '@app-foundry/db';
+import { auditLog, type Database, workspaceMembers, workspaces } from '@app-foundry/db';
 import type { Env } from '@app-foundry/env';
 
 import { currentTx } from '../database/request-context.js';
@@ -35,6 +35,17 @@ export class AuthService {
    */
   async provision(profile: GitHubProfile): Promise<AuthenticatedUser> {
     return this.db.transaction(async (tx) => {
+      /*
+       * Si la cuenta ya existía se sabe antes de tocarla, porque el alta y el
+       * enésimo inicio de sesión son eventos distintos y RF-701 pide los dos.
+       * `auth_upsert_user` no distingue uno de otro: hace lo mismo en ambos
+       * casos, que es precisamente su virtud.
+       */
+      const previo = await tx.execute<{ id: string }>(
+        sql`SELECT id FROM auth_find_user_by_github_id(${profile.githubId}::bigint)`,
+      );
+      const esAlta = previo.rows.length === 0;
+
       const created = await tx.execute<{ auth_upsert_user: string }>(
         sql`SELECT auth_upsert_user(${profile.githubId}::bigint, ${profile.handle}::citext,
                                     ${profile.email}::citext, ${profile.displayName}::text,
@@ -58,6 +69,35 @@ export class AuthService {
       }
 
       await this.applyBootstrapAdmin(tx, profile.handle);
+
+      /*
+       * Alta y sesión quedan registradas (RF-701). Se escriben aquí, con la
+       * identidad ya fijada, porque la política solo deja registrar acciones a
+       * nombre propio: fabricar entradas atribuidas a otro es lo único que haría
+       * inútil un registro de auditoría.
+       *
+       * Sin `workspace_id`: son eventos de la plataforma, no de ningún
+       * workspace, y es esa ausencia la que decide quién puede consultarlos
+       * después (RF-703 frente a RF-704).
+       *
+       * Nada de lo que se guarda identifica el dispositivo ni la dirección desde
+       * la que se entró (RF-706, RNF-112).
+       */
+      if (esAlta) {
+        await tx.insert(auditLog).values({
+          actorId: userId,
+          action: 'user.created',
+          resourceType: 'user',
+          resourceId: userId,
+          metadata: {},
+        });
+      }
+      await tx.insert(auditLog).values({
+        actorId: userId,
+        action: 'session.started',
+        resourceType: 'session',
+        metadata: {},
+      });
 
       const row = await tx.execute<Record<string, unknown> & AuthenticatedUser>(
         sql`SELECT id, handle, email, display_name AS "displayName",

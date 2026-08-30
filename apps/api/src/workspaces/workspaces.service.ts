@@ -26,6 +26,7 @@ import type {
   MemberDto,
   UpdateWorkspaceDto,
   WorkspaceDto,
+  WorkspaceAuditEntryDto,
 } from './workspaces.dto.js';
 
 @Injectable()
@@ -239,6 +240,37 @@ export class WorkspacesService {
    * quien escribe un aviso pertenezca al workspace. Hecho después, quien se
    * marcha ya no sería miembro y el aviso sería rechazado.
    */
+  /**
+   * Lo que ha pasado dentro del workspace (RF-704).
+   *
+   * La comprobación de que quien pregunta es el dueño la hace la función de la
+   * base de datos, no este método: `audit_log` no es legible desde la
+   * aplicación, y abrirla con una política la dejaría al alcance de cualquier
+   * consulta descuidada. Por eso no recibe el usuario: la identidad ya está
+   * fijada en la transacción, y pasarla aquí haría creer que se usa.
+   */
+  async actividad(workspaceId: string): Promise<WorkspaceAuditEntryDto[]> {
+    const filas = await currentTx().execute<{
+      id: string;
+      actor_handle: string | null;
+      action: string;
+      resource_type: string | null;
+      resource_id: string | null;
+      metadata: Record<string, unknown> | null;
+      created_at: string;
+    }>(sql`SELECT * FROM workspace_audit(${workspaceId}::uuid, NULL, NULL, ${200}::integer)`);
+
+    return filas.rows.map((f) => ({
+      id: f.id,
+      actorHandle: f.actor_handle,
+      action: f.action,
+      resourceType: f.resource_type,
+      resourceId: f.resource_id,
+      metadata: f.metadata ?? {},
+      createdAt: new Date(f.created_at).toISOString(),
+    }));
+  }
+
   private async heredarApps(workspaceId: string, aQuien: string, actor: string): Promise<void> {
     const heredadas = await currentTx().execute<{
       app_id: string;

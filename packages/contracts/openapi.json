@@ -485,6 +485,41 @@
         ]
       }
     },
+    "/api/v1/workspaces/{id}/audit": {
+      "get": {
+        "description": "Solo para su dueño. Registra qué pasó, nunca qué decía: ni contenido ni credenciales (RF-704, RF-706).",
+        "operationId": "WorkspacesController_audit",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/WorkspaceAuditEntryDto"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "summary": "Actividad del workspace",
+        "tags": [
+          "workspaces"
+        ]
+      }
+    },
     "/api/v1/workspaces/{id}/invitations": {
       "get": {
         "operationId": "WorkspacesController_invitations",
@@ -2151,6 +2186,50 @@
           "displayName",
           "avatarUrl",
           "role"
+        ]
+      },
+      "WorkspaceAuditEntryDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "actorHandle": {
+            "type": "string",
+            "nullable": true
+          },
+          "action": {
+            "type": "string",
+            "description": "Qué se hizo, en forma de identificador estable."
+          },
+          "resourceType": {
+            "type": "string",
+            "nullable": true
+          },
+          "resourceId": {
+            "type": "string",
+            "format": "uuid",
+            "nullable": true
+          },
+          "metadata": {
+            "type": "object",
+            "additionalProperties": true,
+            "description": "Identificadores y valores de enum. Nunca contenido (RF-706)."
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "id",
+          "actorHandle",
+          "action",
+          "resourceType",
+          "resourceId",
+          "metadata",
+          "createdAt"
         ]
       },
       "InvitationDto": {

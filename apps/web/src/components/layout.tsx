@@ -19,6 +19,8 @@ interface Props {
   currentApp: App | undefined;
   onSelectApp: (id: string) => void;
   onOpenNotification: (destino: NotificationTarget) => void;
+  admin: boolean;
+  onToggleAdmin: () => void;
   children: React.ReactNode;
 }
 
@@ -38,6 +40,8 @@ export function Layout({
   currentApp,
   onSelectApp,
   onOpenNotification,
+  admin,
+  onToggleAdmin,
   children,
 }: Props) {
   const signOut = useSignOut();
@@ -88,7 +92,16 @@ export function Layout({
           )}
 
           <div className="ml-auto flex items-center gap-3">
-            {session.platformRole === 'ADMIN' && <Badge tone="ok">Admin</Badge>}
+            {/*
+              Para un administrador, la insignia es también la puerta: es donde
+              iría a buscarla, y así la administración no ocupa sitio en la
+              cabecera de quien no la tiene (RF-205).
+            */}
+            {session.platformRole === 'ADMIN' && (
+              <button onClick={onToggleAdmin} title={admin ? 'Back to work' : 'Administration'}>
+                {admin ? <Badge tone="ok">Leave admin</Badge> : <Badge>Admin</Badge>}
+              </button>
+            )}
             <NotificationBell onOpen={onOpenNotification} />
             <ThemeToggle />
             <span className="flex items-center gap-2 text-sm">

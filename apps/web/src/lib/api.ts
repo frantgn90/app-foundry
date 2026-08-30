@@ -765,3 +765,98 @@ export function usePurgeNotifications() {
     },
   });
 }
+
+export interface AdminUser {
+  id: string;
+  handle: string;
+  displayName: string;
+  avatarUrl: string | null;
+  platformRole: string;
+  status: string;
+  createdAt: string;
+  lastLoginAt: string | null;
+  workspaceCount: number;
+  isMe: boolean;
+}
+
+export interface AuditEntry {
+  id: string;
+  actorHandle: string | null;
+  action: string;
+  resourceType: string | null;
+  resourceId: string | null;
+  metadata: Record<string, unknown>;
+  createdAt: string;
+}
+
+export function useAdminUsers(enabled: boolean) {
+  return useQuery<AdminUser[]>({
+    queryKey: ['admin', 'users'],
+    enabled,
+    queryFn: async () => {
+      const { data, error } = await api.GET('/api/v1/admin/users');
+      if (error || !data) throw new Error('Could not load accounts');
+      return data;
+    },
+  });
+}
+
+export function useUpdateAdminUser() {
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: async (vars: {
+      id: string;
+      platformRole?: 'ADMIN' | 'MEMBER';
+      status?: 'ACTIVE' | 'DEACTIVATED';
+    }) => {
+      const { id, ...cambios } = vars;
+      const { data, error } = await api.PATCH('/api/v1/admin/users/{id}', {
+        params: { path: { id } },
+        body: cambios,
+      });
+      if (error || !data) throw new Error('Could not update the account');
+      return data;
+    },
+    onSuccess: async () => {
+      await client.invalidateQueries({ queryKey: ['admin'] });
+    },
+  });
+}
+
+export function useInstanceMetrics(enabled: boolean) {
+  return useQuery<Record<string, number>>({
+    queryKey: ['admin', 'metrics'],
+    enabled,
+    queryFn: async () => {
+      const { data, error } = await api.GET('/api/v1/admin/metrics');
+      if (error || !data) throw new Error('Could not load metrics');
+      return data;
+    },
+  });
+}
+
+export function usePlatformAudit(enabled: boolean) {
+  return useQuery<AuditEntry[]>({
+    queryKey: ['admin', 'audit'],
+    enabled,
+    queryFn: async () => {
+      const { data, error } = await api.GET('/api/v1/admin/audit', { params: { query: {} } });
+      if (error || !data) throw new Error('Could not load the audit log');
+      return data;
+    },
+  });
+}
+
+export function useWorkspaceAudit(workspaceId: string, enabled: boolean) {
+  return useQuery<AuditEntry[]>({
+    queryKey: ['workspace-audit', workspaceId],
+    enabled,
+    queryFn: async () => {
+      const { data, error } = await api.GET('/api/v1/workspaces/{id}/audit', {
+        params: { path: { id: workspaceId } },
+      });
+      if (error || !data) throw new Error('Could not load the activity');
+      return data;
+    },
+  });
+}
