@@ -322,6 +322,45 @@
 | AB3 | Pulsar lleva al recurso: app, hilo o workspace | Un aviso de comentario abre su hilo, resaltado | RF-904 | ✅ |
 | AB4 | Trazas de Redis visibles en Tempo | Comprobado: los spans se llaman como el comando (`publish`, `get`), no «redis» | §13 | ✅ |
 
+## H6 — Encontrar las cosas
+
+> Hasta ahora todo se ha visto porque cabía en una pantalla. Con cien apps y
+> varios workspaces eso deja de ser cierto, y lo que decide si la herramienta
+> sirve es si puedes volver a algo que escribiste hace tres meses.
+
+### Bloque AC — Búsqueda en el servidor
+
+| # | Tarea | Verificación | Traza | Estado |
+|---|---|---|---|---|
+| AC1 | Columna de búsqueda mantenida por la propia base de datos | Editar la visión actualiza lo que se busca, sin que nadie lo recuerde | TRD §10, T-10 | ⬜ |
+| AC2 | Buscar por nombre, descripción y contenido, en todos tus workspaces | Un resultado dice de qué workspace viene | RF-604 | ⬜ |
+| AC3 | La búsqueda no enseña lo que no podrías abrir | Una app privada ajena no aparece ni buscándola por su nombre exacto | RF-604, RNF-401 | ⬜ |
+
+### Bloque AD — Listado: filtrar, ordenar, paginar
+
+| # | Tarea | Verificación | Traza | Estado |
+|---|---|---|---|---|
+| AD1 | Filtros por estado, etiqueta y nivel de acceso | Combinarlos acota, no se estorban entre sí | RF-602 | ⬜ |
+| AD2 | Orden por actividad y por nombre | El orden por defecto sigue siendo lo más reciente | RF-603 | ⬜ |
+| AD3 | Paginación | Cientos de apps no se traen de una vez | RF-603, RNF-201 | ⬜ |
+| AD4 | Tests del listado | Filtros, orden y páginas cuadran | RNF-401 | ⬜ |
+
+### Bloque AE — Encontrar desde la interfaz
+
+| # | Tarea | Verificación | Traza | Estado |
+|---|---|---|---|---|
+| AE1 | Buscador global, con el workspace de cada resultado | Buscar algo de otro workspace lleva hasta ahí | RF-604 | ⬜ |
+| AE2 | Filtros y orden en el listado | Lo elegido sobrevive a recargar | RF-602, RF-603 | ⬜ |
+| AE3 | Estados vacíos que dicen qué hacer | Sin resultados no es una pantalla en blanco | RF-610 | ⬜ |
+
+### Bloque AF — Rematar la interfaz
+
+| # | Tarea | Verificación | Traza | Estado |
+|---|---|---|---|---|
+| AF1 | Tema claro y oscuro, respetando el del sistema | Cambiarlo no parpadea ni se olvida al recargar | RF-609 | ⬜ |
+| AF2 | Atajos para lo frecuente: buscar, nueva app, guardar | Se descubren solos y no pisan los del navegador | RF-611 | ⬜ |
+| AF3 | Ser invitado se nota antes de escribir, no después | En un workspace ajeno se advierte de que lo creado será de todos | RF-606 | ⬜ |
+
 ## Mejoras detectadas usando el producto
 
 > No salen de un hito: salen de abrir la aplicación y encontrarse con algo que
