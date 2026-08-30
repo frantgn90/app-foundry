@@ -16,7 +16,10 @@ export interface ValidSession {
 }
 
 const CACHE_PREFIX = 'sess:';
-/** Corto a propósito: revocar debe notarse en segundos, no en minutos. */
+/**
+ * Corto a propósito, pero ya no es lo único que sostiene la revocación: al
+ * desactivar una cuenta, sus entradas se sueltan una a una (`dropCached`).
+ */
 const CACHE_TTL_SECONDS = 30;
 
 /**
@@ -88,6 +91,22 @@ export class SessionService {
     const hash = this.hash(token);
     await this.db.execute(sql`SELECT auth_revoke_session(${hash}::bytea)`);
     await this.redis.del(CACHE_PREFIX + hash.toString('hex')).catch(() => null);
+  }
+
+  /**
+   * Suelta de la caché las sesiones que ya se han borrado de la base de datos.
+   *
+   * Las filas las borra quien desactiva la cuenta, en su misma transacción, y
+   * esa operación devuelve los hashes: son los que hacen falta aquí, porque la
+   * caché va indexada por ellos y no se pueden reconstruir desde el token.
+   *
+   * Sin esto, quien acaba de ser desactivado seguiría entrando durante la vida
+   * de lo cacheado, y «desactivar» pasaría a significar «dentro de un rato»,
+   * que no es lo que dice RF-203.
+   */
+  async dropCached(hashes: string[]): Promise<void> {
+    if (hashes.length === 0) return;
+    await this.redis.del(...hashes.map((h) => CACHE_PREFIX + h)).catch(() => null);
   }
 
   /** SHA-256 del token: en la base de datos nunca hay nada reutilizable. */

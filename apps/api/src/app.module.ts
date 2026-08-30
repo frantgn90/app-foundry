@@ -3,6 +3,7 @@ import { APP_GUARD, APP_INTERCEPTOR } from '@nestjs/core';
 
 import { AppsModule } from './apps/apps.module.js';
 import { AuditModule } from './audit/audit.service.js';
+import { AdminModule } from './admin/admin.module.js';
 import { NotificationsModule } from './notifications/notifications.module.js';
 import { SearchModule } from './search/search.module.js';
 import { AuthModule } from './auth/auth.module.js';
@@ -20,6 +21,7 @@ import { WorkspacesModule } from './workspaces/workspaces.module.js';
     AuditModule,
     NotificationsModule,
     SearchModule,
+    AdminModule,
     AuthModule,
     WorkspacesModule,
     AppsModule,

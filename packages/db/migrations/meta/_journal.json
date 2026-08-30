@@ -176,6 +176,20 @@
       "when": 1788048656893,
       "tag": "0024_inherit_apps",
       "breakpoints": true
+    },
+    {
+      "idx": 25,
+      "version": "7",
+      "when": 1788048657893,
+      "tag": "0025_admin_queries",
+      "breakpoints": true
+    },
+    {
+      "idx": 26,
+      "version": "7",
+      "when": 1788048658893,
+      "tag": "0026_deactivate_returns_sessions",
+      "breakpoints": true
     }
   ]
 }

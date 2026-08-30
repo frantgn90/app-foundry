@@ -131,6 +131,152 @@
         ]
       }
     },
+    "/api/v1/admin/users": {
+      "get": {
+        "description": "Rol, estado y actividad. En cuántos workspaces está cada uno, no en cuáles.",
+        "operationId": "AdminController_users",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/AdminUserDto"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "summary": "Cuentas de la instancia",
+        "tags": [
+          "admin"
+        ]
+      }
+    },
+    "/api/v1/admin/users/{id}": {
+      "patch": {
+        "description": "La instancia nunca puede quedarse sin administrador activo, y desactivar cierra las sesiones abiertas (RF-202, RF-203).",
+        "operationId": "AdminController_update",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateUserDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AdminUserDto"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Cambiar rol o estado de una cuenta",
+        "tags": [
+          "admin"
+        ]
+      }
+    },
+    "/api/v1/admin/metrics": {
+      "get": {
+        "description": "Números agregados, sin acceder al contenido de ningún workspace (RF-204).",
+        "operationId": "AdminController_metrics",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InstanceMetricsDto"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Métricas de la instancia",
+        "tags": [
+          "admin"
+        ]
+      }
+    },
+    "/api/v1/admin/audit": {
+      "get": {
+        "description": "Altas, sesiones y roles. Lo que ocurre dentro de un workspace es de su dueño (RF-703, RF-704).",
+        "operationId": "AdminController_audit",
+        "parameters": [
+          {
+            "name": "actorId",
+            "required": false,
+            "in": "query",
+            "description": "Quién lo hizo",
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          },
+          {
+            "name": "from",
+            "required": false,
+            "in": "query",
+            "description": "Desde, en ISO 8601",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "to",
+            "required": false,
+            "in": "query",
+            "description": "Hasta, en ISO 8601",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/AuditEntryDto"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "summary": "Auditoría de plataforma",
+        "tags": [
+          "admin"
+        ]
+      }
+    },
     "/api/v1/auth/github": {
       "get": {
         "operationId": "AuthController_signIn",
@@ -1662,6 +1808,171 @@
         "required": [
           "items",
           "query"
+        ]
+      },
+      "AdminUserDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "handle": {
+            "type": "string"
+          },
+          "displayName": {
+            "type": "string"
+          },
+          "avatarUrl": {
+            "type": "string",
+            "nullable": true
+          },
+          "platformRole": {
+            "type": "string",
+            "enum": [
+              "ADMIN",
+              "MEMBER"
+            ]
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "ACTIVE",
+              "DEACTIVATED"
+            ]
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "lastLoginAt": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          },
+          "workspaceCount": {
+            "type": "number",
+            "description": "En cuántos workspaces está, sin decir cuáles (D-6)."
+          },
+          "isMe": {
+            "type": "boolean",
+            "description": "Si es la propia cuenta de quien consulta."
+          }
+        },
+        "required": [
+          "id",
+          "handle",
+          "displayName",
+          "avatarUrl",
+          "platformRole",
+          "status",
+          "createdAt",
+          "lastLoginAt",
+          "workspaceCount",
+          "isMe"
+        ]
+      },
+      "UpdateUserDto": {
+        "type": "object",
+        "properties": {
+          "platformRole": {
+            "type": "string",
+            "enum": [
+              "ADMIN",
+              "MEMBER"
+            ]
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "ACTIVE",
+              "DEACTIVATED"
+            ]
+          }
+        }
+      },
+      "InstanceMetricsDto": {
+        "type": "object",
+        "properties": {
+          "usersTotal": {
+            "type": "number"
+          },
+          "usersActive": {
+            "type": "number"
+          },
+          "workspacesTotal": {
+            "type": "number"
+          },
+          "appsTotal": {
+            "type": "number"
+          },
+          "appsArchived": {
+            "type": "number"
+          },
+          "versionsTotal": {
+            "type": "number"
+          },
+          "threadsOpen": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "usersTotal",
+          "usersActive",
+          "workspacesTotal",
+          "appsTotal",
+          "appsArchived",
+          "versionsTotal",
+          "threadsOpen"
+        ]
+      },
+      "AuditEntryDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "actorId": {
+            "type": "string",
+            "format": "uuid",
+            "nullable": true
+          },
+          "actorHandle": {
+            "type": "string",
+            "nullable": true
+          },
+          "action": {
+            "type": "string"
+          },
+          "resourceType": {
+            "type": "string",
+            "nullable": true
+          },
+          "resourceId": {
+            "type": "string",
+            "format": "uuid",
+            "nullable": true
+          },
+          "metadata": {
+            "type": "object",
+            "additionalProperties": true,
+            "description": "Identificadores y valores de enum. Nunca contenido (RF-706)."
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "id",
+          "actorId",
+          "actorHandle",
+          "action",
+          "resourceType",
+          "resourceId",
+          "metadata",
+          "createdAt"
         ]
       },
       "CurrentUserDto": {

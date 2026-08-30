@@ -8,6 +8,9 @@ import { currentTx } from '../database/request-context.js';
 export const AuditAction = {
   SESSION_STARTED: 'session.started',
   USER_CREATED: 'user.created',
+  USER_ROLE_CHANGED: 'user.role_changed',
+  USER_DEACTIVATED: 'user.deactivated',
+  USER_REACTIVATED: 'user.reactivated',
   WORKSPACE_RENAMED: 'workspace.renamed',
   INVITATION_CREATED: 'invitation.created',
   INVITATION_REVOKED: 'invitation.revoked',

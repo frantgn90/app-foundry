@@ -68,6 +68,86 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/admin/users": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Cuentas de la instancia
+         * @description Rol, estado y actividad. En cuántos workspaces está cada uno, no en cuáles.
+         */
+        get: operations["AdminController_users"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/users/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /**
+         * Cambiar rol o estado de una cuenta
+         * @description La instancia nunca puede quedarse sin administrador activo, y desactivar cierra las sesiones abiertas (RF-202, RF-203).
+         */
+        patch: operations["AdminController_update"];
+        trace?: never;
+    };
+    "/api/v1/admin/metrics": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Métricas de la instancia
+         * @description Números agregados, sin acceder al contenido de ningún workspace (RF-204).
+         */
+        get: operations["AdminController_metrics"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/audit": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Auditoría de plataforma
+         * @description Altas, sesiones y roles. Lo que ocurre dentro de un workspace es de su dueño (RF-703, RF-704).
+         */
+        get: operations["AdminController_audit"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/auth/github": {
         parameters: {
             query?: never;
@@ -708,6 +788,57 @@ export interface components {
             /** @description Lo que se buscó, ya normalizado */
             query: string;
         };
+        AdminUserDto: {
+            /** Format: uuid */
+            id: string;
+            handle: string;
+            displayName: string;
+            avatarUrl: string | null;
+            /** @enum {string} */
+            platformRole: "ADMIN" | "MEMBER";
+            /** @enum {string} */
+            status: "ACTIVE" | "DEACTIVATED";
+            /** Format: date-time */
+            createdAt: string;
+            /** Format: date-time */
+            lastLoginAt: string | null;
+            /** @description En cuántos workspaces está, sin decir cuáles (D-6). */
+            workspaceCount: number;
+            /** @description Si es la propia cuenta de quien consulta. */
+            isMe: boolean;
+        };
+        UpdateUserDto: {
+            /** @enum {string} */
+            platformRole?: "ADMIN" | "MEMBER";
+            /** @enum {string} */
+            status?: "ACTIVE" | "DEACTIVATED";
+        };
+        InstanceMetricsDto: {
+            usersTotal: number;
+            usersActive: number;
+            workspacesTotal: number;
+            appsTotal: number;
+            appsArchived: number;
+            versionsTotal: number;
+            threadsOpen: number;
+        };
+        AuditEntryDto: {
+            /** Format: uuid */
+            id: string;
+            /** Format: uuid */
+            actorId: string | null;
+            actorHandle: string | null;
+            action: string;
+            resourceType: string | null;
+            /** Format: uuid */
+            resourceId: string | null;
+            /** @description Identificadores y valores de enum. Nunca contenido (RF-706). */
+            metadata: {
+                [key: string]: unknown;
+            };
+            /** Format: date-time */
+            createdAt: string;
+        };
         CurrentUserDto: {
             /** Format: uuid */
             id: string;
@@ -1101,6 +1232,95 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["SearchResultsDto"];
+                };
+            };
+        };
+    };
+    AdminController_users: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdminUserDto"][];
+                };
+            };
+        };
+    };
+    AdminController_update: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateUserDto"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdminUserDto"];
+                };
+            };
+        };
+    };
+    AdminController_metrics: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InstanceMetricsDto"];
+                };
+            };
+        };
+    };
+    AdminController_audit: {
+        parameters: {
+            query?: {
+                /** @description Quién lo hizo */
+                actorId?: string;
+                /** @description Desde, en ISO 8601 */
+                from?: string;
+                /** @description Hasta, en ISO 8601 */
+                to?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AuditEntryDto"][];
                 };
             };
         };

@@ -380,16 +380,16 @@
 
 | # | Tarea | Verificación | Traza | Estado |
 |---|---|---|---|---|
-| AH1 | Listar usuarios con su rol, estado y actividad | Solo lo ve un administrador | RF-201 | ⬜ |
-| AH2 | Cambiar rol y desactivar cuentas | La instancia nunca se queda sin administrador activo | RF-202, RF-203 | ⬜ |
-| AH3 | Desactivar cierra el paso de verdad | Las sesiones abiertas dejan de valer | RF-203 | ⬜ |
-| AH4 | Métricas agregadas de la instancia | Sin asomarse al contenido de nadie | RF-204 | ⬜ |
+| AH1 | Listar usuarios con su rol, estado y actividad | Solo lo ve un administrador | RF-201 | ✅ |
+| AH2 | Cambiar rol y desactivar cuentas | La instancia nunca se queda sin administrador activo | RF-202, RF-203 | ✅ |
+| AH3 | Desactivar cierra el paso de verdad | Las sesiones abiertas dejan de valer | RF-203 | ✅ |
+| AH4 | Métricas agregadas de la instancia | Sin asomarse al contenido de nadie | RF-204 | ✅ |
 
 ### Bloque AI — Auditoría consultable
 
 | # | Tarea | Verificación | Traza | Estado |
 |---|---|---|---|---|
-| AI1 | Un administrador consulta los eventos de plataforma | Filtra por persona y por fecha, y no ve contenido | RF-703, RF-706 | ⬜ |
+| AI1 | Un administrador consulta los eventos de plataforma | Filtra por persona y por fecha, y no ve contenido | RF-703, RF-706 | ✅ |
 | AI2 | El dueño de un workspace consulta lo suyo | Y solo lo suyo | RF-704 | ⬜ |
 | AI3 | Interfaz de ambas cosas | Se entiende qué pasó sin leer identificadores | RF-703, RF-704 | ⬜ |
 
