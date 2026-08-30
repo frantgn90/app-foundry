@@ -69,7 +69,7 @@ export function CommentsPanel({
           {resolved.length > 0 && (
             <Button
               variant="ghost"
-              className="px-2 py-1 text-xs"
+              className="px-2 py-1 text-sm"
               onClick={() => {
                 setShowResolved((v) => !v);
               }}

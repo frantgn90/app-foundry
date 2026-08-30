@@ -25,7 +25,7 @@ import { MentionInput } from '../components/mention-input.js';
 import { AppSettingsPage } from './app-settings.js';
 import { DiffView } from '../components/diff-view.js';
 import { MarkdownEditor } from '../components/editor.js';
-import { VisionControls } from '../components/vision-controls.js';
+import { EditToggle } from '../components/vision-controls.js';
 import { Markdown } from '../components/markdown.js';
 import { StatusPill, TagList, VisibilityMark } from '../components/app-status.js';
 import { Button } from '../components/ui/button.js';
@@ -377,45 +377,48 @@ export function AppDetailPage({
           )}
         >
           <div className="flex flex-col gap-3">
-            <div className="flex h-8 items-center justify-end gap-2">
-              {/* Con la conversación plegada, su botón ocupa el sitio que deja:
-                  es lo que impide que se olvide que hay comentarios. */}
-              {!conversacionAbierta && (
-                <button
-                  onClick={() => {
-                    setConversacionAbierta(true);
-                  }}
-                  title="Show conversation"
+            {/*
+              Los tres botones comparten alto y línea: editar y descargar como
+              iconos cuadrados, y la conversación pegada a la derecha, que es
+              donde está el panel que despliega.
+            */}
+            <div className="flex h-8 items-center gap-2">
+              {/* Agrupados y empujados a la derecha: si el desplegar la
+                  conversación fuera quien empujara, estos dos saltarían de sitio
+                  al plegarla y volverían al desplegarla. */}
+              <span className="ml-auto flex items-center gap-2">
+                <EditToggle
+                  editando={editando}
+                  puedeEditar={document.data.canEdit}
+                  onEditando={setEditando}
+                />
+
+                <a
+                  href={`/api/v1/apps/${appId}/document/export`}
+                  title="Download VISION.md"
+                  aria-label="Download VISION.md"
                   className={cn(
-                    'flex items-center gap-1.5 rounded-lg border px-2 py-1 text-xs',
+                    'grid size-8 shrink-0 place-items-center rounded-lg border transition',
                     'border-[var(--color-borde)] bg-[var(--color-superficie)]',
                     'text-[var(--color-texto-suave)] hover:text-[var(--color-texto)]',
                   )}
                 >
-                  <PanelIcono />
-                  Conversation
-                  {openThreads > 0 && <span>({openThreads})</span>}
-                </button>
+                  <Descarga />
+                </a>
+              </span>
+
+              {!conversacionAbierta && (
+                <Button
+                  variant="ghost"
+                  className="px-2 py-1 text-sm"
+                  onClick={() => {
+                    setConversacionAbierta(true);
+                  }}
+                >
+                  Show conversation
+                  {openThreads > 0 && ` (${String(openThreads)})`}
+                </Button>
               )}
-
-              <VisionControls
-                editando={editando}
-                puedeEditar={document.data.canEdit}
-                onEditando={setEditando}
-              />
-
-              <a
-                href={`/api/v1/apps/${appId}/document/export`}
-                title="Download VISION.md"
-                className={cn(
-                  'flex items-center gap-1.5 rounded-lg border px-2 py-1 text-xs',
-                  'border-[var(--color-borde)] bg-[var(--color-superficie)]',
-                  'text-[var(--color-texto-suave)] hover:text-[var(--color-texto)]',
-                )}
-              >
-                <Descarga />
-                VISION.md
-              </a>
             </div>
 
             {!editando ? (
@@ -674,25 +677,6 @@ function ConflictNotice({
         </details>
       </div>
     </Card>
-  );
-}
-
-/** Flecha de despliegue: la conversación vuelve desde la derecha. */
-function PanelIcono() {
-  return (
-    <svg
-      viewBox="0 0 16 16"
-      className="size-3.5"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="1.5"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      aria-hidden
-    >
-      <path d="M10 4L6 8l4 4" />
-      <path d="M13 3v10" />
-    </svg>
   );
 }
 
