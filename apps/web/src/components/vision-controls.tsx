@@ -45,9 +45,17 @@ export function VisionControls({
       </Grupo>
 
       <Grupo etiqueta="View">
+        {/*
+          Se llama «Preview» y no «Rendered» porque es justo lo que es: ver cómo
+          queda, no otro sitio donde trabajar. Y no se puede elegir mientras se
+          escribe: editar sobre el resultado exigiría convertirlo de vuelta a
+          markdown en cada guardado, y esa vuelta reescribe el texto entero,
+          llenando el historial de cambios que nadie hizo.
+        */}
         <Opcion
           activo={vista === 'rendered'}
-          titulo="Rendered"
+          titulo={editando ? 'Preview is not available while editing' : 'Preview'}
+          deshabilitado={editando}
           onClick={() => {
             onVista('rendered');
           }}

@@ -53,7 +53,7 @@ test('de crear una app a encontrarla por su contenido', async ({ page, context }
 
     await page.getByRole('button', { name: /^Save/ }).click();
     await page.getByRole('radio', { name: 'Reading' }).click();
-    await page.getByRole('radio', { name: 'Rendered' }).click();
+    await page.getByRole('radio', { name: 'Preview' }).click();
     await expect(page.getByText('Nobody remembers why a feature was dropped.')).toBeVisible();
   });
 

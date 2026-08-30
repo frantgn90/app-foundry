@@ -405,6 +405,7 @@
 
 | Requisito | Decisión |
 |---|---|
+| Editar sobre el resultado (WYSIWYG) | **Descartado por ahora.** Obligaría a convertir markdown → documento → markdown en cada guardado, y esa vuelta normaliza el texto: el historial se llenaría de diffs que nadie hizo y el reanclaje recalcularía sobre un texto cambiado solo. La vía viable, si se retoma, es editar bloque a bloque usando los rangos de origen que ya lleva cada elemento renderizado. |
 | RF-605 · «Nueva app» como acción más visible | **Se cumple sin el botón.** El campo para crear está siempre puesto y es lo primero bajo la cabecera, así que la acción es más visible que antes, aunque ya no exista un botón con ese nombre. |
 | RF-206 · Editar nombre visible y avatar | **No se implementa.** Todo el perfil se hereda de GitHub y se actualiza al entrar; mantener una copia editable obligaría a decidir cuál manda cada vez que cambie allí (RF-208). La página de cuenta los muestra, en solo lectura. |
 

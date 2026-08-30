@@ -205,7 +205,6 @@ export function AppDetailPage({
     editando,
     scrollToThread,
     document.data?.content,
-    draft,
   ]);
 
   // Borrador local: cerrar la pestaña a media edición no debería perder el
@@ -240,14 +239,13 @@ export function AppDetailPage({
   const content = draft ?? document.data.content;
 
   /*
-   * Escribiendo, lo renderizado es el borrador: una previsualización que enseña
-   * la versión guardada no previsualiza nada.
+   * Escribiendo se mira el texto, siempre.
    *
-   * Y por eso mismo los comentarios no se pintan mientras se escribe: están
-   * anclados a posiciones de la versión guardada, y sobre un texto que aún se
-   * está tocando señalarían el sitio equivocado.
+   * La vista se deriva en lugar de confiar en que el interruptor la haya puesto
+   * bien: así el estado «editando sobre el resultado» no puede llegar a
+   * representarse, venga de donde venga el cambio.
    */
-  const contenidoVisible = editando ? content : document.data.content;
+  const vistaEfectiva: Vista = editando ? 'plain' : vista;
   const openThreads = (threads.data ?? []).filter((t) => t.status === 'OPEN').length;
   const hasUnsavedChanges = content !== document.data.content;
 
@@ -389,7 +387,7 @@ export function AppDetailPage({
               />
             </div>
 
-            {vista === 'rendered' ? (
+            {vistaEfectiva === 'rendered' ? (
               <>
                 {/*
               Al soltar el ratón se mira si hay una selección utilizable. Si no
@@ -424,7 +422,7 @@ export function AppDetailPage({
                     if (hit) setSelectedThread(hit.threadId);
                   }}
                 >
-                  <Markdown content={contenidoVisible} />
+                  <Markdown content={document.data.content} />
                 </Card>
 
                 {menuAt && pendingSelection && !composing && (
