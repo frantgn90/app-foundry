@@ -19,6 +19,7 @@ import {
 
 import { AuditAction, AuditService } from '../audit/audit.service.js';
 import { NotificationsService } from '../notifications/notifications.service.js';
+import { MetricsService } from '../observability/metrics.service.js';
 import { currentTx } from '../database/request-context.js';
 import type { AppListDto, AppSummaryDto, CreateAppDto, UpdateAppDto } from './apps.dto.js';
 
@@ -39,6 +40,7 @@ export class AppsService {
   constructor(
     private readonly audit: AuditService,
     private readonly notifications: NotificationsService,
+    private readonly metrics: MetricsService,
   ) {}
 
   /**
@@ -91,6 +93,7 @@ export class AppsService {
       .where(eq(apps.id, created.id));
 
     await this.createVisionDocument(created.id, userId);
+    this.metrics.appCreada();
 
     await this.audit.record({
       actorId: userId,

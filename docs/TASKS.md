@@ -397,8 +397,8 @@
 
 | # | Tarea | Verificación | Traza | Estado |
 |---|---|---|---|---|
-| AJ1 | Imágenes de la API y de la interfaz | Se levanta entero desde cero con un comando | TRD §16 | ⬜ |
-| AJ2 | Paneles de Grafana | Las métricas que importan están a la vista | TRD §13 | ⬜ |
+| AJ1 | Imágenes de la API y de la interfaz | Se levanta entero desde cero con un comando | TRD §16 | ✅ |
+| AJ2 | Paneles de Grafana | Las métricas que importan están a la vista | TRD §13 | ✅ |
 | AJ3 | Un recorrido completo automatizado | Entrar, crear, escribir, comentar y encontrar | RNF-401 | ⬜ |
 
 ## Mejoras detectadas usando el producto

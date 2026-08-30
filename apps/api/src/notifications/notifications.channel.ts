@@ -7,6 +7,7 @@ import { type Database, notifications } from '@app-foundry/db';
 import { conIdentidad } from '../database/con-identidad.js';
 import { currentTx } from '../database/request-context.js';
 import { DATABASE } from '../infrastructure/tokens.js';
+import { MetricsService } from '../observability/metrics.service.js';
 import type { EventoAviso } from './notifications.stream.js';
 import { NotificationsStream } from './notifications.stream.js';
 
@@ -20,6 +21,7 @@ export class NotificationsChannel {
   constructor(
     @Inject(DATABASE) private readonly db: Database,
     private readonly stream: NotificationsStream,
+    private readonly metrics: MetricsService,
   ) {}
 
   /**
@@ -55,6 +57,7 @@ export class NotificationsChannel {
     const baja = this.stream.escuchar(userId, (evento) => {
       this.enviar(response, evento);
     });
+    this.metrics.conexionAbierta();
 
     const latido = setInterval(() => {
       // Un comentario vacío: no es un evento, solo tráfico para que nadie dé la
@@ -62,9 +65,15 @@ export class NotificationsChannel {
       response.write(': ping\n\n');
     }, LATIDO_MS);
 
+    let cerrada = false;
     const cerrar = (): void => {
+      // Puede llegar por dos vías —cierre y error—, y contar la baja dos veces
+      // dejaría el número de conexiones abiertas en negativo.
+      if (cerrada) return;
+      cerrada = true;
       clearInterval(latido);
       baja();
+      this.metrics.conexionCerrada();
     };
     request.on('close', cerrar);
     response.on('error', cerrar);

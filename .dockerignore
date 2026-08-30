@@ -1,0 +1,15 @@
+# Lo que no debe entrar en el contexto de construcción: acelera el copiado y,
+# sobre todo, evita que un `.env` acabe dentro de una imagen.
+node_modules
+**/node_modules
+dist
+**/dist
+.turbo
+**/.turbo
+.git
+.env
+.env.*
+!.env.example
+*.log
+coverage
+**/coverage

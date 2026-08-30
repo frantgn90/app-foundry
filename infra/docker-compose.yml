@@ -7,6 +7,11 @@
 #
 #   docker compose up -d                  # postgres + redis
 #   docker compose --profile obs up -d    # además, observabilidad completa
+#   docker compose --profile app up -d    # además, la propia aplicación
+#
+# El perfil `app` construye y levanta la API y la interfaz, y sirve para
+# comprobar que lo que se despliega funciona: en desarrollo normal se siguen
+# ejecutando fuera, con recarga en caliente.
 name: app-foundry
 
 services:
@@ -124,6 +129,10 @@ services:
       GF_FEATURE_TOGGLES_ENABLE: 'traceqlEditor'
     volumes:
       - ./observability/grafana/datasources.yaml:/etc/grafana/provisioning/datasources/datasources.yaml:ro
+      - ./observability/grafana/dashboards.yaml:/etc/grafana/provisioning/dashboards/dashboards.yaml:ro
+      # Los JSON van fuera del directorio de aprovisionamiento: montar ahí el
+      # directorio entero taparía el propio fichero de configuración.
+      - ./observability/grafana/dashboards:/var/lib/grafana/dashboards:ro
       - grafana_data:/var/lib/grafana
     ports:
       - '3000:3000'
@@ -131,6 +140,43 @@ services:
       - prometheus
       - tempo
       - loki
+
+  api:
+    profiles: ['app']
+    build:
+      context: ..
+      dockerfile: apps/api/Dockerfile
+    restart: unless-stopped
+    environment:
+      # Dentro de la red de Compose los servicios se llaman por su nombre, no
+      # por localhost, que aquí sería el propio contenedor.
+      DATABASE_URL: postgres://app_user:${POSTGRES_APP_PASSWORD:-app}@postgres:5432/app_foundry
+      DATABASE_MIGRATION_URL: postgres://foundry_migrator:${POSTGRES_PASSWORD:-foundry}@postgres:5432/app_foundry
+      REDIS_URL: redis://redis:6379
+      GITHUB_CLIENT_ID: ${GITHUB_CLIENT_ID}
+      GITHUB_CLIENT_SECRET: ${GITHUB_CLIENT_SECRET}
+      SESSION_SECRET: ${SESSION_SECRET}
+      WEB_ORIGIN: ${WEB_ORIGIN:-http://localhost:8080}
+      OTEL_ENABLED: ${OTEL_ENABLED:-false}
+      OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector:4318
+    ports:
+      - '3001:3001'
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  web:
+    profiles: ['app']
+    build:
+      context: ..
+      dockerfile: apps/web/Dockerfile
+    restart: unless-stopped
+    ports:
+      - '8080:8080'
+    depends_on:
+      - api
 
 volumes:
   postgres_data:

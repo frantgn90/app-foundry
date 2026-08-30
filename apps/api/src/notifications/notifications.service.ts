@@ -14,6 +14,7 @@ import {
 } from '@app-foundry/db';
 
 import { currentTx, trasCommit } from '../database/request-context.js';
+import { MetricsService } from '../observability/metrics.service.js';
 import type { NotificationDto, NotificationListDto } from './notifications.dto.js';
 import { NotificationsChannel } from './notifications.channel.js';
 import { NotificationsStream } from './notifications.stream.js';
@@ -43,6 +44,7 @@ export class NotificationsService {
   constructor(
     private readonly stream: NotificationsStream,
     private readonly channel: NotificationsChannel,
+    private readonly metrics: MetricsService,
   ) {}
 
   /** Abre una conexión de avisos en tiempo real. Ver `NotificationsChannel`. */
@@ -101,6 +103,8 @@ export class NotificationsService {
      * al navegador y desaparecer un instante después si el guardado falla,
      * dejando a alguien mirando algo que no existe.
      */
+    this.metrics.avisosEmitidos(avisos.length);
+
     trasCommit(async () => {
       for (const a of avisos) {
         await this.stream.publicar(a.userId, { id: a.id, type: a.type, createdAt: creado });

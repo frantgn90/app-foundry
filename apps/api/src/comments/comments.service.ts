@@ -14,6 +14,7 @@ import {
 
 import { AuditAction, AuditService } from '../audit/audit.service.js';
 import { NotificationsService } from '../notifications/notifications.service.js';
+import { MetricsService } from '../observability/metrics.service.js';
 import { currentTx } from '../database/request-context.js';
 import type {
   CommentDto,
@@ -28,6 +29,7 @@ export class CommentsService {
   constructor(
     private readonly audit: AuditService,
     private readonly notifications: NotificationsService,
+    private readonly metrics: MetricsService,
   ) {}
 
   /**
@@ -146,6 +148,7 @@ export class CommentsService {
     if (!thread) throw new ForbiddenException('You cannot comment on this app');
 
     const { mencionados } = await this.insertComment(thread.id, body.body, null, userId);
+    this.metrics.comentarioEscrito('thread');
 
     const entorno = await this.notifications.entornoDeApp(appId, userId);
     await this.notifications.emit({
@@ -188,6 +191,8 @@ export class CommentsService {
       body.parentId ?? null,
       userId,
     );
+
+    this.metrics.comentarioEscrito('reply');
 
     const contexto = await this.notifications.entornoDeApp(thread.appId, userId);
     await this.notifications.emit({

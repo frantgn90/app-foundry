@@ -11,6 +11,7 @@ import { apps, commentThreads, documents, documentVersions, users } from '@app-f
 
 import { AuditAction, AuditService } from '../audit/audit.service.js';
 import { NotificationsService } from '../notifications/notifications.service.js';
+import { MetricsService } from '../observability/metrics.service.js';
 import { currentTx } from '../database/request-context.js';
 import type {
   ContributorDto,
@@ -26,6 +27,7 @@ export class DocumentsService {
   constructor(
     private readonly audit: AuditService,
     private readonly notifications: NotificationsService,
+    private readonly metrics: MetricsService,
   ) {}
 
   /** Documento de visión de una app, con la versión sobre la que se edita. */
@@ -124,6 +126,7 @@ export class DocumentsService {
     // Los comentarios anclados se recolocan aquí, una vez por edición, en vez
     // de recalcularse en cada visita: se hace una sola vez y todo el mundo ve
     // el mismo resultado (TRD §9.3).
+    this.metrics.versionGuardada();
     await this.reanchorThreads(document.id, body.content);
 
     // La app también cambia de fecha: el listado ordena por actividad, y editar
@@ -173,6 +176,11 @@ export class DocumentsService {
       .from(commentThreads)
       .where(and(eq(commentThreads.documentId, documentId), eq(commentThreads.kind, 'INLINE')));
 
+    // Se cuentan las que se quedan sin sitio en esta edición, no las que ya
+    // estaban huérfanas: lo que interesa vigilar es si el reanclaje empieza a
+    // fallar, y para eso hace falta el cambio, no el total acumulado.
+    let nuevasHuerfanas = 0;
+
     for (const thread of threads) {
       if (thread.anchorQuote === null) continue;
 
@@ -185,6 +193,8 @@ export class DocumentsService {
       };
 
       const result = reanchor(anchor, content);
+      if (result.status === 'ORPHANED' && thread.anchorStatus !== 'ORPHANED') nuevasHuerfanas += 1;
+
       await tx
         .update(commentThreads)
         .set({
@@ -194,6 +204,8 @@ export class DocumentsService {
         })
         .where(eq(commentThreads.id, thread.id));
     }
+
+    this.metrics.anclasHuerfanas(nuevasHuerfanas);
   }
 
   /** Historial completo, del más reciente al más antiguo (RF-507). */
