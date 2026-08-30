@@ -361,6 +361,46 @@
 | AF2 | Atajos para lo frecuente: buscar, nueva app, guardar | Se descubren solos y no pisan los del navegador | RF-611 | ✅ |
 | AF3 | Ser invitado se nota antes de escribir, no después | En un workspace ajeno se advierte de que lo creado será de todos | RF-606 | ✅ |
 
+## H7 — Cerrar la v1
+
+> Lo que queda no se ve al usar el producto un rato, pero es lo que separa algo
+> que funciona en el portátil de algo que se puede poner en marcha: qué pasa
+> cuando alguien se va, quién manda en la instancia, qué quedó registrado, y
+> cómo se despliega y se mira cuando falla.
+
+### Bloque AG — Cuando alguien se va (venía de H5)
+
+| # | Tarea | Verificación | Traza | Estado |
+|---|---|---|---|---|
+| AG1 | Las apps de quien se marcha pasan al dueño del workspace | Salir no deja apps con un precursor que ya no está | RF-413 | ⬜ |
+| AG2 | Queda registrado y se avisa a quien las hereda | Aparece en auditoría y llega el aviso | RF-413, RF-902 | ⬜ |
+| AG3 | Avisar antes de salir de que las apps se quedan | Nadie se marcha sin saberlo | RF-308 | ⬜ |
+
+### Bloque AH — Administración de la instancia
+
+| # | Tarea | Verificación | Traza | Estado |
+|---|---|---|---|---|
+| AH1 | Listar usuarios con su rol, estado y actividad | Solo lo ve un administrador | RF-201 | ⬜ |
+| AH2 | Cambiar rol y desactivar cuentas | La instancia nunca se queda sin administrador activo | RF-202, RF-203 | ⬜ |
+| AH3 | Desactivar cierra el paso de verdad | Las sesiones abiertas dejan de valer | RF-203 | ⬜ |
+| AH4 | Métricas agregadas de la instancia | Sin asomarse al contenido de nadie | RF-204 | ⬜ |
+
+### Bloque AI — Auditoría consultable
+
+| # | Tarea | Verificación | Traza | Estado |
+|---|---|---|---|---|
+| AI1 | Un administrador consulta los eventos de plataforma | Filtra por persona y por fecha, y no ve contenido | RF-703, RF-706 | ⬜ |
+| AI2 | El dueño de un workspace consulta lo suyo | Y solo lo suyo | RF-704 | ⬜ |
+| AI3 | Interfaz de ambas cosas | Se entiende qué pasó sin leer identificadores | RF-703, RF-704 | ⬜ |
+
+### Bloque AJ — Poner esto en marcha
+
+| # | Tarea | Verificación | Traza | Estado |
+|---|---|---|---|---|
+| AJ1 | Imágenes de la API y de la interfaz | Se levanta entero desde cero con un comando | TRD §16 | ⬜ |
+| AJ2 | Paneles de Grafana | Las métricas que importan están a la vista | TRD §13 | ⬜ |
+| AJ3 | Un recorrido completo automatizado | Entrar, crear, escribir, comentar y encontrar | RNF-401 | ⬜ |
+
 ## Mejoras detectadas usando el producto
 
 > No salen de un hito: salen de abrir la aplicación y encontrarse con algo que
