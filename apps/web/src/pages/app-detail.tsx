@@ -298,23 +298,35 @@ export function AppDetailPage({
         ← All apps
       </button>
 
-      <header className="flex flex-wrap items-start justify-between gap-4">
-        <div className="flex items-start gap-3">
-          <span className="text-2xl" aria-hidden>
+      {/*
+        Todo en una línea, con las etiquetas debajo.
+        
+        Los metadatos —versión, quién la empezó, cuántos comentarios hay
+        abiertos— son referencia, no titular: valen para orientarse al llegar y
+        después se ignoran. En su propia línea ocupaban alto de pantalla que le
+        hace más falta al documento, que es a lo que se viene.
+      */}
+      <header className="flex flex-wrap items-start justify-between gap-x-4 gap-y-2">
+        <div className="flex min-w-0 items-baseline gap-3">
+          <span className="text-2xl leading-none" aria-hidden>
             {app.data.icon.emoji}
           </span>
-          <div className="flex flex-col gap-1.5">
-            <div className="flex flex-wrap items-center gap-2.5">
+          <div className="flex min-w-0 flex-col gap-1.5">
+            <div className="flex flex-wrap items-baseline gap-x-2.5 gap-y-1">
               <h1 className="text-2xl font-semibold tracking-tight">{app.data.name}</h1>
-              <StatusPill status={app.data.isArchived ? 'ARCHIVED' : app.data.status} />
-              <VisibilityMark accessLevel={app.data.accessLevel} />
+              {/* Estado y visibilidad se alinean con el texto, no con la base de
+                  la línea: al lado de un título de 24px quedarían hundidos. */}
+              <span className="flex items-center gap-2.5 self-center">
+                <StatusPill status={app.data.isArchived ? 'ARCHIVED' : app.data.status} />
+                <VisibilityMark accessLevel={app.data.accessLevel} />
+              </span>
+              <span className="text-xs text-[var(--color-texto-suave)]">
+                v{document.data.versionNo} · started by @{app.data.precursorHandle}
+                {openThreads > 0 &&
+                  ` · ${String(openThreads)} open comment${openThreads === 1 ? '' : 's'}`}
+              </span>
             </div>
             <TagList tags={app.data.tags} />
-            <span className="text-xs text-[var(--color-texto-suave)]">
-              v{document.data.versionNo} · started by @{app.data.precursorHandle}
-              {openThreads > 0 &&
-                ` · ${String(openThreads)} open comment${openThreads === 1 ? '' : 's'}`}
-            </span>
           </div>
         </div>
 

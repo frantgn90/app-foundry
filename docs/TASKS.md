@@ -434,6 +434,7 @@
 | U16 | El fondo del workspace pasa a la página, y fuera la tarjeta de cabecera | El nombre estaba dos veces y el fondo se limitaba a una tarjeta | ✅ |
 | U17 | Una sola pestaña VISION.md con dos interruptores, y texto plano con números de línea | Leer y escribir eran dos sitios distintos para el mismo documento | ✅ |
 | U18 | Los controles sobre la caja, y la conversación al lado también en texto plano | Los controles estaban lejos de lo que gobiernan y el texto crudo perdía el contexto | ✅ |
+| U19 | Los metadatos de la app, en la línea del título | Tres líneas de cabecera para datos que se miran una vez al llegar | ✅ |
 
 ---
 
