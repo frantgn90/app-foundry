@@ -1,6 +1,9 @@
 import {
   Controller,
+  Delete,
   Get,
+  HttpCode,
+  HttpStatus,
   Inject,
   Post,
   Req,
@@ -9,7 +12,13 @@ import {
   UseGuards,
 } from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
-import { ApiExcludeEndpoint, ApiOkResponse, ApiOperation, ApiTags } from '@nestjs/swagger';
+import {
+  ApiExcludeEndpoint,
+  ApiNoContentResponse,
+  ApiOkResponse,
+  ApiOperation,
+  ApiTags,
+} from '@nestjs/swagger';
 import type { Request, Response } from 'express';
 
 import { truncateIp } from '@app-foundry/core';
@@ -74,6 +83,24 @@ export class AuthController {
   ): Promise<void> {
     const token = (request.cookies as Record<string, string> | undefined)?.[SESSION_COOKIE];
     if (token) await this.sessions.revoke(token);
+    response.clearCookie(SESSION_COOKIE, this.cookieOptions());
+  }
+
+  @Delete('me')
+  @UseGuards(SessionGuard)
+  @ApiOperation({
+    summary: 'Darse de baja',
+    description:
+      'Apaga la cuenta y arranca el plazo de gracia: nada se borra, y volver a entrar dentro del plazo la reactiva. El borrado definitivo lo ejecuta un administrador (RF-207).',
+  })
+  @ApiNoContentResponse()
+  @HttpCode(HttpStatus.NO_CONTENT)
+  async deactivate(
+    @CurrentUserId() userId: string,
+    @Res({ passthrough: true }) response: Response,
+  ): Promise<void> {
+    await this.auth.deactivateSelf(userId);
+    // La sesión ya no vale; la cookie tampoco debe quedarse por ahí.
     response.clearCookie(SESSION_COOKIE, this.cookieOptions());
   }
 

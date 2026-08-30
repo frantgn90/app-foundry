@@ -6,17 +6,23 @@ import {
   CardHeader,
   CardTitle,
 } from '../components/ui/card.js';
-import type { Session } from '../lib/api.js';
+import { useState } from 'react';
+
+import { Button } from '../components/ui/button.js';
+import { type Session, useDeactivateAccount } from '../lib/api.js';
 
 /**
  * Ajustes de la cuenta.
  *
- * De momento solo el tema. El nombre visible, el avatar y el handle vienen de
+ * El tema y la baja. El nombre visible, el avatar y el handle vienen de
  * GitHub y no se editan aquí a propósito: son los mismos que la persona ya
  * reconoce como suyos, y mantener una copia editable obligaría a decidir cuál
  * de las dos manda cada vez que cambien allí (RF-208).
  */
 export function AccountSettingsPage({ session, onBack }: { session: Session; onBack: () => void }) {
+  const [confirmando, setConfirmando] = useState(false);
+  const baja = useDeactivateAccount();
+
   return (
     <div className="flex flex-col gap-6">
       {/*
@@ -63,6 +69,64 @@ export function AccountSettingsPage({ session, onBack }: { session: Session; onB
             <Dato etiqueta="Handle" valor={`@${session.handle}`} />
             <Dato etiqueta="Email" valor={session.email} />
           </dl>
+        </CardContent>
+      </Card>
+
+      {/*
+        La baja va al final y en su propia tarjeta: es lo único de esta página
+        que tiene consecuencias, y no debe quedar a un dedo de distancia de
+        cambiar el tema.
+      */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Close your account</CardTitle>
+          <CardDescription>
+            Nothing is deleted. Your account is switched off and your apps enter a 90-day grace
+            period: they stop being visible to anyone, and if you sign in again within that time
+            they come back exactly as you left them. Apps you started in someone else&apos;s
+            workspace stay there, under its owner.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          {baja.isError && (
+            <p className="mb-3 text-sm" style={{ color: 'var(--color-fallo)' }}>
+              That didn&apos;t work. Nothing has changed.
+            </p>
+          )}
+
+          {confirmando ? (
+            <div className="flex flex-wrap items-center gap-2">
+              <Button
+                variant="danger"
+                disabled={baja.isPending}
+                onClick={() => {
+                  baja.mutate();
+                }}
+              >
+                {baja.isPending ? 'Closing…' : 'Yes, close my account'}
+              </Button>
+              <Button
+                variant="secondary"
+                onClick={() => {
+                  setConfirmando(false);
+                }}
+              >
+                Cancel
+              </Button>
+              <span className="text-xs text-[var(--color-texto-suave)]">
+                You&apos;ll be signed out straight away.
+              </span>
+            </div>
+          ) : (
+            <Button
+              variant="secondary"
+              onClick={() => {
+                setConfirmando(true);
+              }}
+            >
+              Close my account
+            </Button>
+          )}
         </CardContent>
       </Card>
     </div>

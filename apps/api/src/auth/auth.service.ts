@@ -4,9 +4,11 @@ import { sql } from 'drizzle-orm';
 import { auditLog, type Database, workspaceMembers, workspaces } from '@app-foundry/db';
 import type { Env } from '@app-foundry/env';
 
-import { currentTx } from '../database/request-context.js';
+import { AuditAction, AuditService } from '../audit/audit.service.js';
+import { currentTx, trasCommit } from '../database/request-context.js';
 import { DATABASE, ENV } from '../infrastructure/tokens.js';
 import type { GitHubProfile } from './github.strategy.js';
+import { SessionService } from './session.service.js';
 
 export interface AuthenticatedUser {
   id: string;
@@ -24,6 +26,8 @@ export class AuthService {
   constructor(
     @Inject(DATABASE) private readonly db: Database,
     @Inject(ENV) private readonly env: Env,
+    private readonly audit: AuditService,
+    private readonly sessions: SessionService,
   ) {}
 
   /**
@@ -108,6 +112,34 @@ export class AuthService {
       if (!found) throw new Error('The newly created user is not visible');
       return found;
     });
+  }
+
+  /**
+   * Baja voluntaria de la propia cuenta (RF-207).
+   *
+   * No borra nada: apaga la cuenta y arranca el plazo de gracia, con lo que sus
+   * apps quedan huérfanas y recuperables. Volver a entrar dentro del plazo la
+   * reactiva sola, sin pedírselo a nadie; el borrado definitivo, si llega, lo
+   * ejecuta un administrador.
+   *
+   * Se registra a su propio nombre para distinguirla de una suspensión: se
+   * parecen en el estado y no en lo que puede pasar después.
+   */
+  async deactivateSelf(userId: string): Promise<void> {
+    const tiradas = await currentTx().execute<{ auth_set_user_status: string }>(
+      sql`SELECT auth_set_user_status(${userId}::uuid, 'DEACTIVATED'::user_status, ${userId}::uuid)`,
+    );
+
+    await this.audit.record({
+      actorId: userId,
+      action: AuditAction.USER_DEACTIVATED,
+      resourceType: 'user',
+      resourceId: userId,
+      metadata: { self: true },
+    });
+
+    const hashes = tiradas.rows.map((f) => f.auth_set_user_status).filter(Boolean);
+    if (hashes.length > 0) trasCommit(() => this.sessions.dropCached(hashes));
   }
 
   /**

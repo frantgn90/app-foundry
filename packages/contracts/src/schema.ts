@@ -193,7 +193,11 @@ export interface paths {
         get: operations["AuthController_me"];
         put?: never;
         post?: never;
-        delete?: never;
+        /**
+         * Darse de baja
+         * @description Apaga la cuenta y arranca el plazo de gracia: nada se borra, y volver a entrar dentro del plazo la reactiva. El borrado definitivo lo ejecuta un administrador (RF-207).
+         */
+        delete: operations["AuthController_deactivate"];
         options?: never;
         head?: never;
         patch?: never;
@@ -1413,6 +1417,23 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["CurrentUserDto"];
                 };
+            };
+        };
+    };
+    AuthController_deactivate: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
         };
     };

@@ -1,5 +1,13 @@
 import { sql } from 'drizzle-orm';
-import { bigint, index, pgTable, text, timestamp, uuid } from 'drizzle-orm/pg-core';
+import {
+  type AnyPgColumn,
+  bigint,
+  index,
+  pgTable,
+  text,
+  timestamp,
+  uuid,
+} from 'drizzle-orm/pg-core';
 
 import { platformRoleEnum, userStatusEnum } from './enums.js';
 import { citext } from './types.js';
@@ -30,6 +38,12 @@ export const users = pgTable(
      * `updated_at` no sirve: cambia por cualquier cosa.
      */
     deactivatedAt: timestamp('deactivated_at', { withTimezone: true }),
+    /*
+     * Quién apagó la cuenta. Distingue una suspensión decidida por un
+     * administrador de una baja pedida por la propia persona: de la segunda se
+     * puede volver entrando, de la primera no (RF-207).
+     */
+    deactivatedBy: uuid('deactivated_by').references((): AnyPgColumn => users.id),
     lastLoginAt: timestamp('last_login_at', { withTimezone: true }),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),

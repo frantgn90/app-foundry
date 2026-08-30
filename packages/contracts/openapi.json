@@ -308,6 +308,20 @@
       }
     },
     "/api/v1/auth/me": {
+      "delete": {
+        "description": "Apaga la cuenta y arranca el plazo de gracia: nada se borra, y volver a entrar dentro del plazo la reactiva. El borrado definitivo lo ejecuta un administrador (RF-207).",
+        "operationId": "AuthController_deactivate",
+        "parameters": [],
+        "responses": {
+          "204": {
+            "description": ""
+          }
+        },
+        "summary": "Darse de baja",
+        "tags": [
+          "auth"
+        ]
+      },
       "get": {
         "operationId": "AuthController_me",
         "parameters": [],

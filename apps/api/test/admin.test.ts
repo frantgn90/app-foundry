@@ -337,3 +337,70 @@ describe('desactivar a quien sostiene apps (RF-414)', () => {
     expect(tras.rows[0]!.deactivated_at).toBeNull();
   });
 });
+
+describe('darse de baja uno mismo (RF-207)', () => {
+  it('apaga la cuenta sin borrar nada, y sus apps quedan en gracia', async () => {
+    const quesva = await h.createUser('quesva');
+    await h.as(quesva).post(`/api/v1/workspaces/${quesva.workspaceId}/apps`, { name: 'Lo suyo' });
+
+    const baja = await h.as(quesva).delete('/api/v1/auth/me');
+    expect(baja.status).toBe(204);
+
+    // La sesión cae en el acto.
+    expect((await h.as(quesva).get('/api/v1/auth/me')).status).toBe(401);
+
+    // Y la app sigue existiendo, solo que sin nadie que la abra.
+    const existe = await h.db.execute(sql`SELECT 1 FROM apps WHERE name = 'Lo suyo'`);
+    expect(existe.rows).toHaveLength(1);
+  });
+
+  it('volver a entrar dentro del plazo la reactiva sola', async () => {
+    // Es lo que hace que la baja sea reversible sin pedírselo a nadie.
+    await h.signIn('arrepentida');
+    const antes = await h.db.execute<{ id: string; status: string }>(
+      sql`SELECT id, status FROM users WHERE handle = 'arrepentida'`,
+    );
+    const id = antes.rows[0]!.id;
+
+    await h.db.execute(
+      sql`SELECT auth_set_user_status(${id}::uuid, 'DEACTIVATED'::user_status, ${id}::uuid)`,
+    );
+    const apagada = await h.db.execute<{ status: string }>(
+      sql`SELECT status FROM users WHERE id = ${id}::uuid`,
+    );
+    expect(apagada.rows[0]!.status).toBe('DEACTIVATED');
+
+    await h.signIn('arrepentida');
+
+    const despues = await h.db.execute<{ status: string; deactivated_at: string | null }>(
+      sql`SELECT status, deactivated_at FROM users WHERE id = ${id}::uuid`,
+    );
+    expect(despues.rows[0]!.status).toBe('ACTIVE');
+    expect(despues.rows[0]!.deactivated_at).toBeNull();
+  });
+
+  it('pero una cuenta suspendida no se reactiva entrando', async () => {
+    /*
+     * La diferencia entre las dos situaciones. Si entrar bastara para volver,
+     * una suspensión duraría lo que tarda la persona en pulsar «entrar», y no
+     * serviría para nada.
+     */
+    await h.signIn('suspendida');
+    const fila = await h.db.execute<{ id: string }>(
+      sql`SELECT id FROM users WHERE handle = 'suspendida'`,
+    );
+    const id = fila.rows[0]!.id;
+
+    // Esta vez la apaga otra persona: un administrador.
+    await h.db.execute(
+      sql`SELECT auth_set_user_status(${id}::uuid, 'DEACTIVATED'::user_status, ${jefa.id}::uuid)`,
+    );
+
+    await h.signIn('suspendida');
+
+    const despues = await h.db.execute<{ status: string }>(
+      sql`SELECT status FROM users WHERE id = ${id}::uuid`,
+    );
+    expect(despues.rows[0]!.status).toBe('DEACTIVATED');
+  });
+});

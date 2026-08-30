@@ -405,6 +405,7 @@
 
 | Requisito | Decisión |
 |---|---|
+| RF-207 · Baja de cuenta | **Resuelta como baja reversible.** Apaga la cuenta y arranca el plazo de gracia; volver a entrar dentro de él la reactiva sola. Se distingue de una suspensión por quién la apagó: de la propia no hace falta pedir permiso para volver, de la ajena sí, o suspender no serviría de nada. El borrado definitivo sigue siendo cosa de un administrador. |
 | RF-414 · Apps de un dueño desactivado | **Resuelto con periodo de gracia.** Su workspace personal deja de abrirse mientras la cuenta esté parada, y vuelve sola al reactivarla; las apps que sostenía en workspaces ajenos pasan a su dueño en el acto, porque esconderlas castigaría a un equipo entero por la suspensión de una persona. Queda apuntada la fecha para contar los noventa días. Qué hacer al vencer el plazo con las de su propio workspace, cuando no hay a quién dárselas, sigue sin decidir. |
 | Editar sobre el resultado (WYSIWYG) | **Descartado por ahora.** Obligaría a convertir markdown → documento → markdown en cada guardado, y esa vuelta normaliza el texto: el historial se llenaría de diffs que nadie hizo y el reanclaje recalcularía sobre un texto cambiado solo. La vía viable, si se retoma, es editar bloque a bloque usando los rangos de origen que ya lleva cada elemento renderizado. |
 | RF-605 · «Nueva app» como acción más visible | **Se cumple sin el botón.** El campo para crear está siempre puesto y es lo primero bajo la cabecera, así que la acción es más visible que antes, aunque ya no exista un botón con ese nombre. |

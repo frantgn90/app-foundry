@@ -861,3 +861,23 @@ export function useWorkspaceAudit(workspaceId: string, enabled: boolean) {
     },
   });
 }
+
+/**
+ * Baja voluntaria de la propia cuenta (RF-207).
+ *
+ * No borra nada: apaga la cuenta y deja sus apps en el periodo de gracia. Al
+ * terminar se recarga la página entera en vez de limpiar el estado a mano —ya
+ * no hay sesión que sostenga nada, y así se aterriza en la pantalla de entrada
+ * sin dejar rastros de la anterior en memoria.
+ */
+export function useDeactivateAccount() {
+  return useMutation({
+    mutationFn: async () => {
+      const { error } = await api.DELETE('/api/v1/auth/me');
+      if (error) throw new Error('Could not deactivate the account');
+    },
+    onSuccess: () => {
+      window.location.href = '/';
+    },
+  });
+}
