@@ -431,6 +431,6 @@ Se desglosarán al cerrar el hito anterior.
 | **H2** | Apps, documento de visión, versiones, historial, diff, restaurar, editor CodeMirror        | **Pensar solo**               |
 | **H3** | Niveles de acceso, miembros, permisos completos y suite de tests negativos                 | **Pensar en equipo**          |
 | **H4** | Comentarios: hilo general, inline con anclaje y reanclaje, resolver y reabrir, menciones   | Conversar sobre el texto      |
-| **H5** | Notificaciones, SSE, purga                                                                 | Que nada se quede sin leer    |
-| **H6** | Búsqueda, filtros, iconos, tema, estados vacíos, atajos                                    | La UI atractiva de O7         |
-| **H7** | Admin, auditoría, Playwright, paneles de Grafana, Dockerfiles                              | v1 completa                   |
+| **H5** ✅ | Notificaciones, SSE, purga                                                                 | Que nada se quede sin leer    |
+| **H6** ✅ | Búsqueda, filtros, iconos, tema, estados vacíos, atajos                                    | La UI atractiva de O7         |
+| **H7** ✅ | Admin, auditoría, Playwright, paneles de Grafana, Dockerfiles                              | v1 completa                   |
