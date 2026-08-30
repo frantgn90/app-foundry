@@ -45,9 +45,12 @@ export function CommentThread({
     <article
       onClick={onSelect}
       className={cn(
-        'flex flex-col gap-3 rounded-lg border p-3 transition',
+        // Fondo propio siempre, elegido o no: sin él, sobre un fondo de
+        // workspace con degradado cada hilo se teñía de un color distinto según
+        // dónde cayera, y el texto perdía contraste a media columna.
+        'flex flex-col gap-3 rounded-lg border bg-[var(--color-superficie)] p-3 transition',
         isSelected
-          ? 'border-[var(--color-acento)] bg-[var(--color-superficie)]'
+          ? 'border-[var(--color-acento)]'
           : 'border-[var(--color-borde)] hover:border-[var(--color-acento)]/40',
         thread.status === 'RESOLVED' && 'opacity-70',
       )}

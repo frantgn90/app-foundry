@@ -66,6 +66,12 @@ export function AppDetailPage({
    * perder de vista dónde se estaba.
    */
   const [editando, setEditando] = useState(false);
+  /*
+   * La conversación se puede plegar hacia la derecha. Escribir a media pantalla
+   * incomoda, y hay ratos en que la conversación no hace falta delante; el
+   * contador en el botón evita que se olvide que sigue ahí.
+   */
+  const [conversacionAbierta, setConversacionAbierta] = useState(true);
   const [vista, setVista] = useState<Vista>('rendered');
   const [draft, setDraft] = useState<string | null>(null);
   const [conflict, setConflict] = useState<SaveConflict | null>(null);
@@ -335,15 +341,6 @@ export function AppDetailPage({
             <TagList tags={app.data.tags} />
           </div>
         </div>
-
-        <div className="flex items-center gap-2">
-          <a
-            href={`/api/v1/apps/${appId}/document/export`}
-            className="text-sm text-[var(--color-texto-suave)] hover:underline"
-          >
-            Download VISION.md
-          </a>
-        </div>
       </header>
 
       <nav className="flex items-center gap-1 border-b border-[var(--color-borde)]">
@@ -389,9 +386,34 @@ export function AppDetailPage({
          * que va debajo empieza al mismo nivel en ambas columnas: el borde
          * superior de la caja y el del primer comentario coinciden.
          */
-        <div className="grid gap-6 lg:grid-cols-[1fr_20rem]">
+        <div
+          className={cn(
+            'grid gap-6',
+            conversacionAbierta ? 'lg:grid-cols-[1fr_20rem]' : 'lg:grid-cols-1',
+          )}
+        >
           <div className="flex flex-col gap-3">
-            <div className="flex h-8 items-center justify-end">
+            <div className="flex h-8 items-center justify-end gap-2">
+              {/* Con la conversación plegada, su botón ocupa el sitio que deja:
+                  es lo que impide que se olvide que hay comentarios. */}
+              {!conversacionAbierta && (
+                <button
+                  onClick={() => {
+                    setConversacionAbierta(true);
+                  }}
+                  title="Show conversation"
+                  className={cn(
+                    'flex items-center gap-1.5 rounded-lg border px-2 py-1 text-xs',
+                    'border-[var(--color-borde)] bg-[var(--color-superficie)]',
+                    'text-[var(--color-texto-suave)] hover:text-[var(--color-texto)]',
+                  )}
+                >
+                  <PanelIcono />
+                  Conversation
+                  {openThreads > 0 && <span>({openThreads})</span>}
+                </button>
+              )}
+
               <VisionControls
                 editando={editando}
                 vista={vista}
@@ -403,6 +425,19 @@ export function AppDetailPage({
                 }}
                 onVista={setVista}
               />
+
+              <a
+                href={`/api/v1/apps/${appId}/document/export`}
+                title="Download VISION.md"
+                className={cn(
+                  'flex items-center gap-1.5 rounded-lg border px-2 py-1 text-xs',
+                  'border-[var(--color-borde)] bg-[var(--color-superficie)]',
+                  'text-[var(--color-texto-suave)] hover:text-[var(--color-texto)]',
+                )}
+              >
+                <Descarga />
+                VISION.md
+              </a>
             </div>
 
             {vistaEfectiva === 'rendered' ? (
@@ -504,30 +539,35 @@ export function AppDetailPage({
             )}
           </div>
 
-          <CommentsPanel
-            threads={threads.data ?? []}
-            people={people.data ?? []}
-            selectedId={selectedThread}
-            onSelect={(id) => {
-              setSelectedThread(id);
-              setScrollToThread(id !== null);
-            }}
-            onNewGeneral={(body) => {
-              createThread.mutate({ body });
-            }}
-            onReply={(threadId, body) => {
-              reply.mutate({ threadId, body });
-            }}
-            onResolve={(threadId, resolved) => {
-              resolveThread.mutate({ threadId, resolved });
-            }}
-            onDeleteThread={(threadId) => {
-              deleteThread.mutate(threadId);
-            }}
-            onDeleteComment={(commentId) => {
-              deleteComment.mutate(commentId);
-            }}
-          />
+          {conversacionAbierta && (
+            <CommentsPanel
+              onCollapse={() => {
+                setConversacionAbierta(false);
+              }}
+              threads={threads.data ?? []}
+              people={people.data ?? []}
+              selectedId={selectedThread}
+              onSelect={(id) => {
+                setSelectedThread(id);
+                setScrollToThread(id !== null);
+              }}
+              onNewGeneral={(body) => {
+                createThread.mutate({ body });
+              }}
+              onReply={(threadId, body) => {
+                reply.mutate({ threadId, body });
+              }}
+              onResolve={(threadId, resolved) => {
+                resolveThread.mutate({ threadId, resolved });
+              }}
+              onDeleteThread={(threadId) => {
+                deleteThread.mutate(threadId);
+              }}
+              onDeleteComment={(commentId) => {
+                deleteComment.mutate(commentId);
+              }}
+            />
+          )}
         </div>
       )}
 
@@ -656,5 +696,41 @@ function ConflictNotice({
         </details>
       </div>
     </Card>
+  );
+}
+
+/** Flecha de despliegue: la conversación vuelve desde la derecha. */
+function PanelIcono() {
+  return (
+    <svg
+      viewBox="0 0 16 16"
+      className="size-3.5"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.5"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden
+    >
+      <path d="M10 4L6 8l4 4" />
+      <path d="M13 3v10" />
+    </svg>
+  );
+}
+
+function Descarga() {
+  return (
+    <svg
+      viewBox="0 0 16 16"
+      className="size-3.5"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.5"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden
+    >
+      <path d="M8 2.5v7M5 7l3 3 3-3M3 12.5h10" />
+    </svg>
   );
 }

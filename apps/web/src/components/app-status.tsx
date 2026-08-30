@@ -85,13 +85,29 @@ export function VisibilityMark({ accessLevel }: { accessLevel: string }) {
  * Se dibujan con almohadilla y en tono apagado para que no compitan con el
  * estado: son clasificación de quien escribe, no información del sistema.
  */
+/**
+ * Etiquetas de una app.
+ *
+ * Con forma de insignia y no como texto suelto: son clasificación, y a simple
+ * vista tienen que distinguirse de la descripción que llevan al lado. El fondo
+ * es opaco porque estas se ven sobre el fondo del workspace, que puede ser un
+ * degradado.
+ */
 export function TagList({ tags }: { tags: string[] }) {
   if (tags.length === 0) return null;
   return (
-    <div className="flex flex-wrap gap-x-2 gap-y-1">
+    <div className="flex flex-wrap gap-1.5">
       {tags.map((tag) => (
-        <span key={tag} className="text-xs text-[var(--color-texto-suave)]">
-          #{tag}
+        <span
+          key={tag}
+          className={cn(
+            'inline-flex items-center rounded-md px-1.5 py-0.5 text-xs',
+            'border border-[var(--color-borde)] bg-[var(--color-superficie)]',
+            'text-[var(--color-texto-suave)]',
+          )}
+        >
+          <span className="opacity-60">#</span>
+          {tag}
         </span>
       ))}
     </div>

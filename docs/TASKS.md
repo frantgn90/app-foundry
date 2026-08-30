@@ -435,6 +435,7 @@
 | U17 | Una sola pestaña VISION.md con dos interruptores, y texto plano con números de línea | Leer y escribir eran dos sitios distintos para el mismo documento | ✅ |
 | U18 | Los controles sobre la caja, y la conversación al lado también en texto plano | Los controles estaban lejos de lo que gobiernan y el texto crudo perdía el contexto | ✅ |
 | U19 | Los metadatos de la app, en la línea del título | Tres líneas de cabecera para datos que se miran una vez al llegar | ✅ |
+| U20 | Conversación plegable, hilos opacos, descarga junto a los controles y etiquetas con forma | Escribir a media pantalla incomoda, y lo transparente se teñía con el fondo del workspace | ✅ |
 
 ---
 

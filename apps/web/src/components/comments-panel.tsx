@@ -6,6 +6,8 @@ import { MentionInput } from './mention-input.js';
 import { Button } from './ui/button.js';
 
 interface Props {
+  /** Pliega el panel hacia la derecha. */
+  onCollapse: () => void;
   threads: Thread[];
   people: MentionableUser[];
   selectedId: string | null;
@@ -25,6 +27,7 @@ interface Props {
  * se quedan a la vista con su cita, que es lo único que los hace recuperables.
  */
 export function CommentsPanel({
+  onCollapse,
   threads,
   people,
   selectedId,
@@ -62,17 +65,40 @@ export function CommentsPanel({
             <span className="ml-1.5 text-[var(--color-texto-suave)]">({open.length})</span>
           )}
         </h2>
-        {resolved.length > 0 && (
-          <Button
-            variant="ghost"
-            className="px-2 py-1 text-xs"
-            onClick={() => {
-              setShowResolved((v) => !v);
-            }}
+        <span className="flex items-center gap-1">
+          {resolved.length > 0 && (
+            <Button
+              variant="ghost"
+              className="px-2 py-1 text-xs"
+              onClick={() => {
+                setShowResolved((v) => !v);
+              }}
+            >
+              {showResolved ? 'Hide resolved' : `Show resolved (${String(resolved.length)})`}
+            </Button>
+          )}
+
+          <button
+            onClick={onCollapse}
+            title="Hide conversation"
+            aria-label="Hide conversation"
+            className="grid size-6 place-items-center rounded text-[var(--color-texto-suave)] hover:bg-[var(--color-borde)]/40 hover:text-[var(--color-texto)]"
           >
-            {showResolved ? 'Hide resolved' : `Show resolved (${String(resolved.length)})`}
-          </Button>
-        )}
+            <svg
+              viewBox="0 0 16 16"
+              className="size-3.5"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="1.5"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              aria-hidden
+            >
+              <path d="M6 4l4 4-4 4" />
+              <path d="M13 3v10" />
+            </svg>
+          </button>
+        </span>
       </header>
 
       {visible.length === 0 && (
