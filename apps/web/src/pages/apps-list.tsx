@@ -1,4 +1,4 @@
-import { type FormEvent, useEffect, useState } from 'react';
+import { type FormEvent, useEffect, useRef, useState } from 'react';
 
 import { type App, type AppFilters, useApps, useCreateApp, type Workspace } from '../lib/api.js';
 import { AppFiltersBar } from '../components/app-filters.js';
@@ -27,11 +27,11 @@ export function AppsListPage({
   const apps = useApps(workspace.id, filtros);
   const create = useCreateApp(workspace.id);
   const [name, setName] = useState('');
-  const [creating, setCreating] = useState(false);
+  const campoNombre = useRef<HTMLInputElement>(null);
 
-  // El atajo abre el formulario aquí, que es donde vive.
+  // El atajo ya no abre nada: lleva el cursor al campo, que está siempre puesto.
   useEffect(() => {
-    if (crearAhora > 0) setCreating(true);
+    if (crearAhora > 0) campoNombre.current?.focus();
   }, [crearAhora]);
 
   function onSubmit(event: FormEvent) {
@@ -40,7 +40,6 @@ export function AppsListPage({
     create.mutate(name.trim(), {
       onSuccess: (app) => {
         setName('');
-        setCreating(false);
         // Se entra directamente a escribir: crear una app y quedarse mirando
         // la lista sería dejar el trabajo a medias.
         onOpen(app.id);
@@ -77,85 +76,71 @@ export function AppsListPage({
             </p>
           </div>
         </div>
-        {!creating && (
-          <Button
-            onClick={() => {
-              setCreating(true);
-            }}
-          >
-            New app
-          </Button>
-        )}
       </header>
 
-      {creating && (
-        <Card className="p-4">
-          <form onSubmit={onSubmit} className="flex flex-col gap-3">
-            <label className="text-sm font-medium" htmlFor="app-name">
-              What&apos;s the idea called?
-            </label>
-            <div className="flex gap-2">
-              <Input
-                id="app-name"
-                autoFocus
-                required
-                placeholder="Reading Companion"
-                value={name}
-                onChange={(e) => {
-                  setName(e.target.value);
-                }}
-              />
-              <Button type="submit" disabled={create.isPending}>
-                {create.isPending ? 'Creating…' : 'Create'}
-              </Button>
-              <Button
-                type="button"
-                variant="secondary"
-                onClick={() => {
-                  setCreating(false);
-                  setName('');
-                }}
-              >
-                Cancel
-              </Button>
-            </div>
-            {workspace.role === 'OWNER' ? (
-              <p className="text-xs text-[var(--color-texto-suave)]">
-                You can rename it later. What matters now is writing the vision.
-              </p>
-            ) : (
-              /*
-               * En un workspace ajeno lo que crees es del workspace: visible y
-               * editable por todos, y no puedes hacerlo privado (RF-606).
-               *
-               * Se dice aquí, antes de escribir, y no al descubrirlo después:
-               * quien iba a apuntar algo personal tiene que poder cambiar de
-               * idea mientras todavía es gratis.
-               */
-              <p className="flex items-start gap-1.5 text-xs text-[var(--color-texto-suave)]">
-                <span aria-hidden>ℹ</span>
-                <span>
-                  You&apos;re a guest in <strong>{workspace.name}</strong>. Anything you create here
-                  is visible and editable by everyone in this workspace — it can&apos;t be private.
-                </span>
-              </p>
-            )}
-          </form>
-        </Card>
-      )}
+      {/*
+        El formulario está siempre, en vez de tras un botón que lo despliega.
+        Crear una app es la acción principal de esta pantalla, y un campo listo
+        para escribir invita más que un botón que solo promete otro campo.
 
-      {(apps.data?.items.length ?? 0) > 0 || filtrando(filtros) ? (
+        Sin título encima: lo que había que preguntar cabe dentro del propio
+        campo, y así la caja ocupa una línea en lugar de tres.
+      */}
+      <Card className="p-3">
+        <form onSubmit={onSubmit} className="flex flex-col gap-2">
+          <div className="flex gap-2">
+            <Input
+              id="app-name"
+              ref={campoNombre}
+              required
+              // El campo se queda sin etiqueta visible, así que la lleva aquí:
+              // un `placeholder` desaparece al escribir y un lector de pantalla
+              // no lo anuncia como nombre del campo.
+              aria-label="What's the idea called?"
+              placeholder="What's the idea called?"
+              value={name}
+              onChange={(e) => {
+                setName(e.target.value);
+              }}
+            />
+            <Button type="submit" disabled={create.isPending || !name.trim()}>
+              {create.isPending ? 'Creating…' : 'Create'}
+            </Button>
+          </div>
+
+          {workspace.role !== 'OWNER' && (
+            /*
+             * En un workspace ajeno lo que crees es del workspace: visible y
+             * editable por todos, y no puedes hacerlo privado (RF-606).
+             *
+             * Se dice aquí, antes de escribir, y no al descubrirlo después:
+             * quien iba a apuntar algo personal tiene que poder cambiar de idea
+             * mientras todavía es gratis.
+             */
+            <p className="flex items-start gap-1.5 text-xs text-[var(--color-texto-suave)]">
+              <span aria-hidden>ℹ</span>
+              <span>
+                You&apos;re a guest in <strong>{workspace.name}</strong>. Anything you create here
+                is visible and editable by everyone in this workspace — it can&apos;t be private.
+              </span>
+            </p>
+          )}
+        </form>
+      </Card>
+
+      {/* Los filtros aparecen cuando hay algo que filtrar, o cuando ya hay algo
+          puesto: si no, ocuparían sitio prometiendo acotar una lista vacía. */}
+      {((apps.data?.items.length ?? 0) > 0 || filtrando(filtros)) && (
         <AppFiltersBar
           filtros={filtros}
           etiquetas={apps.data?.availableTags ?? []}
           onChange={onFiltros}
         />
-      ) : null}
+      )}
 
       {apps.isPending && <p className="text-sm text-[var(--color-texto-suave)]">Loading…</p>}
 
       {apps.data?.items.length === 0 &&
-        !creating &&
         (filtrando(filtros) ? (
           <NoMatches
             onClear={() => {
@@ -163,11 +148,7 @@ export function AppsListPage({
             }}
           />
         ) : (
-          <EmptyState
-            onCreate={() => {
-              setCreating(true);
-            }}
-          />
+          <EmptyState />
         ))}
 
       {/*
@@ -344,7 +325,13 @@ function AppCard({ app, onOpen }: { app: App; onOpen: () => void }) {
   );
 }
 
-function EmptyState({ onCreate }: { onCreate: () => void }) {
+/**
+ * Workspace sin apps (RF-610).
+ *
+ * Ya no lleva botón: el campo para crear está justo encima, y repetir aquí la
+ * misma acción a dos centímetros solo obliga a decidir cuál de las dos usar.
+ */
+function EmptyState() {
   return (
     <Card className="flex flex-col items-center gap-3 p-10 text-center">
       <span className="text-3xl" aria-hidden>
@@ -355,7 +342,6 @@ function EmptyState({ onCreate }: { onCreate: () => void }) {
         An app starts as a vision: a few paragraphs about what you&apos;d build and why. You can
         refine it later — the point is to get it out of your head.
       </p>
-      <Button onClick={onCreate}>Write your first vision</Button>
     </Card>
   );
 }

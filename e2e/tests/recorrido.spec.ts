@@ -31,7 +31,7 @@ test('de crear una app a encontrarla por su contenido', async ({ page, context }
   expect(erroresDePagina, 'la aplicación no debe romperse al cargar').toEqual([]);
 
   await test.step('crear una app', async () => {
-    await page.getByRole('button', { name: 'New app' }).click();
+    // El campo está siempre puesto: crear no empieza por desplegar nada.
     await page.getByLabel(/What.s the idea called/).fill('Telescopio');
     await page.getByRole('button', { name: 'Create', exact: true }).click();
 
