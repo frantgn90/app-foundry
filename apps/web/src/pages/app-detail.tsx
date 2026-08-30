@@ -281,51 +281,46 @@ export function AppDetailPage({
 
   return (
     <div className="flex flex-col gap-6">
-      <button
-        onClick={onBack}
-        className="self-start text-sm text-[var(--color-texto-suave)] hover:underline"
-      >
-        ← All apps
-      </button>
-
       {/*
-        Todo en una línea, con las etiquetas debajo.
+        Una sola línea para volver y para saber dónde se está.
         
-        Los metadatos —versión, quién la empezó, cuántos comentarios hay
-        abiertos— son referencia, no titular: valen para orientarse al llegar y
-        después se ignoran. En su propia línea ocupaban alto de pantalla que le
-        hace más falta al documento, que es a lo que se viene.
+        Lo que había debajo se ha repartido: la versión se lee en la pestaña del
+        documento, que es lo que versiona, y los comentarios abiertos ya los
+        cuenta su propio panel. Repetirlos aquí gastaba una línea entera de
+        pantalla en decir dos veces lo mismo.
       */}
-      <header className="flex flex-wrap items-start justify-between gap-x-4 gap-y-2">
-        <div className="flex min-w-0 items-start gap-3">
-          {/* Misma altura de línea que el título, en lugar de empujarlo con un
-              relleno a ojo: así se centra con él por construcción y sigue
-              cuadrando si algún día cambia el tamaño del nombre. */}
-          <span className="text-2xl leading-8" aria-hidden>
+      <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
+        <button
+          onClick={onBack}
+          className="shrink-0 text-sm text-[var(--color-texto-suave)] hover:underline"
+        >
+          ← All apps
+        </button>
+
+        <span className="text-[var(--color-borde)]" aria-hidden>
+          |
+        </span>
+
+        <span className="flex min-w-0 items-center gap-2">
+          <span className="text-lg leading-7" aria-hidden>
             {app.data.icon.emoji}
           </span>
-          <div className="flex min-w-0 flex-col gap-1.5">
-            {/*
-              Centrados y no alineados por la línea base: con un título de
-              veinticuatro píxeles al lado de un texto de doce, la base común
-              deja lo pequeño cinco píxeles más abajo de su sitio. Se ve.
-            */}
-            <div className="flex flex-wrap items-center gap-x-2.5 gap-y-1">
-              <h1 className="text-2xl font-semibold tracking-tight">{app.data.name}</h1>
-              <span className="flex items-center gap-2.5">
-                <StatusPill status={app.data.isArchived ? 'ARCHIVED' : app.data.status} />
-                <VisibilityMark accessLevel={app.data.accessLevel} />
-              </span>
-              <span className="text-xs text-[var(--color-texto-suave)]">
-                v{document.data.versionNo} · started by @{app.data.precursorHandle}
-                {openThreads > 0 &&
-                  ` · ${String(openThreads)} open comment${openThreads === 1 ? '' : 's'}`}
-              </span>
-            </div>
-            <TagList tags={app.data.tags} />
-          </div>
-        </div>
-      </header>
+          <h1 className="min-w-0 truncate text-lg font-semibold tracking-tight">{app.data.name}</h1>
+          <StatusPill status={app.data.isArchived ? 'ARCHIVED' : app.data.status} />
+          <VisibilityMark accessLevel={app.data.accessLevel} />
+          {/* El precursor se queda: la ficha tiene que decir de quién es la app
+              (RF-607), y es el único sitio donde ya se dice. */}
+          <span className="shrink-0 text-xs text-[var(--color-texto-suave)]">
+            @{app.data.precursorHandle}
+          </span>
+        </span>
+
+        {/* Las etiquetas al otro extremo: son clasificación de quien escribe, no
+            identidad de la app, y ahí no compiten con el nombre. */}
+        <span className="ml-auto">
+          <TagList tags={app.data.tags} />
+        </span>
+      </div>
 
       <nav className="flex items-center gap-1 border-b border-[var(--color-borde)]">
         {(['vision', 'history', 'settings'] as const).map((t) => (
@@ -342,7 +337,7 @@ export function AppDetailPage({
                 : 'text-[var(--color-texto-suave)] hover:text-[var(--color-texto)]',
             )}
           >
-            {t === 'vision' ? 'VISION.md' : t}
+            {t === 'vision' ? `VISION.md v${String(document.data.versionNo)}` : t}
             {t === 'vision' && hasUnsavedChanges && ' •'}
             {tab === t && (
               <span className="absolute inset-x-2 -bottom-px h-0.5 bg-[var(--color-acento)]" />
