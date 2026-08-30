@@ -35,7 +35,10 @@ export default defineConfig({
       cwd: '..',
       url: `${API}/health/ready`,
       reuseExistingServer: !process.env['CI'],
-      timeout: 60_000,
+      timeout: 120_000,
+      // Sin esto, un fallo al arrancar se ve como un tiempo agotado sin más.
+      stdout: 'pipe',
+      stderr: 'pipe',
       env: { OTEL_ENABLED: 'false' },
     },
     {

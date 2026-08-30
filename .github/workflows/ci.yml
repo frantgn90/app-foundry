@@ -159,7 +159,9 @@ jobs:
           --health-interval 5s --health-timeout 5s --health-retries 10
     env:
       DATABASE_MIGRATION_URL: postgres://foundry_migrator:ci@localhost:5432/app_foundry
-      DATABASE_URL: postgres://app_user@localhost:5432/app_foundry
+      # Con contraseña: el rol lo crean las migraciones sin ninguna, y aquí la
+      # conexión va por TCP contra el contenedor, que sí la exige.
+      DATABASE_URL: postgres://app_user:ci@localhost:5432/app_foundry
       REDIS_URL: redis://localhost:6379
       GITHUB_CLIENT_ID: ci
       GITHUB_CLIENT_SECRET: ci
@@ -175,6 +177,9 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - run: pnpm build
       - run: pnpm --filter @app-foundry/db db:migrate
+
+      - name: Dar contraseña al rol de la aplicación
+        run: psql "$DATABASE_MIGRATION_URL" -c "ALTER ROLE app_user WITH PASSWORD 'ci'"
 
       # Solo Chromium: el recorrido comprueba que las piezas encajan, no cómo se
       # comporta cada navegador. Añadir dos más triplicaría el tiempo para
