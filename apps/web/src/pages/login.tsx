@@ -1,5 +1,6 @@
 import { Button } from '../components/ui/button.js';
 import { Logo } from '../components/logo.js';
+import { ForgeFire } from '../components/forge-fire.js';
 
 /** Único proveedor de identidad de la plataforma (D-22). */
 function GitHubIcon() {
@@ -12,7 +13,8 @@ function GitHubIcon() {
 
 export function LoginPage() {
   return (
-    <main className="mx-auto flex min-h-screen max-w-md flex-col justify-center gap-8 px-6 py-16">
+    <main className="relative mx-auto flex min-h-screen max-w-md flex-col justify-center gap-8 px-6 py-16">
+      <ForgeFire />
       <header className="flex flex-col gap-3">
         <h1 className="flex items-center gap-2.5 text-3xl font-semibold tracking-tight">
           <Logo className="size-8 shrink-0" />

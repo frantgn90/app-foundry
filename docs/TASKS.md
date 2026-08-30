@@ -429,6 +429,7 @@
 | U12 | Menú de cuenta y página de ajustes personales | El selector de tema ocupaba sitio permanente en la cabecera para algo que se toca una vez | ✅ |
 | U13 | Ruta plana con marca propia, y salida de los ajustes | Los emojis y los pesos distintos competían en una línea que solo dice dónde estás | ✅ |
 | U14 | El campo para crear una app, siempre puesto | Crear empezaba por desplegar un formulario que solo prometía otro campo | ✅ |
+| U15 | El fuego de la forja en la pantalla de entrada | La primera pantalla no decía nada de lo que es esto | ✅ |
 
 ---
 
