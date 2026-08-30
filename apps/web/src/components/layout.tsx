@@ -3,6 +3,7 @@ import { useEffect, useRef, useState } from 'react';
 import type { App, Session, Workspace } from '../lib/api.js';
 import { cn } from '../lib/utils.js';
 import { ICON_BACKGROUNDS } from './icon-picker.js';
+import { Logo } from './logo.js';
 import { NotificationBell, type NotificationTarget } from './notification-bell.js';
 import { UserMenu } from './user-menu.js';
 import { Badge } from './ui/badge.js';
@@ -49,16 +50,21 @@ export function Layout({
     <div className="min-h-screen">
       <header className="border-b border-[var(--color-borde)] bg-[var(--color-superficie)]">
         <div className="mx-auto flex h-14 max-w-5xl items-center gap-1 px-6">
-          <span className="mr-2 font-semibold tracking-tight">App Foundry</span>
+          {/*
+            La ruta se lee de un vistazo cuando todos sus tramos pesan lo mismo:
+            el nombre de la plataforma va en negrita porque es el origen, no
+            porque importe más que dónde estás.
+          */}
+          <span className="mr-1 flex items-center gap-2 text-sm font-semibold tracking-tight">
+            <Logo />
+            App Foundry
+          </span>
 
           <Separator />
 
           <Dropdown
             label={current?.name ?? 'Select a workspace'}
             badge={current && current.role !== 'OWNER' ? <Badge>Guest</Badge> : null}
-            icon={
-              current ? <IconoCuadro emoji={current.iconEmoji} color={current.iconColor} /> : null
-            }
             options={workspaces.map((w) => ({
               id: w.id,
               label: w.name,
@@ -75,7 +81,6 @@ export function Layout({
               <Separator />
               <Dropdown
                 label={currentApp.name}
-                icon={<IconoCuadro emoji={currentApp.icon.emoji} color={currentApp.icon.color} />}
                 badge={currentApp.isArchived ? <Badge>Archived</Badge> : null}
                 options={apps.map((a) => ({
                   id: a.id,
@@ -124,7 +129,7 @@ export function Layout({
 
 function Separator() {
   return (
-    <span className="text-[var(--color-texto-suave)]" aria-hidden>
+    <span className="text-sm text-[var(--color-texto-suave)]" aria-hidden>
       /
     </span>
   );
@@ -202,7 +207,7 @@ function Dropdown({
           setOpen((v) => !v);
         }}
         className={cn(
-          'flex max-w-52 items-center gap-2 rounded-lg px-2 py-1.5 text-sm font-medium',
+          'flex max-w-52 items-center gap-2 rounded-lg px-2 py-1.5 text-sm',
           'hover:bg-[var(--color-borde)]/40',
         )}
         aria-haspopup="listbox"

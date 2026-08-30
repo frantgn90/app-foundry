@@ -155,7 +155,14 @@ export function App() {
       }}
     >
       {pantalla === 'admin' && <AdminPage />}
-      {pantalla === 'account' && <AccountSettingsPage session={session.data} />}
+      {pantalla === 'account' && (
+        <AccountSettingsPage
+          session={session.data}
+          onBack={() => {
+            setPantalla('workspace');
+          }}
+        />
+      )}
 
       {pantalla === 'workspace' && !current && <Screen text="Preparing your workspace…" />}
 

@@ -1,4 +1,5 @@
 import { Button } from '../components/ui/button.js';
+import { Logo } from '../components/logo.js';
 
 /** Único proveedor de identidad de la plataforma (D-22). */
 function GitHubIcon() {
@@ -13,7 +14,10 @@ export function LoginPage() {
   return (
     <main className="mx-auto flex min-h-screen max-w-md flex-col justify-center gap-8 px-6 py-16">
       <header className="flex flex-col gap-3">
-        <h1 className="text-3xl font-semibold tracking-tight">App Foundry</h1>
+        <h1 className="flex items-center gap-2.5 text-3xl font-semibold tracking-tight">
+          <Logo className="size-8 shrink-0" />
+          App Foundry
+        </h1>
         <p className="text-[var(--color-texto-suave)]">
           A place to think through, define and track app ideas. Sign in and you get your own
           workspace, empty and waiting.

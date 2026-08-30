@@ -16,9 +16,22 @@ import type { Session } from '../lib/api.js';
  * reconoce como suyos, y mantener una copia editable obligaría a decidir cuál
  * de las dos manda cada vez que cambien allí (RF-208).
  */
-export function AccountSettingsPage({ session }: { session: Session }) {
+export function AccountSettingsPage({ session, onBack }: { session: Session; onBack: () => void }) {
   return (
     <div className="flex flex-col gap-6">
+      {/*
+        Los ajustes son un desvío del trabajo, así que hace falta la puerta de
+        vuelta: sin ella solo se sale eligiendo un workspace del desplegable, que
+        es una forma rara de decir «he terminado aquí». Mismo gesto que en la
+        ficha de una app.
+      */}
+      <button
+        onClick={onBack}
+        className="self-start text-sm text-[var(--color-texto-suave)] hover:underline"
+      >
+        ← Back
+      </button>
+
       <header className="flex flex-col gap-1">
         <h1 className="text-2xl font-semibold tracking-tight">Account settings</h1>
         <p className="text-sm text-[var(--color-texto-suave)]">Signed in as @{session.handle}</p>
