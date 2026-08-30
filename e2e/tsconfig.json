@@ -1,0 +1,10 @@
+{
+  "extends": "@app-foundry/config/tsconfig.base.json",
+  "compilerOptions": {
+    "noEmit": true,
+    "lib": ["ES2023", "DOM"],
+    "types": ["node"],
+    "allowJs": true
+  },
+  "include": ["tests", "helpers", "*.config.ts", "*.config.js"]
+}

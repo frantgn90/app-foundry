@@ -1,6 +1,7 @@
 packages:
   - 'apps/*'
   - 'packages/*'
+  - 'e2e'
 
 # Scripts de instalación: se decide uno a uno, no en bloque.
 #

@@ -136,3 +136,59 @@ jobs:
             git diff --stat packages/contracts
             exit 1
           fi
+
+  recorrido:
+    name: Recorrido completo
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:18.6-alpine
+        env:
+          POSTGRES_USER: foundry_migrator
+          POSTGRES_PASSWORD: ci
+          POSTGRES_DB: app_foundry
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd "pg_isready -U foundry_migrator -d app_foundry"
+          --health-interval 5s --health-timeout 5s --health-retries 10
+      redis:
+        image: redis:8.8.2-alpine
+        ports: ['6379:6379']
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 5s --health-timeout 5s --health-retries 10
+    env:
+      DATABASE_MIGRATION_URL: postgres://foundry_migrator:ci@localhost:5432/app_foundry
+      DATABASE_URL: postgres://app_user@localhost:5432/app_foundry
+      REDIS_URL: redis://localhost:6379
+      GITHUB_CLIENT_ID: ci
+      GITHUB_CLIENT_SECRET: ci
+      SESSION_SECRET: secreto-de-ci-de-al-menos-32-caracteres
+      OTEL_ENABLED: 'false'
+    steps:
+      - uses: actions/checkout@v5
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v5
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm build
+      - run: pnpm --filter @app-foundry/db db:migrate
+
+      # Solo Chromium: el recorrido comprueba que las piezas encajan, no cómo se
+      # comporta cada navegador. Añadir dos más triplicaría el tiempo para
+      # descubrir tres veces el mismo fallo.
+      - name: Instalar el navegador
+        run: pnpm --filter @app-foundry/e2e exec playwright install --with-deps chromium
+
+      - run: pnpm test:e2e
+
+      # Solo si falla: la traza permite ver el recorrido paso a paso, que es la
+      # única forma razonable de depurar algo que solo se rompe en CI.
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: rastro-del-recorrido
+          path: e2e/test-results/
+          retention-days: 7

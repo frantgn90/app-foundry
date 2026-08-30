@@ -399,7 +399,7 @@
 |---|---|---|---|---|
 | AJ1 | Imágenes de la API y de la interfaz | Se levanta entero desde cero con un comando | TRD §16 | ✅ |
 | AJ2 | Paneles de Grafana | Las métricas que importan están a la vista | TRD §13 | ✅ |
-| AJ3 | Un recorrido completo automatizado | Entrar, crear, escribir, comentar y encontrar | RNF-401 | ⬜ |
+| AJ3 | Un recorrido completo automatizado | Entrar, crear, escribir, comentar y encontrar | RNF-401 | ✅ |
 
 ## Mejoras detectadas usando el producto
 
@@ -418,6 +418,7 @@
 | U8 | El botón de comentar: debajo de la selección, más pequeño y sin perder el contexto | Tapaba el texto marcado y el resaltado se apagaba al escribir | ✅ |
 | U9 | Los hilos resueltos dejan de subrayarse; el resaltado se repinta solo | Reaparecían al comentar y se apagaban al tocar el panel | ✅ |
 | U10 | Ruta completa en la cabecera y salto directo entre apps | El breadcrumb se cortaba en el workspace y cambiar de app obligaba a volver atrás | ✅ |
+| U11 | El atajo de guardar rompía la ficha al abrir una app desde cero | Hook declarado tras una salida anticipada; solo se veía sin caché, lo cazó el recorrido | ✅ |
 
 ---
 

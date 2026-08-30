@@ -27,3 +27,7 @@ test-results/
 
 # Datos locales de infraestructura
 infra/data/
+
+# Resultados de los recorridos: se regeneran en cada ejecución.
+e2e/test-results/
+e2e/playwright-report/

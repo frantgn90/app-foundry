@@ -84,6 +84,34 @@ export function AppDetailPage({
   const [selectionDraft, setSelectionDraft] = useState('');
   const readingRef = useRef<HTMLDivElement>(null);
 
+  /*
+   * Guardar con el teclado vale en toda la pestaña, no solo con el foco dentro
+   * del editor: si no, hacer clic fuera y pulsar Mod-S abriría el diálogo de
+   * guardar página del navegador, que no es lo que nadie quiere ahí.
+   *
+   * Va aquí arriba, con el resto de hooks y antes de cualquier salida
+   * anticipada: más abajo, el primer render —el de «cargando»— tendría menos
+   * hooks que el siguiente y React abortaría el componente entero. Se ve solo al
+   * abrir una app que no esté ya en memoria, que es justo lo que no se prueba
+   * abriendo dos veces la misma.
+   */
+  const guardarConTeclado = useRef<() => void>(() => undefined);
+  useShortcuts(
+    useMemo(
+      () => [
+        {
+          tecla: 's',
+          conModificador: true,
+          aunEscribiendo: true,
+          hacer: () => {
+            guardarConTeclado.current();
+          },
+        },
+      ],
+      [],
+    ),
+  );
+
   const comparison = useVersionContent(appId, comparing);
   const threads = useThreads(appId);
   const people = useMentionable(appId);
@@ -207,26 +235,9 @@ export function AppDetailPage({
     );
   }
 
-  /*
-   * Guardar con el teclado vale en toda la pestaña, no solo con el foco dentro
-   * del editor: si no, hacer clic fuera y pulsar Mod-S abriría el diálogo de
-   * guardar página del navegador, que no es lo que nadie quiere ahí.
-   */
-  useShortcuts(
-    useMemo(
-      () => [
-        {
-          tecla: 's',
-          conModificador: true,
-          aunEscribiendo: true,
-          hacer: () => {
-            if (tab === 'edit') onSave();
-          },
-        },
-      ],
-      [tab],
-    ),
-  );
+  guardarConTeclado.current = () => {
+    if (tab === 'edit') onSave();
+  };
 
   function onSave() {
     if (!document.data) return;
