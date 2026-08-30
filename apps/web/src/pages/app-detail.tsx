@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 
 import {
   ConflictError,
@@ -29,6 +29,7 @@ import { Markdown } from '../components/markdown.js';
 import { StatusPill, TagList, VisibilityMark } from '../components/app-status.js';
 import { Button } from '../components/ui/button.js';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card.js';
+import { useShortcuts } from '../lib/shortcuts.js';
 import { cn } from '../lib/utils.js';
 
 type Tab = 'read' | 'edit' | 'history' | 'settings';
@@ -205,6 +206,27 @@ export function AppDetailPage({
       },
     );
   }
+
+  /*
+   * Guardar con el teclado vale en toda la pestaña, no solo con el foco dentro
+   * del editor: si no, hacer clic fuera y pulsar Mod-S abriría el diálogo de
+   * guardar página del navegador, que no es lo que nadie quiere ahí.
+   */
+  useShortcuts(
+    useMemo(
+      () => [
+        {
+          tecla: 's',
+          conModificador: true,
+          aunEscribiendo: true,
+          hacer: () => {
+            if (tab === 'edit') onSave();
+          },
+        },
+      ],
+      [tab],
+    ),
+  );
 
   function onSave() {
     if (!document.data) return;

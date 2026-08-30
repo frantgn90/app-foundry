@@ -23,8 +23,39 @@
   --color-fallo: oklch(60% 0.2 25);
 }
 
+/*
+ * El modo oscuro atiende a dos cosas: lo que prefiere el sistema y lo que haya
+ * elegido la persona, que manda cuando existe. Se marca con `data-theme` en la
+ * raíz, y su ausencia significa «lo que diga el sistema».
+ *
+ * La variante `dark:` de Tailwind se redefine igual; si no, las clases sueltas
+ * que la usan seguirían al sistema mientras el resto del tema sigue la elección,
+ * y la pantalla quedaría a medio cambiar.
+ */
+@custom-variant dark {
+  @media (prefers-color-scheme: dark) {
+    &:where(:root:not([data-theme='light']) *) {
+      @slot;
+    }
+  }
+  &:where([data-theme='dark'] *) {
+    @slot;
+  }
+}
+
+:root[data-theme='dark'],
+:root[data-theme='dark'] :root {
+  --color-fondo: oklch(17% 0.015 265);
+  --color-superficie: oklch(21% 0.018 265);
+  --color-borde: oklch(28% 0.02 265);
+  --color-texto: oklch(94% 0.008 265);
+  --color-texto-suave: oklch(70% 0.015 265);
+  --color-acento: oklch(70% 0.17 265);
+  --color-acento-texto: oklch(17% 0.015 265);
+}
+
 @media (prefers-color-scheme: dark) {
-  :root {
+  :root:not([data-theme='light']) {
     --color-fondo: oklch(17% 0.015 265);
     --color-superficie: oklch(21% 0.018 265);
     --color-borde: oklch(28% 0.02 265);
@@ -38,6 +69,15 @@
 @layer base {
   :root {
     color-scheme: light dark;
+  }
+
+  /* Lo elegido manda también sobre los controles nativos del navegador. */
+  :root[data-theme='light'] {
+    color-scheme: light;
+  }
+
+  :root[data-theme='dark'] {
+    color-scheme: dark;
   }
 
   body {

@@ -6,9 +6,29 @@ import { AppsListPage } from './pages/apps-list.js';
 import { LoginPage } from './pages/login.js';
 import { WorkspacePage } from './pages/workspace.js';
 import { WorkspaceSettingsPage } from './pages/workspace-settings.js';
-import { useApps, useSession, useWorkspaces } from './lib/api.js';
+import { type AppFilters, useApps, useSession, useWorkspaces } from './lib/api.js';
+import { SearchDialog } from './components/search-dialog.js';
+import { ShortcutsHelp } from './components/shortcuts-help.js';
+import { useShortcuts } from './lib/shortcuts.js';
 
 const WORKSPACE_KEY = 'app-foundry:workspace';
+const FILTROS_KEY = 'app-foundry:filtros';
+
+/**
+ * Los filtros sobreviven a recargar.
+ *
+ * Quien acota una lista y vuelve mañana espera encontrarla como la dejó; y si no
+ * fuera así, la propia barra de filtros diría que no hay nada puesto mientras la
+ * lista aparece recortada, que es peor que no recordarlos.
+ */
+function filtrosGuardados(): AppFilters {
+  try {
+    const crudo = localStorage.getItem(FILTROS_KEY);
+    return crudo ? (JSON.parse(crudo) as AppFilters) : {};
+  } catch {
+    return {};
+  }
+}
 
 export function App() {
   const session = useSession();
@@ -20,6 +40,42 @@ export function App() {
   const [view, setView] = useState<'apps' | 'settings' | 'people'>('apps');
   /** Hilo al que hay que ir tras abrir una app desde un aviso (RF-904). */
   const [hiloDestino, setHiloDestino] = useState<string | null>(null);
+  const [filtros, setFiltros] = useState<AppFilters>(filtrosGuardados);
+  const [buscando, setBuscando] = useState(false);
+  const [ayuda, setAyuda] = useState(false);
+  const [crearApp, setCrearApp] = useState(0);
+
+  useShortcuts([
+    {
+      tecla: 'k',
+      conModificador: true,
+      aunEscribiendo: true,
+      hacer: () => {
+        setBuscando(true);
+      },
+    },
+    // «/» es lo que usa media web para buscar, y no hace falta modificador.
+    {
+      tecla: '/',
+      hacer: () => {
+        setBuscando(true);
+      },
+    },
+    {
+      tecla: 'n',
+      hacer: () => {
+        setOpenApp(null);
+        setView('apps');
+        setCrearApp((v) => v + 1);
+      },
+    },
+    {
+      tecla: '?',
+      hacer: () => {
+        setAyuda((v) => !v);
+      },
+    },
+  ]);
   // Misma clave que usa el listado, así que TanStack Query la comparte y no
   // hay una segunda petición por tener el desplegable en la cabecera.
   const apps = useApps(selected ?? undefined);
@@ -117,10 +173,45 @@ export function App() {
             ))}
           </nav>
 
-          {view === 'apps' && <AppsListPage workspace={current} onOpen={setOpenApp} />}
+          {view === 'apps' && (
+            <AppsListPage
+              workspace={current}
+              filtros={filtros}
+              crearAhora={crearApp}
+              onFiltros={(siguiente) => {
+                setFiltros(siguiente);
+                localStorage.setItem(FILTROS_KEY, JSON.stringify(siguiente));
+              }}
+              onOpen={setOpenApp}
+            />
+          )}
           {view === 'settings' && <WorkspaceSettingsPage workspace={current} />}
           {view === 'people' && <WorkspacePage workspace={current} />}
         </div>
+      )}
+      {buscando && (
+        <SearchDialog
+          onClose={() => {
+            setBuscando(false);
+          }}
+          onOpen={(hit) => {
+            setBuscando(false);
+            if (hit.workspaceId !== selected) {
+              setSelected(hit.workspaceId);
+              localStorage.setItem(WORKSPACE_KEY, hit.workspaceId);
+            }
+            setHiloDestino(null);
+            setOpenApp(hit.id);
+          }}
+        />
+      )}
+
+      {ayuda && (
+        <ShortcutsHelp
+          onClose={() => {
+            setAyuda(false);
+          }}
+        />
       )}
     </Layout>
   );

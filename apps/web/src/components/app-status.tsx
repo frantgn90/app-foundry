@@ -23,6 +23,13 @@ const STATUS_STYLES: Record<string, { label: string; className: string }> = {
   ARCHIVED: { label: 'Archived', className: 'bg-slate-500/10 text-slate-500' },
 };
 
+/** Los estados en su orden natural, para ofrecerlos como filtro (RF-602). */
+export const STATUSES = ['IDEA', 'DEFINING', 'IN_DEVELOPMENT', 'PUBLISHED', 'PAUSED'] as const;
+
+export function statusLabel(status: string): string {
+  return STATUS_STYLES[status]?.label ?? status;
+}
+
 export function StatusPill({ status, className }: { status: string; className?: string }) {
   const style = STATUS_STYLES[status] ?? STATUS_STYLES['IDEA'];
   return (

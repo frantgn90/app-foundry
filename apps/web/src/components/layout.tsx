@@ -5,6 +5,7 @@ import { useSignOut } from '../lib/api.js';
 import { cn } from '../lib/utils.js';
 import { ICON_BACKGROUNDS } from './icon-picker.js';
 import { NotificationBell, type NotificationTarget } from './notification-bell.js';
+import { ThemeToggle } from './theme-toggle.js';
 import { Avatar } from './ui/avatar.js';
 import { Badge } from './ui/badge.js';
 import { Button } from './ui/button.js';
@@ -89,6 +90,7 @@ export function Layout({
           <div className="ml-auto flex items-center gap-3">
             {session.platformRole === 'ADMIN' && <Badge tone="ok">Admin</Badge>}
             <NotificationBell onOpen={onOpenNotification} />
+            <ThemeToggle />
             <span className="flex items-center gap-2 text-sm">
               <Avatar src={session.avatarUrl} name={session.displayName} />
               <span className="hidden sm:inline">{session.handle}</span>

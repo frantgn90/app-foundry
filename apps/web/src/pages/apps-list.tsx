@@ -1,6 +1,7 @@
-import { type FormEvent, useState } from 'react';
+import { type FormEvent, useEffect, useState } from 'react';
 
-import { type App, useApps, useCreateApp, type Workspace } from '../lib/api.js';
+import { type App, type AppFilters, useApps, useCreateApp, type Workspace } from '../lib/api.js';
+import { AppFiltersBar } from '../components/app-filters.js';
 import { StatusPill, TagList, VisibilityMark } from '../components/app-status.js';
 import { Button } from '../components/ui/button.js';
 import { Card } from '../components/ui/card.js';
@@ -11,15 +12,27 @@ import { cn } from '../lib/utils.js';
 
 export function AppsListPage({
   workspace,
+  filtros,
+  crearAhora,
+  onFiltros,
   onOpen,
 }: {
   workspace: Workspace;
+  filtros: AppFilters;
+  /** Cambia cuando el atajo pide una app nueva; su valor da igual. */
+  crearAhora: number;
+  onFiltros: (siguiente: AppFilters) => void;
   onOpen: (appId: string) => void;
 }) {
-  const apps = useApps(workspace.id);
+  const apps = useApps(workspace.id, filtros);
   const create = useCreateApp(workspace.id);
   const [name, setName] = useState('');
   const [creating, setCreating] = useState(false);
+
+  // El atajo abre el formulario aquí, que es donde vive.
+  useEffect(() => {
+    if (crearAhora > 0) setCreating(true);
+  }, [crearAhora]);
 
   function onSubmit(event: FormEvent) {
     event.preventDefault();
@@ -106,22 +119,56 @@ export function AppsListPage({
                 Cancel
               </Button>
             </div>
-            <p className="text-xs text-[var(--color-texto-suave)]">
-              You can rename it later. What matters now is writing the vision.
-            </p>
+            {workspace.role === 'OWNER' ? (
+              <p className="text-xs text-[var(--color-texto-suave)]">
+                You can rename it later. What matters now is writing the vision.
+              </p>
+            ) : (
+              /*
+               * En un workspace ajeno lo que crees es del workspace: visible y
+               * editable por todos, y no puedes hacerlo privado (RF-606).
+               *
+               * Se dice aquí, antes de escribir, y no al descubrirlo después:
+               * quien iba a apuntar algo personal tiene que poder cambiar de
+               * idea mientras todavía es gratis.
+               */
+              <p className="flex items-start gap-1.5 text-xs text-[var(--color-texto-suave)]">
+                <span aria-hidden>ℹ</span>
+                <span>
+                  You&apos;re a guest in <strong>{workspace.name}</strong>. Anything you create here
+                  is visible and editable by everyone in this workspace — it can&apos;t be private.
+                </span>
+              </p>
+            )}
           </form>
         </Card>
       )}
 
+      {(apps.data?.items.length ?? 0) > 0 || filtrando(filtros) ? (
+        <AppFiltersBar
+          filtros={filtros}
+          etiquetas={apps.data?.availableTags ?? []}
+          onChange={onFiltros}
+        />
+      ) : null}
+
       {apps.isPending && <p className="text-sm text-[var(--color-texto-suave)]">Loading…</p>}
 
-      {apps.data?.items.length === 0 && !creating && (
-        <EmptyState
-          onCreate={() => {
-            setCreating(true);
-          }}
-        />
-      )}
+      {apps.data?.items.length === 0 &&
+        !creating &&
+        (filtrando(filtros) ? (
+          <NoMatches
+            onClear={() => {
+              onFiltros({ sort: filtros.sort ?? 'updated', page: 1 });
+            }}
+          />
+        ) : (
+          <EmptyState
+            onCreate={() => {
+              setCreating(true);
+            }}
+          />
+        ))}
 
       {/*
         Columnas CSS en lugar de rejilla: cada tarjeta ocupa su altura y la
@@ -150,7 +197,94 @@ export function AppsListPage({
           </li>
         ))}
       </ul>
+
+      <Pagination
+        page={apps.data?.page ?? 1}
+        perPage={apps.data?.perPage ?? 24}
+        total={apps.data?.total ?? 0}
+        onPage={(page) => {
+          onFiltros({ ...filtros, page });
+          window.scrollTo({ top: 0 });
+        }}
+      />
     </div>
+  );
+}
+
+/** Si hay algo puesto, «no hay resultados» significa otra cosa que «no hay nada». */
+function filtrando(filtros: AppFilters): boolean {
+  return Boolean(
+    filtros.status?.length ||
+    filtros.tag?.length ||
+    filtros.accessLevel?.length ||
+    (filtros.archived && filtros.archived !== 'hide'),
+  );
+}
+
+function Pagination({
+  page,
+  perPage,
+  total,
+  onPage,
+}: {
+  page: number;
+  perPage: number;
+  total: number;
+  onPage: (page: number) => void;
+}) {
+  const paginas = Math.ceil(total / perPage);
+  // Con una sola página, unos controles de paginación solo estorban.
+  if (paginas <= 1) return null;
+
+  return (
+    <nav className="flex items-center justify-center gap-3 text-sm" aria-label="Pagination">
+      <Button
+        variant="secondary"
+        className="px-2 py-1 text-xs"
+        disabled={page <= 1}
+        onClick={() => {
+          onPage(page - 1);
+        }}
+      >
+        Previous
+      </Button>
+      <span className="text-xs text-[var(--color-texto-suave)]">
+        Page {page} of {paginas}
+      </span>
+      <Button
+        variant="secondary"
+        className="px-2 py-1 text-xs"
+        disabled={page >= paginas}
+        onClick={() => {
+          onPage(page + 1);
+        }}
+      >
+        Next
+      </Button>
+    </nav>
+  );
+}
+
+/**
+ * Vacío por filtros, que no es lo mismo que vacío de verdad (RF-610).
+ *
+ * Quien llega aquí no necesita que le animen a crear su primera app: ya tiene
+ * apps, lo que no encuentra es las que buscaba. Lo útil es la salida.
+ */
+function NoMatches({ onClear }: { onClear: () => void }) {
+  return (
+    <Card className="flex flex-col items-center gap-3 p-10 text-center">
+      <span className="text-3xl" aria-hidden>
+        🔍
+      </span>
+      <p className="font-medium">Nothing matches these filters</p>
+      <p className="max-w-sm text-sm text-[var(--color-texto-suave)]">
+        There are apps here, just not with this combination.
+      </p>
+      <Button variant="secondary" onClick={onClear}>
+        Clear filters
+      </Button>
+    </Card>
   );
 }
 

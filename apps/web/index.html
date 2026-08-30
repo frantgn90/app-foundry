@@ -4,6 +4,23 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>App Foundry</title>
+    <script>
+      /*
+       * El tema elegido se aplica antes de pintar nada.
+       *
+       * Va aquí en lugar de en la aplicación porque React monta después del
+       * primer pintado: quien tenga elegido el modo oscuro vería un fogonazo
+       * blanco en cada carga, que es de las cosas que más delatan una interfaz
+       * mal rematada.
+       */
+      try {
+        var tema = localStorage.getItem('app-foundry:tema');
+        if (tema === 'light' || tema === 'dark')
+          document.documentElement.setAttribute('data-theme', tema);
+      } catch (e) {
+        /* Sin almacenamiento se sigue al sistema, que es el comportamiento por defecto. */
+      }
+    </script>
   </head>
   <body>
     <div id="root"></div>
