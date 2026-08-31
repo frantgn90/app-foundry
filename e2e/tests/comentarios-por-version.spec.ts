@@ -88,6 +88,18 @@ test('la conversación se queda en su versión, y sigue habiendo camino hasta el
     await expect(page.getByText('Apuntar una idea cuesta demasiado.')).toBeVisible();
     await expect(page.getByRole('heading', { name: /Conversation.*on v2/ })).toBeVisible();
 
+    /*
+     * Y el fragmento aparece subrayado, que es lo que dice de qué habla el
+     * comentario. Se mira la Custom Highlight API porque el resaltado no toca el
+     * DOM: no hay ningún elemento que buscar, solo rangos registrados.
+     */
+    const subrayados = await page.evaluate(() => {
+      const highlights = (CSS as unknown as { highlights: Map<string, { size: number }> })
+        .highlights;
+      return highlights.get('foundry-anchors')?.size ?? 0;
+    });
+    expect(subrayados, 'el fragmento comentado se subraya en su propia versión').toBeGreaterThan(0);
+
     await page.getByRole('button', { name: 'Resolve' }).click();
     await expect(page.getByText('Still open on earlier versions:')).toHaveCount(0);
   });

@@ -230,6 +230,9 @@ export function AppDetailPage({
     mostrandoDiff,
     scrollToThread,
     document.data?.content,
+    // El texto de una versión llega después de elegirla, y con él el contenedor
+    // sobre el que hay que pintar.
+    elegida.data?.content,
   ]);
 
   // Borrador local: cerrar la pestaña a media edición no debería perder el
@@ -465,10 +468,34 @@ export function AppDetailPage({
             {!mirandoCopiaDeTrabajo ? (
               /*
                 Una versión pasada: o su texto, o lo que cambió desde ella hasta
-                hoy. Sin comentar por encima —las anclas apuntan a posiciones del
-                documento actual, y sobre otro texto caerían en cualquier sitio.
+                hoy.
+
+                Lleva el mismo `ref` que la caja de lectura porque sus hilos
+                también se subrayan: las anclas de un hilo son las de su versión
+                y sobre su propio texto son exactas, así que aquí el resaltado es
+                más fiel que en ningún otro sitio. Sin el `ref`, el contenedor
+                llegaba vacío al pintado y no se subrayaba nada.
+
+                Lo que no se puede es comentar (RF-817), así que no hay menú de
+                selección: solo el camino de vuelta, del fragmento a su hilo.
               */
-              <Card className="p-6">
+              <Card
+                className="p-6"
+                ref={readingRef}
+                onMouseUp={(event) => {
+                  if (!readingRef.current) return;
+                  const offset = sourceOffsetAt(
+                    readingRef.current,
+                    event.clientX,
+                    event.clientY,
+                  );
+                  const hit =
+                    offset === null
+                      ? undefined
+                      : anchorRanges.find((a) => offset >= a.start && offset <= a.end);
+                  if (hit) setSelectedThread(hit.threadId);
+                }}
+              >
                 {elegida.isPending && (
                   <p className="text-sm text-[var(--color-texto-suave)]">Loading…</p>
                 )}
