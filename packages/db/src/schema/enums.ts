@@ -49,6 +49,7 @@ export const notificationTypeEnum = pgEnum('notification_type', [
   'DOCUMENT_VERSION_SAVED',
   'PRECURSOR_TRANSFERRED',
   'APPS_INHERITED',
+  'AI_MODEL_UNAVAILABLE',
 ]);
 
 /**

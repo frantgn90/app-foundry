@@ -1248,6 +1248,8 @@ export interface components {
             modelId: Record<string, never> | null;
             /** @description Si con lo asignado la tarea se puede ofrecer */
             supported: boolean;
+            /** @description Si el modelo asignado sigue en el catálogo del proveedor */
+            modelAvailable: boolean;
             /** @description Capacidades que faltan y lo impiden */
             missing: string[];
             /** @description Capacidades que faltan y solo la empobrecen */

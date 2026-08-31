@@ -3313,6 +3313,10 @@
             "type": "boolean",
             "description": "Si con lo asignado la tarea se puede ofrecer"
           },
+          "modelAvailable": {
+            "type": "boolean",
+            "description": "Si el modelo asignado sigue en el catálogo del proveedor"
+          },
           "missing": {
             "description": "Capacidades que faltan y lo impiden",
             "type": "array",
@@ -3333,6 +3337,7 @@
           "provider",
           "modelId",
           "supported",
+          "modelAvailable",
           "missing",
           "degraded"
         ]

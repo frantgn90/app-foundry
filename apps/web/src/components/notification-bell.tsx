@@ -208,6 +208,8 @@ function titulo(aviso: Notification): string {
       return `@${quien} made you the precursor of ${app}`;
     case 'APPS_INHERITED':
       return `You inherited apps in this workspace`;
+    case 'AI_MODEL_UNAVAILABLE':
+      return `${texto(aviso, 'provider')} retired ${texto(aviso, 'modelId')}, still assigned to ${texto(aviso, 'task')}`;
     default:
       return `Something happened in ${app}`;
   }

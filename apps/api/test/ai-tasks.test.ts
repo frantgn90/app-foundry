@@ -1,3 +1,4 @@
+import { sql } from 'drizzle-orm';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
 import { type Harness, startHarness, type TestUser } from './harness.js';
@@ -18,6 +19,7 @@ interface TaskBody {
   provider: string | null;
   modelId: string | null;
   supported: boolean;
+  modelAvailable: boolean;
   missing: string[];
   degraded: string[];
 }
@@ -151,6 +153,35 @@ describe('asignar', () => {
 
     expect(body.filter((t) => t.task === 'TEXT_ASSIST')).toHaveLength(1);
     expect(body.find((t) => t.task === 'TEXT_ASSIST')?.modelId).toBe(otro);
+  });
+});
+
+describe('cuando un modelo se retira', () => {
+  /*
+   * El proveedor retira modelos cuando quiere. Lo que no puede pasar es que nos
+   * enteremos la próxima vez que alguien use la función, cuando ya nadie
+   * relaciona el fallo con un modelo desaparecido hace semanas (RF-1009).
+   */
+  it('la tarea deja de poder ofrecerse, y se dice que es por el modelo', async () => {
+    const body = (await (await tareas(ana)).json()) as TaskBody[];
+    const antes = body.find((t) => t.task === 'AGENT_REVIEW');
+    expect(antes?.supported).toBe(true);
+
+    await h.db.execute(
+      sql`UPDATE ai_models SET available = false WHERE model_id = ${antes!.modelId!}`,
+    );
+
+    const despues = (await (await tareas(ana)).json()) as TaskBody[];
+    const revision = despues.find((t) => t.task === 'AGENT_REVIEW');
+
+    expect(revision?.supported).toBe(false);
+    expect(revision?.modelAvailable).toBe(false);
+    /* El proveedor sigue sabiendo hacerlo: lo que falta es el modelo. */
+    expect(revision?.missing).toEqual([]);
+
+    await h.db.execute(
+      sql`UPDATE ai_models SET available = true WHERE model_id = ${antes!.modelId!}`,
+    );
   });
 });
 

@@ -3,9 +3,10 @@ import { and, eq, inArray, notInArray } from 'drizzle-orm';
 
 import type { AiProvider, ModelInfo } from '@app-foundry/core';
 import type { ProviderRegistry } from '@app-foundry/ai';
-import { aiModels } from '@app-foundry/db';
+import { aiModels, workspaces, workspaceTaskModels } from '@app-foundry/db';
 
 import { currentTx } from '../database/request-context.js';
+import { NotificationsService } from '../notifications/notifications.service.js';
 import { AI_REGISTRY } from './ai.tokens.js';
 import type { AiModelDto } from './ai.dto.js';
 import { AiProvidersService } from './providers.service.js';
@@ -21,6 +22,7 @@ import { AiProvidersService } from './providers.service.js';
 export class AiCatalogService {
   constructor(
     private readonly providers: AiProvidersService,
+    private readonly notifications: NotificationsService,
     @Inject(AI_REGISTRY) private readonly registry: ProviderRegistry,
   ) {}
 
@@ -72,7 +74,59 @@ export class AiCatalogService {
     const modelos = await this.registry.get(provider).listModels(credential);
 
     await this.store(provider, modelos);
+    await this.warnAboutRetiredModels(workspaceId, provider);
     return modelos.length;
+  }
+
+  /**
+   * Avisa al dueño si alguna tarea suya apuntaba a un modelo que ya no existe
+   * (RF-1009).
+   *
+   * No se reasigna sola: elegir modelo es una decisión suya, y adivinar el
+   * sustituto sería gastar su cuota en algo que no ha pedido. Lo que se hace es
+   * que se entere ahora y no cuando alguien tropiece con la función.
+   */
+  private async warnAboutRetiredModels(workspaceId: string, provider: AiProvider): Promise<void> {
+    const huerfanas = await currentTx()
+      .select({ task: workspaceTaskModels.task, modelId: workspaceTaskModels.modelId })
+      .from(workspaceTaskModels)
+      .leftJoin(
+        aiModels,
+        and(
+          eq(aiModels.provider, workspaceTaskModels.provider),
+          eq(aiModels.modelId, workspaceTaskModels.modelId),
+        ),
+      )
+      .where(
+        and(
+          eq(workspaceTaskModels.workspaceId, workspaceId),
+          eq(workspaceTaskModels.provider, provider),
+          eq(aiModels.available, false),
+        ),
+      );
+
+    if (huerfanas.length === 0) return;
+
+    const [ws] = await currentTx()
+      .select({ ownerId: workspaces.ownerId })
+      .from(workspaces)
+      .where(eq(workspaces.id, workspaceId));
+    if (!ws) return;
+
+    for (const huerfana of huerfanas) {
+      await this.notifications.emit({
+        type: 'AI_MODEL_UNAVAILABLE',
+        /*
+         * El actor es el propio dueño porque el refresco corre con su
+         * identidad, y nadie se avisa a sí mismo (RF-905). Aquí no hay actor de
+         * verdad —lo hizo el proveedor retirando un modelo—, así que se deja sin
+         * actor para que el aviso llegue.
+         */
+        entorno: { actor: '', destinatario: ws.ownerId },
+        workspaceId,
+        payload: { provider, task: huerfana.task, modelId: huerfana.modelId },
+      });
+    }
   }
 
   private async store(provider: AiProvider, modelos: readonly ModelInfo[]): Promise<void> {

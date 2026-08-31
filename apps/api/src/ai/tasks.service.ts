@@ -39,8 +39,20 @@ export class AiTasksService {
    */
   async list(workspaceId: string): Promise<AiTaskAssignmentDto[]> {
     const filas = await currentTx()
-      .select()
+      .select({
+        task: workspaceTaskModels.task,
+        provider: workspaceTaskModels.provider,
+        modelId: workspaceTaskModels.modelId,
+        available: aiModels.available,
+      })
       .from(workspaceTaskModels)
+      .leftJoin(
+        aiModels,
+        and(
+          eq(aiModels.provider, workspaceTaskModels.provider),
+          eq(aiModels.modelId, workspaceTaskModels.modelId),
+        ),
+      )
       .where(eq(workspaceTaskModels.workspaceId, workspaceId));
 
     const porTarea = new Map(filas.map((fila) => [fila.task, fila]));
@@ -48,15 +60,31 @@ export class AiTasksService {
     return TAREAS.map((task) => {
       const asignada = porTarea.get(task);
       if (!asignada) {
-        return { task, provider: null, modelId: null, supported: false, missing: [], degraded: [] };
+        return {
+          task,
+          provider: null,
+          modelId: null,
+          supported: false,
+          modelAvailable: false,
+          missing: [],
+          degraded: [],
+        };
       }
 
       const support = supportForTask(task, this.registry.get(asignada.provider).capabilities);
+      /*
+       * Un modelo retirado del catálogo deja la tarea sin poder ofrecerse, igual
+       * que si al proveedor le faltara una capacidad: lo que cambia es el motivo,
+       * y por eso viaja aparte (RF-1009).
+       */
+      const modelAvailable = asignada.available === true;
+
       return {
         task,
         provider: asignada.provider,
         modelId: asignada.modelId,
-        supported: support.supported,
+        supported: support.supported && modelAvailable,
+        modelAvailable,
         missing: [...support.missing],
         degraded: [...support.degraded],
       };

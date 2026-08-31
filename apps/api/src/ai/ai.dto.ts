@@ -142,6 +142,9 @@ export class AiTaskAssignmentDto {
   @ApiProperty({ description: 'Si con lo asignado la tarea se puede ofrecer' })
   supported!: boolean;
 
+  @ApiProperty({ description: 'Si el modelo asignado sigue en el catálogo del proveedor' })
+  modelAvailable!: boolean;
+
   @ApiProperty({ type: [String], description: 'Capacidades que faltan y lo impiden' })
   missing!: string[];
 

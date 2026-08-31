@@ -12,6 +12,7 @@ import {
 import { AiProvider } from '@app-foundry/core';
 import type { Env } from '@app-foundry/env';
 
+import { NotificationsModule } from '../notifications/notifications.module.js';
 import { ENV } from '../infrastructure/tokens.js';
 import { AI_CIPHER, AI_REGISTRY } from './ai.tokens.js';
 import { AiCatalogRefresh } from './catalog.refresh.js';
@@ -22,6 +23,7 @@ import { AiTasksService } from './tasks.service.js';
 import { WorkspaceAiController } from './workspace-ai.controller.js';
 
 @Module({
+  imports: [NotificationsModule],
   controllers: [AiProvidersController, WorkspaceAiController],
   providers: [
     AiProvidersService,
