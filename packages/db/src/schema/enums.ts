@@ -50,3 +50,22 @@ export const notificationTypeEnum = pgEnum('notification_type', [
   'PRECURSOR_TRANSFERRED',
   'APPS_INHERITED',
 ]);
+
+/**
+ * Proveedor de modelos configurado en un workspace (RF-1001).
+ *
+ * Se mantiene sincronizado con `AiProvider` de `@app-foundry/core`. El
+ * proveedor de mentira de las pruebas **no** aparece aquí: suplanta a uno real
+ * en el registro de adaptadores, de modo que la base de datos recorre el mismo
+ * camino que en producción (T-36).
+ */
+export const aiProviderEnum = pgEnum('ai_provider', ['ANTHROPIC', 'GROQ']);
+
+/**
+ * En qué estado está un proveedor configurado.
+ *
+ * `INVALID` es distinto de `DISABLED`: uno lo apagó su dueño y el otro dejó de
+ * funcionar solo —credencial revocada—, y lo que hay que hacer para arreglarlo
+ * no es lo mismo (RF-1006).
+ */
+export const providerStatusEnum = pgEnum('provider_status', ['ACTIVE', 'DISABLED', 'INVALID']);

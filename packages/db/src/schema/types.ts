@@ -16,3 +16,14 @@ export const citext = customType<{ data: string; driverData: string }>({
 export const inet = customType<{ data: string; driverData: string }>({
   dataType: () => 'inet',
 });
+
+/**
+ * `bytea`: bytes crudos, que Drizzle tampoco trae de serie.
+ *
+ * Lo usa el texto cifrado de las credenciales de proveedor. Se guarda como
+ * bytes y no como texto en base64 para no arrastrar una codificación intermedia
+ * que solo añade sitios donde equivocarse.
+ */
+export const bytea = customType<{ data: Buffer; driverData: Buffer }>({
+  dataType: () => 'bytea',
+});
