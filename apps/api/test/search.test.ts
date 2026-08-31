@@ -35,11 +35,12 @@ async function crearApp(
 
   if (contenido) {
     const doc = (await (await h.as(user).get(`/api/v1/apps/${app.id}/document`)).json()) as {
-      currentVersionId: string;
+      revision: number;
     };
+    // Guardar basta: la búsqueda mira la copia de trabajo, que es lo que se lee.
     await h.as(user).put(`/api/v1/apps/${app.id}/document`, {
       content: contenido,
-      baseVersionId: doc.currentVersionId,
+      revision: doc.revision,
     });
   }
   return app.id;

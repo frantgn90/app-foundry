@@ -115,14 +115,22 @@ describe('quién puede escribir', () => {
   it('en WORKSPACE_WRITE, Bruno edita y queda como contribuidor', async () => {
     const doc = (await (
       await h.as(bruno).get(`/api/v1/apps/${apps['escritura']}/document`)
-    ).json()) as { currentVersionId: string; canEdit: boolean };
+    ).json()) as { revision: number; canEdit: boolean };
     expect(doc.canEdit).toBe(true);
 
     const response = await h.as(bruno).put(`/api/v1/apps/${apps['escritura']}/document`, {
       content: 'Lo que aporta Bruno',
-      baseVersionId: doc.currentVersionId,
+      revision: doc.revision,
     });
     expect(response.status).toBe(200);
+
+    const guardado = (await (
+      await h.as(bruno).get(`/api/v1/apps/${apps['escritura']}/document`)
+    ).json()) as { revision: number };
+    await h.as(bruno).post(`/api/v1/apps/${apps['escritura']}/document/commit`, {
+      message: 'Lo mío',
+      revision: guardado.revision,
+    });
 
     // Contribuidor sin que nadie se lo haya concedido: se gana escribiendo.
     const contributors = (await (
@@ -134,13 +142,13 @@ describe('quién puede escribir', () => {
   it('en WORKSPACE_READ, Bruno lee pero no escribe', async () => {
     const doc = (await (
       await h.as(bruno).get(`/api/v1/apps/${apps['lectura']}/document`)
-    ).json()) as { currentVersionId: string; canEdit: boolean };
+    ).json()) as { revision: number; canEdit: boolean };
 
     expect(doc.canEdit).toBe(false);
 
     const response = await h.as(bruno).put(`/api/v1/apps/${apps['lectura']}/document`, {
       content: 'No debería entrar',
-      baseVersionId: doc.currentVersionId,
+      revision: doc.revision,
     });
     expect(response.status).toBe(403);
   });

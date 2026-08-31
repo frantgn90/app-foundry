@@ -1,6 +1,6 @@
 import { useState } from 'react';
 
-import type { MentionableUser, Thread } from '../lib/api.js';
+import type { MentionableUser, OpenElsewhere, Thread } from '../lib/api.js';
 import { CommentThread } from './comment-thread.js';
 import { MentionInput } from './mention-input.js';
 import { Button } from './ui/button.js';
@@ -9,6 +9,11 @@ interface Props {
   /** Pliega el panel hacia la derecha. */
   onCollapse: () => void;
   threads: Thread[];
+  /** Conversaciones vivas que se quedaron en otras versiones (RF-817). */
+  openElsewhere: OpenElsewhere[];
+  /** Número de la versión que se está mirando; `null` si es la copia de trabajo. */
+  versionMirada: number | null;
+  onIrAVersion: (versionId: string) => void;
   people: MentionableUser[];
   selectedId: string | null;
   onSelect: (threadId: string | null) => void;
@@ -29,6 +34,9 @@ interface Props {
 export function CommentsPanel({
   onCollapse,
   threads,
+  openElsewhere,
+  versionMirada,
+  onIrAVersion,
   people,
   selectedId,
   onSelect,
@@ -59,10 +67,17 @@ export function CommentsPanel({
           lo que hace que la caja del documento y el primer comentario empiecen
           a la misma altura. */}
       <header className="flex h-8 items-center justify-between gap-2">
-        <h2 className="text-sm font-medium">
+        <h2 className="min-w-0 truncate text-sm font-medium">
           Conversation
           {open.length > 0 && (
             <span className="ml-1.5 text-[var(--color-texto-suave)]">({open.length})</span>
+          )}
+          {/* Mirando una versión pasada se dice de quién es esta conversación:
+              si no, parecería que la de hoy se ha vaciado. */}
+          {versionMirada !== null && (
+            <span className="ml-1.5 font-normal text-[var(--color-texto-suave)]">
+              on v{versionMirada}
+            </span>
           )}
         </h2>
         <span className="flex items-center gap-1">
@@ -103,9 +118,35 @@ export function CommentsPanel({
 
       {visible.length === 0 && (
         <p className="text-xs text-[var(--color-texto-suave)]">
-          Nothing yet. Select any text in the document to comment on it, or leave a general note
-          below.
+          {versionMirada !== null
+            ? 'Nothing was commented on this version. You can only comment on the current one.'
+            : 'Nothing yet. Select any text in the document to comment on it, or leave a general note below.'}
         </p>
+      )}
+
+      {/*
+        Los hilos se quedan en la versión sobre la que se escribieron (RF-817),
+        así que al commitear salen de la vista. Los que siguen abiertos se
+        anuncian aquí con el camino de vuelta: una conversación viva que nadie ve
+        es una conversación perdida.
+      */}
+      {openElsewhere.length > 0 && (
+        <div className="flex flex-col gap-1 rounded-lg border border-[var(--color-borde)] bg-[var(--color-superficie)] p-2">
+          <p className="text-xs text-[var(--color-texto-suave)]">Still open on earlier versions:</p>
+          <span className="flex flex-wrap gap-1.5">
+            {openElsewhere.map((v) => (
+              <button
+                key={v.versionId}
+                onClick={() => {
+                  onIrAVersion(v.versionId);
+                }}
+                className="rounded-full border border-[var(--color-borde)] px-2 py-0.5 text-xs text-[var(--color-texto-suave)] transition hover:border-[var(--color-texto-suave)] hover:text-[var(--color-texto)]"
+              >
+                v{v.versionNo} ({v.openThreads})
+              </button>
+            ))}
+          </span>
+        </div>
       )}
 
       {/*

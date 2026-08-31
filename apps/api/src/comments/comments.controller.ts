@@ -9,8 +9,15 @@ import {
   ParseUUIDPipe,
   Patch,
   Post,
+  Query,
 } from '@nestjs/common';
-import { ApiNoContentResponse, ApiOkResponse, ApiOperation, ApiTags } from '@nestjs/swagger';
+import {
+  ApiNoContentResponse,
+  ApiOkResponse,
+  ApiOperation,
+  ApiQuery,
+  ApiTags,
+} from '@nestjs/swagger';
 
 import { CurrentUserId } from '../auth/current-user.decorator.js';
 import {
@@ -19,6 +26,7 @@ import {
   CreateThreadDto,
   MentionableUserDto,
   ThreadDto,
+  ThreadsDto,
   UpdateCommentDto,
 } from './comments.dto.js';
 import { CommentsService } from './comments.service.js';
@@ -30,15 +38,21 @@ export class CommentsController {
 
   @Get('apps/:appId/threads')
   @ApiOperation({
-    summary: 'Hilos de comentarios de una app',
-    description: 'Devuelve todos, incluidos los resueltos: la interfaz decide qué enseña.',
+    summary: 'Hilos de comentarios de una versión',
+    description:
+      'Un hilo pertenece a la versión sobre la que se escribió. Sin `versionId` ' +
+      'se devuelven los de la copia de trabajo, colocados sobre el texto que se ' +
+      'está leyendo. Los generales van siempre, sea cual sea la versión. ' +
+      'Devuelve todos, incluidos los resueltos: la interfaz decide qué enseña.',
   })
-  @ApiOkResponse({ type: [ThreadDto] })
+  @ApiQuery({ name: 'versionId', required: false, format: 'uuid' })
+  @ApiOkResponse({ type: ThreadsDto })
   list(
     @Param('appId', ParseUUIDPipe) appId: string,
     @CurrentUserId() userId: string,
-  ): Promise<ThreadDto[]> {
-    return this.comments.list(appId, userId);
+    @Query('versionId', new ParseUUIDPipe({ optional: true })) versionId?: string,
+  ): Promise<ThreadsDto> {
+    return this.comments.list(appId, userId, versionId);
   }
 
   @Post('apps/:appId/threads')

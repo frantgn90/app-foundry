@@ -30,7 +30,11 @@ async function avisosDe(user: TestUser) {
 
 async function documento() {
   const response = await h.as(ana).get(`/api/v1/apps/${appId}/document`);
-  return (await response.json()) as { content: string; currentVersionId: string };
+  return (await response.json()) as {
+    content: string;
+    currentVersionId: string;
+    revision: number;
+  };
 }
 
 beforeAll(async () => {
@@ -138,15 +142,24 @@ describe('menciones', () => {
   });
 });
 
-describe('guardar una versión', () => {
+describe('commitear una versión', () => {
   it('avisa a quien se ha implicado en la app', async () => {
     const antes = (await avisosDe(bruno)).length;
 
     const doc = await documento();
     await h.as(ana).put(`/api/v1/apps/${appId}/document`, {
       content: `${doc.content}\n\nUn párrafo nuevo.\n`,
-      baseVersionId: doc.currentVersionId,
+      revision: doc.revision,
+    });
+
+    // Guardar no avisa: lo haría en cada coma. Avisa el commit, que es cuando
+    // alguien dice que lo escrito ya es algo.
+    expect((await avisosDe(bruno)).length).toBe(antes);
+
+    const guardado = await documento();
+    await h.as(ana).post(`/api/v1/apps/${appId}/document/commit`, {
       message: 'Añado el coste',
+      revision: guardado.revision,
     });
 
     const suyos = await avisosDe(bruno);
@@ -263,17 +276,21 @@ describe('el centro de notificaciones', () => {
 
   it('purgar no toca aquello a lo que apuntaba', async () => {
     // RF-911: el hilo sigue donde estaba después de borrar su aviso.
-    const hilos = (await (await h.as(ana).get(`/api/v1/apps/${appId}/threads`)).json()) as {
-      id: string;
-    }[];
+    const hilos = (
+      (await (await h.as(ana).get(`/api/v1/apps/${appId}/threads`)).json()) as {
+        threads: { id: string }[];
+      }
+    ).threads;
     const antes = hilos.length;
 
     await h.as(bruno).post('/api/v1/notifications/read', {});
     await h.as(bruno).delete('/api/v1/notifications');
 
-    const despues = (await (await h.as(ana).get(`/api/v1/apps/${appId}/threads`)).json()) as {
-      id: string;
-    }[];
+    const despues = (
+      (await (await h.as(ana).get(`/api/v1/apps/${appId}/threads`)).json()) as {
+        threads: { id: string }[];
+      }
+    ).threads;
     expect(despues).toHaveLength(antes);
     expect((await listado(bruno)).items).toHaveLength(0);
   });
@@ -528,9 +545,11 @@ describe('la purga automática', () => {
 
   it('no toca aquello a lo que apuntaban', async () => {
     // RF-911: la purga se lleva avisos, nunca contenido.
-    const hilos = (await (await h.as(ana).get(`/api/v1/apps/${appId}/threads`)).json()) as {
-      id: string;
-    }[];
+    const hilos = (
+      (await (await h.as(ana).get(`/api/v1/apps/${appId}/threads`)).json()) as {
+        threads: { id: string }[];
+      }
+    ).threads;
     expect(hilos.length).toBeGreaterThan(0);
   });
 

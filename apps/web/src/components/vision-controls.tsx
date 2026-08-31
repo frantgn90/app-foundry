@@ -78,6 +78,8 @@ export function EditToggle({
 export function VersionPicker({
   versions,
   currentVersionId,
+  hayCambios,
+  workingAuthors,
   elegida,
   mostrandoDiff,
   puedeRestaurar,
@@ -88,7 +90,10 @@ export function VersionPicker({
 }: {
   versions: Version[];
   currentVersionId: string | null;
-  /** Versión pasada que se está mirando; `null` es la actual. */
+  /** Si la copia de trabajo va por delante de la versión actual (RF-505). */
+  hayCambios: boolean;
+  workingAuthors: { handle: string }[];
+  /** Versión que se está mirando; `null` es la copia de trabajo. */
   elegida: string | null;
   mostrandoDiff: boolean;
   puedeRestaurar: boolean;
@@ -97,7 +102,13 @@ export function VersionPicker({
   onDiff: () => void;
   onRestaurar: () => void;
 }) {
-  const seleccionada = elegida ?? currentVersionId ?? '';
+  /*
+   * Con cambios sin commitear, lo que se lee no es ninguna versión: es la copia
+   * de trabajo, y aparece arriba como una entrada más. Sin ellos coincide con la
+   * versión actual y no hace falta distinguirlas.
+   */
+  const TRABAJO = 'working';
+  const seleccionada = elegida ?? (hayCambios ? TRABAJO : (currentVersionId ?? ''));
   const version = versions.find((v) => v.id === seleccionada);
 
   return (
@@ -106,7 +117,9 @@ export function VersionPicker({
         aria-label="Version"
         value={seleccionada}
         onChange={(e) => {
-          onElegir(e.target.value === currentVersionId ? null : e.target.value);
+          const valor = e.target.value;
+          const esLoQueSeLee = valor === TRABAJO || (!hayCambios && valor === currentVersionId);
+          onElegir(esLoQueSeLee ? null : valor);
         }}
         className={cn(
           // Ancho fijo: si no, la caja cambiaría de tamaño con cada versión
@@ -115,10 +128,11 @@ export function VersionPicker({
           'border-[var(--color-borde)] bg-[var(--color-superficie)]',
         )}
       >
+        {hayCambios && <option value={TRABAJO}>Working copy</option>}
         {versions.map((v) => (
           <option key={v.id} value={v.id}>
             v{v.versionNo}
-            {v.id === currentVersionId
+            {v.id === currentVersionId && !hayCambios
               ? ' · current'
               : ` · ${new Date(v.createdAt).toLocaleDateString(undefined, {
                   day: 'numeric',
@@ -143,7 +157,7 @@ export function VersionPicker({
             {mostrandoDiff ? 'Hide changes' : 'Compare with current'}
           </button>
 
-          {puedeRestaurar && (
+          {puedeRestaurar && elegida !== currentVersionId && (
             <button
               disabled={restaurando}
               onClick={onRestaurar}
@@ -165,6 +179,16 @@ export function VersionPicker({
         detrás de los botones y no dentro del desplegable: en una opción, el
         navegador la recortaría por donde le pareciera.
       */}
+      {/* La copia de trabajo no tiene autor ni fecha: lo que hay que decir de
+          ella es que va por delante, y de quién es lo que aún no es de nadie. */}
+      {!version && hayCambios && (
+        <span className="min-w-0 truncate text-xs text-[var(--color-texto-suave)]">
+          Uncommitted changes
+          {workingAuthors.length > 0 &&
+            ` by ${workingAuthors.map((a) => `@${a.handle}`).join(', ')}`}
+        </span>
+      )}
+
       {version && (
         <span
           /* Con la conversación abierta la línea se queda corta y el texto se

@@ -116,11 +116,45 @@ export const documents = pgTable(
       (): AnyPgColumn => documentVersions.id,
       { onDelete: 'set null' },
     ),
+    /**
+     * Copia de trabajo, compartida por quienes pueden editar (RF-505).
+     *
+     * No es una copia de la versión actual: puede ir por delante. Que vaya por
+     * delante —que haya cambios sin commitear— se sabe comparándola con el
+     * contenido de `currentVersionId`, sin más estado que mantener a la par.
+     */
     currentContent: text('current_content').notNull().default(''),
+    /**
+     * Lo que detecta ediciones concurrentes (RF-511): sube en cada guardado,
+     * commit o descarte. La versión actual ya no sirve para eso, porque dos
+     * guardados seguidos la comparten.
+     */
+    revision: integer('revision').notNull().default(0),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
   },
   (table) => [unique('documents_app_type_unique').on(table.appId, table.type)],
+);
+
+/**
+ * Quién ha guardado desde el último commit.
+ *
+ * Se vacía al commitear y al descartar. Al commitear, quienes queden aquí y no
+ * sean el autor pasan a coautores de la versión (RF-516): sin esto, quien
+ * escribe y no commitea desaparecería del historial de autoría.
+ */
+export const documentWorkingAuthors = pgTable(
+  'document_working_authors',
+  {
+    documentId: uuid('document_id')
+      .notNull()
+      .references((): AnyPgColumn => documents.id, { onDelete: 'cascade' }),
+    userId: uuid('user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    savedAt: timestamp('saved_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [primaryKey({ columns: [table.documentId, table.userId] })],
 );
 
 /** Versiones inmutables. Nada las modifica: solo se añaden (RF-505). */
@@ -146,6 +180,28 @@ export const documentVersions = pgTable(
     index('document_versions_document_idx').on(table.documentId, table.createdAt),
     // Los contribuidores se derivan de aquí, sin concederlos a nadie (RF-509).
     index('document_versions_author_idx').on(table.authorId),
+  ],
+);
+
+/**
+ * Quienes escribieron en una versión sin ser quien la commiteó (RF-516).
+ *
+ * `restrict` al borrar, igual que el autor: la autoría de una versión inmutable
+ * no puede quedar a medias.
+ */
+export const documentVersionCoauthors = pgTable(
+  'document_version_coauthors',
+  {
+    versionId: uuid('version_id')
+      .notNull()
+      .references((): AnyPgColumn => documentVersions.id, { onDelete: 'cascade' }),
+    userId: uuid('user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'restrict' }),
+  },
+  (table) => [
+    primaryKey({ columns: [table.versionId, table.userId] }),
+    index('document_version_coauthors_user_idx').on(table.userId),
   ],
 );
 

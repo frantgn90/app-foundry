@@ -21,6 +21,17 @@ export class ThreadDto {
   @ApiProperty({ enum: ['OPEN', 'RESOLVED'] }) status!: string;
 
   @ApiProperty({
+    format: 'uuid',
+    nullable: true,
+    type: String,
+    description: 'Versión a la que pertenece (RF-817). Null en los generales, que son de la app.',
+  })
+  versionId!: string | null;
+
+  @ApiProperty({ nullable: true, type: Number, description: 'Número de esa versión' })
+  versionNo!: number | null;
+
+  @ApiProperty({
     enum: ['ANCHORED', 'ORPHANED'],
     nullable: true,
     type: String,
@@ -31,7 +42,12 @@ export class ThreadDto {
   @ApiProperty({ nullable: true, type: String, description: 'Fragmento comentado' })
   anchorQuote!: string | null;
 
-  @ApiProperty({ nullable: true, type: Number }) anchorStart!: number | null;
+  @ApiProperty({
+    nullable: true,
+    type: Number,
+    description: 'Posición en el texto que se ha pedido: el de la versión, o la copia de trabajo.',
+  })
+  anchorStart!: number | null;
   @ApiProperty({ nullable: true, type: Number }) anchorEnd!: number | null;
 
   @ApiProperty({ nullable: true, type: String, description: 'Quién lo resolvió' })
@@ -40,6 +56,24 @@ export class ThreadDto {
   @ApiProperty() canDelete!: boolean;
   @ApiProperty({ type: [CommentDto] }) comments!: CommentDto[];
   @ApiProperty({ format: 'date-time' }) createdAt!: string;
+}
+
+/** Cuántos hilos abiertos quedan en otra versión, y en cuál (RF-817). */
+export class OpenElsewhereDto {
+  @ApiProperty({ format: 'uuid' }) versionId!: string;
+  @ApiProperty() versionNo!: number;
+  @ApiProperty() openThreads!: number;
+}
+
+export class ThreadsDto {
+  @ApiProperty({ type: [ThreadDto], description: 'Los de la versión pedida, más los generales' })
+  threads!: ThreadDto[];
+
+  @ApiProperty({
+    type: [OpenElsewhereDto],
+    description: 'Conversaciones vivas que quedaron en otras versiones, de la más reciente a la más antigua',
+  })
+  openElsewhere!: OpenElsewhereDto[];
 }
 
 export class CreateThreadDto {
@@ -68,6 +102,16 @@ export class CreateThreadDto {
   @IsInt()
   @Min(0)
   end?: number;
+
+  @ApiPropertyOptional({
+    format: 'uuid',
+    description:
+      'Versión que se está mirando. Solo se admite comentar sobre la actual (RF-817): ' +
+      'sobre una anterior, lo escrito quedaría anclado a un texto que ya nadie ve.',
+  })
+  @IsOptional()
+  @IsUUID()
+  versionId?: string;
 }
 
 export class CreateCommentDto {

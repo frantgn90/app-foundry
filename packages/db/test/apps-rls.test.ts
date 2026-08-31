@@ -293,3 +293,80 @@ describe('herencia del precursor al salir del workspace (K6, D-10)', () => {
     expect(versiones.every((v) => v.a === e.ana)).toBe(true);
   });
 });
+
+/**
+ * Coautoría de una versión (RF-516).
+ *
+ * Es la única tabla del sistema donde alguien escribe una fila a nombre de otro,
+ * así que la política tiene que decir algo más que «puedes escribir aquí»: solo
+ * se puede nombrar coautor a quien de verdad guardó desde el commit anterior. Si
+ * no, quien commitea podría atribuirle a cualquiera una versión que no tocó.
+ */
+describe('quién puede figurar como coautor', () => {
+  let version: string;
+
+  beforeAll(async () => {
+    // El test anterior sacó a Bruno del workspace; aquí vuelve a estar dentro.
+    await db.db
+      .insert(workspaceMembers)
+      .values({ workspaceId: e.wsAna, userId: e.bruno, role: 'MEMBER' })
+      .onConflictDoNothing();
+
+    const [v] = await db.db
+      .select({ id: documentVersions.id })
+      .from(documentVersions)
+      .where(sql`${documentVersions.documentId} = ${documentoEscritura}`);
+    version = v!.id;
+  });
+
+  it('Bruno se apunta a sí mismo al guardar, y no a Ana', async () => {
+    await asAppUser(db.db, e.bruno, (tx) =>
+      tx.execute(
+        sql`INSERT INTO document_working_authors (document_id, user_id)
+            VALUES (${documentoEscritura}, ${e.bruno})`,
+      ),
+    );
+
+    const ajeno = await failure(() =>
+      asAppUser(db.db, e.bruno, (tx) =>
+        tx.execute(
+          sql`INSERT INTO document_working_authors (document_id, user_id)
+              VALUES (${documentoEscritura}, ${e.ana})`,
+        ),
+      ),
+    );
+    expect(sqlstateOf(ajeno)).toBe('42501');
+  });
+
+  it('quien guardó puede quedar como coautor', async () => {
+    const insertadas = await asAppUser(db.db, e.ana, (tx) =>
+      tx.execute(
+        sql`INSERT INTO document_version_coauthors (version_id, user_id)
+            VALUES (${version}, ${e.bruno}) RETURNING user_id`,
+      ),
+    );
+    expect(insertadas.rows).toHaveLength(1);
+  });
+
+  it('pero quien no ha escrito nada, no', async () => {
+    // Carla ni siquiera ve la app; da igual que quien lo intente sea Ana.
+    const error = await failure(() =>
+      asAppUser(db.db, e.ana, (tx) =>
+        tx.execute(
+          sql`INSERT INTO document_version_coauthors (version_id, user_id)
+              VALUES (${version}, ${e.carla})`,
+        ),
+      ),
+    );
+    expect(sqlstateOf(error)).toBe('42501');
+  });
+
+  it('y la coautoría, como la versión, no se reescribe ni se borra', async () => {
+    const error = await failure(() =>
+      asAppUser(db.db, e.ana, (tx) =>
+        tx.execute(sql`DELETE FROM document_version_coauthors WHERE version_id = ${version}`),
+      ),
+    );
+    expect(sqlstateOf(error)).toBe('42501');
+  });
+});

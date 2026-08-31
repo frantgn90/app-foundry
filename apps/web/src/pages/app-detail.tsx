@@ -4,12 +4,14 @@ import {
   ConflictError,
   type SaveConflict,
   useApp,
+  useCommitDocument,
   useCreateThread,
   useDeleteComment,
   useDeleteThread,
   useDocument,
   useMentionable,
   useReply,
+  useResetDocument,
   useResolveThread,
   useRestoreVersion,
   useSaveDocument,
@@ -30,6 +32,7 @@ import { Markdown } from '../components/markdown.js';
 import { TagList } from '../components/app-status.js';
 import { Button } from '../components/ui/button.js';
 import { Card } from '../components/ui/card.js';
+import { Input } from '../components/ui/input.js';
 import { useShortcuts } from '../lib/shortcuts.js';
 import { cn } from '../lib/utils.js';
 
@@ -54,6 +57,8 @@ export function AppDetailPage({
   const document = useDocument(appId);
   const versions = useVersions(appId);
   const save = useSaveDocument(appId);
+  const commit = useCommitDocument(appId);
+  const reset = useResetDocument(appId);
   const restore = useRestoreVersion(appId);
 
   const [tab, setTab] = useState<Tab>('vision');
@@ -77,6 +82,14 @@ export function AppDetailPage({
    */
   const [versionElegida, setVersionElegida] = useState<string | null>(null);
   const [mostrandoDiff, setMostrandoDiff] = useState(false);
+  /*
+   * Commitear pide mensaje y descartar pide confirmación, y las dos cosas se
+   * preguntan donde está el botón en vez de en un diálogo aparte: lo que se va
+   * a versionar —o a perder— sigue delante mientras se decide.
+   */
+  const [commiteando, setCommiteando] = useState(false);
+  const [mensajeCommit, setMensajeCommit] = useState('');
+  const [descartando, setDescartando] = useState(false);
   const [selectedThread, setSelectedThread] = useState<string | null>(initialThreadId);
   // Solo se hace scroll cuando el hilo se elige desde el panel; al pinchar en el
   // texto ya se está mirando el sitio.
@@ -131,7 +144,11 @@ export function AppDetailPage({
   );
 
   const elegida = useVersionContent(appId, versionElegida);
-  const threads = useThreads(appId);
+  /*
+   * Los hilos son los de lo que se está mirando (RF-817): sin versión elegida,
+   * los de la copia de trabajo; con ella, los de esa versión.
+   */
+  const threads = useThreads(appId, versionElegida);
   const people = useMentionable(appId);
   const createThread = useCreateThread(appId);
   const reply = useReply(appId);
@@ -152,7 +169,7 @@ export function AppDetailPage({
    * punta a punta y el resaltado dejaría de señalar nada. Siguen en el panel, y
    * reabrir uno lo devuelve al documento.
    */
-  const anchorRanges: AnchorRange[] = (threads.data ?? [])
+  const anchorRanges: AnchorRange[] = (threads.data?.threads ?? [])
     .filter(
       (t) =>
         t.status === 'OPEN' &&
@@ -243,8 +260,10 @@ export function AppDetailPage({
 
   const content = draft ?? document.data.content;
 
-  const openThreads = (threads.data ?? []).filter((t) => t.status === 'OPEN').length;
+  const openThreads = (threads.data?.threads ?? []).filter((t) => t.status === 'OPEN').length;
   const hasUnsavedChanges = content !== document.data.content;
+  const sinCommitear = document.data.uncommittedChanges;
+  const mirandoCopiaDeTrabajo = versionElegida === null;
 
   function postInlineComment() {
     if (!pendingSelection || !selectionDraft.trim()) return;
@@ -254,6 +273,9 @@ export function AppDetailPage({
         quote: pendingSelection.quote,
         start: pendingSelection.start,
         end: pendingSelection.end,
+        // El hilo pertenece a la versión actual, aunque se escriba sobre la
+        // copia de trabajo: el servidor rechaza cualquier otra (RF-817).
+        ...(document.data?.currentVersionId ? { versionId: document.data.currentVersionId } : {}),
       },
       {
         onSuccess: () => {
@@ -273,7 +295,7 @@ export function AppDetailPage({
     if (!document.data) return;
     setConflict(null);
     save.mutate(
-      { content, baseVersionId: document.data.currentVersionId ?? '' },
+      { content, revision: document.data.revision },
       {
         onSuccess: () => {
           localStorage.removeItem(draftKey(appId));
@@ -369,6 +391,8 @@ export function AppDetailPage({
                 <VersionPicker
                   versions={versions.data ?? []}
                   currentVersionId={document.data.currentVersionId}
+                  hayCambios={sinCommitear}
+                  workingAuthors={document.data.workingAuthors}
                   elegida={versionElegida}
                   mostrandoDiff={mostrandoDiff}
                   puedeRestaurar={document.data.canEdit}
@@ -401,7 +425,7 @@ export function AppDetailPage({
                   editando={editando}
                   /* Una versión pasada se mira, no se escribe: para cambiarla
                      hay que restaurarla antes, que es lo que deja constancia. */
-                  puedeEditar={document.data.canEdit && versionElegida === null}
+                  puedeEditar={document.data.canEdit && mirandoCopiaDeTrabajo}
                   razonBloqueo={
                     versionElegida !== null
                       ? 'Restore this version to edit it'
@@ -438,7 +462,7 @@ export function AppDetailPage({
               )}
             </div>
 
-            {versionElegida !== null ? (
+            {!mirandoCopiaDeTrabajo ? (
               /*
                 Una versión pasada: o su texto, o lo que cambió desde ella hasta
                 hoy. Sin comentar por encima —las anclas apuntan a posiciones del
@@ -452,8 +476,11 @@ export function AppDetailPage({
                   (mostrandoDiff ? (
                     <div className="flex flex-col gap-2">
                       <p className="text-xs text-[var(--color-texto-suave)]">
-                        What changed between v{elegida.data.versionNo} and the current v
-                        {document.data.versionNo}.
+                        What changed between v{elegida.data.versionNo} and{' '}
+                        {sinCommitear
+                          ? 'the working copy'
+                          : `the current v${String(document.data.versionNo)}`}
+                        .
                       </p>
                       <DiffView from={elegida.data.content} to={document.data.content} />
                     </div>
@@ -558,6 +585,101 @@ export function AppDetailPage({
                 />
               </Card>
             )}
+            {/*
+          Guardar a la izquierda; commitear y descartar a la derecha, que son las
+          dos salidas de lo guardado. La fila aparece también sin estar editando
+          mientras haya cambios sin commitear: dejar de escribir no es haber
+          terminado, y el trabajo pendiente no puede quedarse sin sus botones.
+        */}
+            {mirandoCopiaDeTrabajo && (editando || sinCommitear) && (
+              <div className="flex flex-col gap-3">
+                {descartando && (
+                  <DescarteNotice
+                    autores={document.data.workingAuthors.map((a) => a.handle)}
+                    descartando={reset.isPending}
+                    onCancelar={() => {
+                      setDescartando(false);
+                    }}
+                    onDescartar={() => {
+                      if (!document.data) return;
+                      reset.mutate(
+                        { revision: document.data.revision },
+                        {
+                          onSuccess: (actualizado) => {
+                            // El borrador local se va con ellos: si no, el editor
+                            // devolvería a la pantalla lo que se acaba de descartar.
+                            localStorage.removeItem(draftKey(appId));
+                            setDraft(actualizado.content);
+                            setDescartando(false);
+                          },
+                        },
+                      );
+                    }}
+                  />
+                )}
+
+                {commiteando && (
+                  <CommitForm
+                    mensaje={mensajeCommit}
+                    onMensaje={setMensajeCommit}
+                    commiteando={commit.isPending}
+                    onCancelar={() => {
+                      setCommiteando(false);
+                    }}
+                    onCommitear={() => {
+                      if (!document.data || !mensajeCommit.trim()) return;
+                      commit.mutate(
+                        { message: mensajeCommit.trim(), revision: document.data.revision },
+                        {
+                          onSuccess: () => {
+                            setMensajeCommit('');
+                            setCommiteando(false);
+                          },
+                        },
+                      );
+                    }}
+                  />
+                )}
+
+                <div className="flex flex-wrap items-center gap-3">
+                  {editando && (
+                    <>
+                      <Button onClick={onSave} disabled={save.isPending || !hasUnsavedChanges}>
+                        {save.isPending ? 'Saving…' : 'Save'}
+                      </Button>
+                      <span className="text-xs text-[var(--color-texto-suave)]">
+                        {hasUnsavedChanges ? 'Unsaved changes, kept locally' : 'Everything saved'} ·
+                        ⌘S
+                      </span>
+                    </>
+                  )}
+
+                  {sinCommitear && document.data.canEdit && (
+                    <span className="ml-auto flex items-center gap-2">
+                      <Button
+                        variant="secondary"
+                        className="px-3 py-1.5 text-sm"
+                        onClick={() => {
+                          setDescartando(!descartando);
+                          setCommiteando(false);
+                        }}
+                      >
+                        Discard changes
+                      </Button>
+                      <Button
+                        className="px-3 py-1.5 text-sm"
+                        onClick={() => {
+                          setCommiteando(!commiteando);
+                          setDescartando(false);
+                        }}
+                      >
+                        Commit…
+                      </Button>
+                    </span>
+                  )}
+                </div>
+              </div>
+            )}
           </div>
 
           {conversacionAbierta && (
@@ -565,7 +687,14 @@ export function AppDetailPage({
               onCollapse={() => {
                 setConversacionAbierta(false);
               }}
-              threads={threads.data ?? []}
+              threads={threads.data?.threads ?? []}
+              openElsewhere={threads.data?.openElsewhere ?? []}
+              onIrAVersion={(id) => {
+                setVersionElegida(id);
+                setMostrandoDiff(false);
+                setSelectedThread(null);
+              }}
+              versionMirada={versionElegida === null ? null : (elegida.data?.versionNo ?? null)}
               people={people.data ?? []}
               selectedId={selectedThread}
               onSelect={(id) => {
@@ -592,24 +721,110 @@ export function AppDetailPage({
         </div>
       )}
 
-      {/* Guardar está mientras se escriba, se esté mirando el texto o el
-          resultado: previsualizar no es dejar de editar. */}
-      {tab === 'vision' && editando && (
-        <div className="flex items-center gap-3">
-          <Button onClick={onSave} disabled={save.isPending || !hasUnsavedChanges}>
-            {save.isPending ? 'Saving…' : 'Save version'}
-          </Button>
-          <span className="text-xs text-[var(--color-texto-suave)]">
-            {hasUnsavedChanges ? 'Unsaved changes, kept locally' : 'Everything saved'} · ⌘S
-          </span>
-        </div>
-      )}
-
       {tab === 'settings' && (
         <AppSettingsPage app={app.data} workspaceId={workspaceId} onDeleted={onBack} />
       )}
-
     </div>
+  );
+}
+
+/**
+ * Poner nombre a lo escrito (RF-505).
+ *
+ * El mensaje es obligatorio: una versión sin explicación es una fecha en una
+ * lista. Y cabe en cien caracteres, que bastan para decir qué cambió sin que el
+ * historial se convierta en el sitio donde se escribe la documentación.
+ */
+function CommitForm({
+  mensaje,
+  commiteando,
+  onMensaje,
+  onCancelar,
+  onCommitear,
+}: {
+  mensaje: string;
+  commiteando: boolean;
+  onMensaje: (valor: string) => void;
+  onCancelar: () => void;
+  onCommitear: () => void;
+}) {
+  const restantes = 100 - mensaje.length;
+
+  return (
+    <Card className="flex flex-col gap-3 border-[var(--color-acento)]/40 p-4">
+      <label htmlFor="commit-message" className="text-sm font-medium">
+        What changed?
+      </label>
+      <div className="flex flex-wrap items-center gap-2">
+        <Input
+          id="commit-message"
+          value={mensaje}
+          maxLength={100}
+          autoFocus
+          placeholder="Rewrote the problem statement"
+          onChange={(e) => {
+            onMensaje(e.target.value);
+          }}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter' && mensaje.trim()) onCommitear();
+          }}
+          className="min-w-64 flex-1"
+        />
+        <Button onClick={onCommitear} disabled={commiteando || !mensaje.trim()}>
+          {commiteando ? 'Creating…' : 'Create version'}
+        </Button>
+        <Button variant="secondary" onClick={onCancelar}>
+          Cancel
+        </Button>
+      </div>
+      <p className="text-xs text-[var(--color-texto-suave)]">
+        {restantes} characters left. Comments on the current version stay with it: the new one
+        starts its own conversation.
+      </p>
+    </Card>
+  );
+}
+
+/**
+ * Aviso antes de descartar (RF-515).
+ *
+ * Es la única acción del producto que pierde trabajo de verdad: lo descartado no
+ * llegó a ser versión, así que no queda en ningún sitio del que rescatarlo. Por
+ * eso el aviso dice de quién es lo que se va a perder, que a veces no es de
+ * quien está pulsando.
+ */
+function DescarteNotice({
+  autores,
+  descartando,
+  onCancelar,
+  onDescartar,
+}: {
+  autores: string[];
+  descartando: boolean;
+  onCancelar: () => void;
+  onDescartar: () => void;
+}) {
+  return (
+    <Card className="flex flex-col gap-3 border-[var(--color-fallo)]/40 p-4">
+      <p className="text-sm font-medium" style={{ color: 'var(--color-fallo)' }}>
+        Discard everything saved since the last version?
+      </p>
+      <p className="text-sm text-[var(--color-texto-suave)]">
+        The document goes back to the current version.{' '}
+        {autores.length > 0 && (
+          <>These changes were saved by {autores.map((h) => `@${h}`).join(', ')}. </>
+        )}
+        They were never committed, so there is nowhere to get them back from.
+      </p>
+      <div className="flex gap-2">
+        <Button variant="danger" disabled={descartando} onClick={onDescartar}>
+          {descartando ? 'Discarding…' : 'Yes, discard them'}
+        </Button>
+        <Button variant="secondary" onClick={onCancelar}>
+          Cancel
+        </Button>
+      </div>
+    </Card>
   );
 }
 

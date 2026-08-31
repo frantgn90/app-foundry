@@ -12,6 +12,8 @@ interface Thread {
   id: string;
   kind: string;
   status: string;
+  versionId: string | null;
+  versionNo: number | null;
   anchorStatus: string | null;
   anchorQuote: string | null;
   anchorStart: number | null;
@@ -19,22 +21,44 @@ interface Thread {
   comments: { id: string; body: string; isDeleted: boolean; mentions: string[] }[];
 }
 
+interface Threads {
+  threads: Thread[];
+  openElsewhere: { versionId: string; versionNo: number; openThreads: number }[];
+}
+
 async function documento() {
   const response = await h.as(ana).get(`/api/v1/apps/${appId}/document`);
-  return (await response.json()) as { content: string; currentVersionId: string };
+  return (await response.json()) as {
+    content: string;
+    currentVersionId: string;
+    revision: number;
+    versionNo: number;
+    uncommittedChanges: boolean;
+  };
+}
+
+async function listado(user: TestUser = ana, versionId?: string): Promise<Threads> {
+  const url = versionId
+    ? `/api/v1/apps/${appId}/threads?versionId=${versionId}`
+    : `/api/v1/apps/${appId}/threads`;
+  return (await (await h.as(user).get(url)).json()) as Threads;
 }
 
 async function hilos(user: TestUser = ana): Promise<Thread[]> {
-  return (await (await h.as(user).get(`/api/v1/apps/${appId}/threads`)).json()) as Thread[];
+  return (await listado(user)).threads;
 }
 
-/** Guarda una versión nueva con el contenido dado. */
+/** Guarda en la copia de trabajo. */
 async function guardar(content: string) {
   const doc = await documento();
-  return h.as(ana).put(`/api/v1/apps/${appId}/document`, {
-    content,
-    baseVersionId: doc.currentVersionId,
-  });
+  return h.as(ana).put(`/api/v1/apps/${appId}/document`, { content, revision: doc.revision });
+}
+
+/** Guarda y commitea, que es lo que crea versión. */
+async function commitear(content: string, message = 'Cambio') {
+  await guardar(content);
+  const doc = await documento();
+  return h.as(ana).post(`/api/v1/apps/${appId}/document/commit`, { message, revision: doc.revision });
 }
 
 beforeAll(async () => {
@@ -51,7 +75,10 @@ beforeAll(async () => {
   appId = ((await created.json()) as { id: string }).id;
 
   // Un documento propio, más fácil de manipular que la plantilla.
-  await guardar('# The problem\n\nDeciding what to build is guesswork.\n\n# Who\n\nSmall teams.\n');
+  await commitear(
+    '# The problem\n\nDeciding what to build is guesswork.\n\n# Who\n\nSmall teams.\n',
+    'Primera pasada',
+  );
   fragmento = 'Deciding what to build is guesswork';
 });
 
@@ -244,5 +271,107 @@ describe('aislamiento', () => {
   it('quien no ve la app no ve sus hilos', async () => {
     const carla = await h.createUser('carla-fuera');
     expect((await h.as(carla).get(`/api/v1/apps/${appId}/threads`)).status).toBe(404);
+  });
+});
+
+/**
+ * Un comentario habla de un texto concreto (RF-817).
+ *
+ * Por eso pertenece a la versión sobre la que se escribió y solo se lee ahí:
+ * arrastrarlo a la siguiente sería ponerlo a hablar de un párrafo que a lo
+ * mejor ya no dice lo mismo.
+ */
+describe('cada hilo, en su versión', () => {
+  let versionAlComentar: string;
+  let posicion: number;
+  let hiloInline: string;
+  let hiloGeneral: string;
+
+  beforeAll(async () => {
+    // Se parte de una versión limpia y conocida.
+    await commitear('# The problem\n\nDeciding what to build is guesswork.\n', 'Punto de partida');
+    const doc = await documento();
+    versionAlComentar = doc.currentVersionId;
+    posicion = doc.content.indexOf(fragmento);
+
+    const inline = await h.as(bruno).post(`/api/v1/apps/${appId}/threads`, {
+      body: '¿Seguro que es adivinar?',
+      quote: fragmento,
+      start: posicion,
+      end: posicion + fragmento.length,
+      versionId: versionAlComentar,
+    });
+    expect(inline.status).toBe(201);
+    hiloInline = ((await inline.json()) as Thread).id;
+
+    const general = await h
+      .as(bruno)
+      .post(`/api/v1/apps/${appId}/threads`, { body: 'Una duda sobre la idea, no sobre el texto' });
+    hiloGeneral = ((await general.json()) as Thread).id;
+  });
+
+  it('mientras no se commitea, el hilo se lee sobre la copia de trabajo', async () => {
+    await guardar('# Context\n\nAlgo nuevo arriba.\n\n# The problem\n\nDeciding what to build is guesswork.\n');
+
+    const enTrabajo = (await listado()).threads.find((t) => t.id === hiloInline);
+    expect(enTrabajo?.anchorStatus).toBe('ANCHORED');
+
+    // Se ha desplazado hacia abajo con el texto, sin dejar de ser el de su
+    // versión: sobre ella sigue estando donde estaba.
+    const doc = await documento();
+    expect(doc.content.slice(enTrabajo!.anchorStart!, enTrabajo!.anchorStart! + fragmento.length)).toBe(
+      fragmento,
+    );
+    const enSuVersion = (await listado(ana, versionAlComentar)).threads.find(
+      (t) => t.id === hiloInline,
+    );
+    expect(enSuVersion?.anchorStart).toBe(posicion);
+  });
+
+  it('al commitear, el hilo se queda en su versión y se anuncia desde la nueva', async () => {
+    const doc = await documento();
+    await h
+      .as(ana)
+      .post(`/api/v1/apps/${appId}/document/commit`, { message: 'Añado contexto', revision: doc.revision });
+
+    const ahora = await listado();
+    // El inline se queda atrás; el general sigue, que es de la app (RF-801).
+    expect(ahora.threads.map((t) => t.id)).not.toContain(hiloInline);
+    expect(ahora.threads.map((t) => t.id)).toContain(hiloGeneral);
+
+    // Pero no desaparece sin más: se dice cuántos quedan vivos y dónde.
+    const atras = ahora.openElsewhere.find((v) => v.versionId === versionAlComentar);
+    expect(atras?.openThreads).toBe(1);
+
+    // Y desde su versión se lee entero.
+    const enSuVersion = (await listado(ana, versionAlComentar)).threads.find(
+      (t) => t.id === hiloInline,
+    );
+    expect(enSuVersion?.comments[0]?.body).toBe('¿Seguro que es adivinar?');
+  });
+
+  it('no se comenta sobre una versión que no es la actual', async () => {
+    const response = await h.as(bruno).post(`/api/v1/apps/${appId}/threads`, {
+      body: 'Un comentario tardío',
+      quote: fragmento,
+      start: posicion,
+      end: posicion + fragmento.length,
+      versionId: versionAlComentar,
+    });
+
+    // Nacería anclado a un texto que ya nadie mira, y quien lo escribe creería
+    // estar hablando con alguien.
+    expect(response.status).toBe(400);
+  });
+
+  it('pero los que se quedaron atrás se siguen resolviendo', async () => {
+    const response = await h.as(ana).post(`/api/v1/threads/${hiloInline}/resolve`);
+    expect(response.status).toBe(201);
+    expect(((await response.json()) as Thread).status).toBe('RESOLVED');
+
+    // Y al resolverse deja de reclamar atención desde la versión de hoy: era el
+    // único vivo que quedaba en la suya.
+    const atras = (await listado()).openElsewhere.find((v) => v.versionId === versionAlComentar);
+    expect(atras).toBeUndefined();
   });
 });

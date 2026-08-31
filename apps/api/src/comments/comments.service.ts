@@ -1,13 +1,19 @@
-import { ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
-import { and, asc, eq, inArray } from 'drizzle-orm';
+import {
+  BadRequestException,
+  ForbiddenException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
+import { and, asc, desc, eq, inArray, isNull, ne, or, sql } from 'drizzle-orm';
 
-import { createAnchor, extractMentions } from '@app-foundry/core';
+import { createAnchor, extractMentions, reanchor } from '@app-foundry/core';
 import {
   apps,
   commentMentions,
   comments,
   commentThreads,
   documents,
+  documentVersions,
   users,
   workspaceMembers,
 } from '@app-foundry/db';
@@ -21,7 +27,9 @@ import type {
   CreateCommentDto,
   CreateThreadDto,
   MentionableUserDto,
+  OpenElsewhereDto,
   ThreadDto,
+  ThreadsDto,
 } from './comments.dto.js';
 
 @Injectable()
@@ -33,13 +41,23 @@ export class CommentsService {
   ) {}
 
   /**
-   * Hilos de una app, con sus comentarios.
+   * Hilos de la versión que se está mirando, con sus comentarios (RF-817).
+   *
+   * Un comentario habla de un texto concreto, así que pertenece a la versión
+   * sobre la que se escribió y solo se lee ahí. Los generales van siempre: la
+   * conversación sobre la idea es de la app y no se cierra al commitear
+   * (RF-801).
+   *
+   * Sin `versionId` se devuelve lo que corresponde a la **copia de trabajo**:
+   * los hilos de la versión actual, colocados sobre el texto que se está
+   * leyendo, que puede ir por delante de ella. Con `versionId` se devuelven los
+   * de esa versión, anclados donde de verdad están en su propio texto.
    *
    * Se devuelven todos —abiertos, resueltos y huérfanos— y es la interfaz quien
    * decide qué enseña por defecto: un hilo resuelto sigue siendo parte de la
    * conversación y a veces hay que volver a él (RF-807).
    */
-  async list(appId: string, userId: string): Promise<ThreadDto[]> {
+  async list(appId: string, userId: string, versionId?: string): Promise<ThreadsDto> {
     const tx = currentTx();
 
     const [app] = await tx
@@ -48,17 +66,40 @@ export class CommentsService {
       .where(eq(apps.id, appId));
     if (!app) throw new NotFoundException('The app does not exist');
 
+    const [document] = await tx
+      .select({ currentVersionId: documents.currentVersionId })
+      .from(documents)
+      .where(and(eq(documents.appId, appId), eq(documents.type, 'VISION')));
+
+    // Sin versión pedida se mira la copia de trabajo, que se apoya en la actual.
+    const version = versionId ?? document?.currentVersionId ?? null;
+    const sobreCopiaDeTrabajo = versionId === undefined;
+
     const threads = await tx
       .select({
         thread: commentThreads,
+        versionNo: documentVersions.versionNo,
         resolvedByHandle: users.handle,
       })
       .from(commentThreads)
       .leftJoin(users, eq(users.id, commentThreads.resolvedBy))
-      .where(eq(commentThreads.appId, appId))
+      .leftJoin(documentVersions, eq(documentVersions.id, commentThreads.anchoredVersionId))
+      .where(
+        and(
+          eq(commentThreads.appId, appId),
+          version === null
+            ? isNull(commentThreads.anchoredVersionId)
+            : or(
+                isNull(commentThreads.anchoredVersionId),
+                eq(commentThreads.anchoredVersionId, version),
+              ),
+        ),
+      )
       .orderBy(asc(commentThreads.createdAt));
 
-    if (threads.length === 0) return [];
+    const openElsewhere = await this.openElsewhere(appId, version);
+
+    if (threads.length === 0) return { threads: [], openElsewhere };
 
     const rows = await tx
       .select({
@@ -79,22 +120,64 @@ export class CommentsService {
 
     const mentions = await this.mentionsFor(rows.map((r) => r.comment.id));
 
-    return threads.map(({ thread, resolvedByHandle }) => ({
-      id: thread.id,
-      kind: thread.kind,
-      status: thread.status,
-      anchorStatus: thread.anchorStatus,
-      anchorQuote: thread.anchorQuote,
-      anchorStart: thread.anchorStart,
-      anchorEnd: thread.anchorEnd,
-      resolvedByHandle,
-      // Borrar el hilo entero: su autor o el precursor de la app (RF-806).
-      canDelete: thread.createdBy === userId || app.precursorId === userId,
-      comments: rows
-        .filter((r) => r.comment.threadId === thread.id)
-        .map((r) => this.toComment(r, userId, mentions)),
-      createdAt: thread.createdAt.toISOString(),
-    }));
+    return {
+      threads: threads.map(({ thread, versionNo, resolvedByHandle }) => ({
+        id: thread.id,
+        kind: thread.kind,
+        status: thread.status,
+        versionId: thread.anchoredVersionId,
+        versionNo,
+        /*
+         * La posición depende del texto que se vaya a pintar: sobre la copia de
+         * trabajo, la recalculada en el último guardado; sobre una versión, la
+         * suya, que es exacta y ya no cambia.
+         */
+        anchorStatus: sobreCopiaDeTrabajo ? thread.workingStatus : thread.anchorStatus,
+        anchorQuote: thread.anchorQuote,
+        anchorStart: sobreCopiaDeTrabajo ? thread.workingStart : thread.anchorStart,
+        anchorEnd: sobreCopiaDeTrabajo ? thread.workingEnd : thread.anchorEnd,
+        resolvedByHandle,
+        // Borrar el hilo entero: su autor o el precursor de la app (RF-806).
+        canDelete: thread.createdBy === userId || app.precursorId === userId,
+        comments: rows
+          .filter((r) => r.comment.threadId === thread.id)
+          .map((r) => this.toComment(r, userId, mentions)),
+        createdAt: thread.createdAt.toISOString(),
+      })),
+      openElsewhere,
+    };
+  }
+
+  /**
+   * Conversaciones vivas que se quedaron en otras versiones (RF-817).
+   *
+   * Al commitear, los hilos abiertos se quedan donde se escribieron y salen de
+   * la vista. Sin esto desaparecerían sin más, y una conversación que nadie ve
+   * es una conversación perdida: aquí se dice cuántas quedan y dónde.
+   */
+  private async openElsewhere(
+    appId: string,
+    version: string | null,
+  ): Promise<OpenElsewhereDto[]> {
+    const rows = await currentTx()
+      .select({
+        versionId: documentVersions.id,
+        versionNo: documentVersions.versionNo,
+        openThreads: sql<number>`count(*)::int`,
+      })
+      .from(commentThreads)
+      .innerJoin(documentVersions, eq(documentVersions.id, commentThreads.anchoredVersionId))
+      .where(
+        and(
+          eq(commentThreads.appId, appId),
+          eq(commentThreads.status, 'OPEN'),
+          version === null ? undefined : ne(commentThreads.anchoredVersionId, version),
+        ),
+      )
+      .groupBy(documentVersions.id, documentVersions.versionNo)
+      .orderBy(desc(documentVersions.versionNo));
+
+    return rows;
   }
 
   /**
@@ -114,6 +197,19 @@ export class CommentsService {
     if (!document) throw new NotFoundException('This app has no vision document');
 
     const isInline = body.quote !== undefined && body.start !== undefined && body.end !== undefined;
+
+    /*
+     * Solo se comenta sobre la versión actual (RF-817). Sobre una anterior, el
+     * comentario nacería anclado a un texto que ya nadie mira, y quien lo
+     * escribe creería estar hablando con alguien.
+     */
+    if (isInline && body.versionId !== undefined && body.versionId !== document.currentVersionId) {
+      throw new BadRequestException('You can only comment on the current version');
+    }
+    if (isInline && document.currentVersionId === null) {
+      throw new BadRequestException('There is no version to comment on yet');
+    }
+
     const anchor = isInline
       ? createAnchor(document.currentContent, body.start ?? 0, body.end ?? 0)
       : null;
@@ -123,6 +219,20 @@ export class CommentsService {
     if (isInline && (!anchor || anchor.quote !== body.quote)) {
       throw new ForbiddenException('That fragment no longer matches the document');
     }
+
+    /*
+     * Se comenta sobre lo que se lee, que es la copia de trabajo, pero el hilo
+     * pertenece a la versión actual: hay que guardar las dos posiciones.
+     *
+     * Cuando no hay cambios sin commitear coinciden. Cuando los hay y el
+     * fragmento es texto recién escrito, sobre la versión no existe: el hilo
+     * nace huérfano ahí, que es la verdad —se escribió sobre algo que todavía no
+     * es de nadie— y se ve perfectamente sobre la copia de trabajo.
+     */
+    const enLaVersion =
+      anchor && document.currentVersionId
+        ? reanchor(anchor, await this.versionContent(document.currentVersionId))
+        : null;
 
     const [thread] = await tx
       .insert(commentThreads)
@@ -136,10 +246,13 @@ export class CommentsService {
               anchorQuote: anchor.quote,
               anchorPrefix: anchor.prefix,
               anchorSuffix: anchor.suffix,
-              anchorStart: anchor.start,
-              anchorEnd: anchor.end,
+              anchorStart: enLaVersion?.start ?? null,
+              anchorEnd: enLaVersion?.end ?? null,
+              anchorStatus: enLaVersion?.status ?? ('ORPHANED' as const),
               anchoredVersionId: document.currentVersionId,
-              anchorStatus: 'ANCHORED' as const,
+              workingStart: anchor.start,
+              workingEnd: anchor.end,
+              workingStatus: 'ANCHORED' as const,
             }
           : {}),
       })
@@ -174,8 +287,17 @@ export class CommentsService {
       metadata: { kind: anchor ? 'INLINE' : 'GENERAL' },
     });
 
-    const threads = await this.list(appId, userId);
+    const { threads } = await this.list(appId, userId);
     return threads.find((t) => t.id === thread.id) ?? threads[threads.length - 1]!;
+  }
+
+  /** El texto de una versión, para anclar contra él. */
+  private async versionContent(versionId: string): Promise<string> {
+    const [version] = await currentTx()
+      .select({ content: documentVersions.content })
+      .from(documentVersions)
+      .where(eq(documentVersions.id, versionId));
+    return version?.content ?? '';
   }
 
   async reply(threadId: string, body: CreateCommentDto, userId: string): Promise<CommentDto> {
@@ -262,7 +384,11 @@ export class CommentsService {
           : { status: 'OPEN', reopenedBy: userId, reopenedAt: new Date() },
       )
       .where(eq(commentThreads.id, threadId))
-      .returning({ appId: commentThreads.appId, autor: commentThreads.createdBy });
+      .returning({
+        appId: commentThreads.appId,
+        autor: commentThreads.createdBy,
+        versionId: commentThreads.anchoredVersionId,
+      });
 
     if (updated.length === 0) {
       throw new ForbiddenException('You cannot change this thread');
@@ -292,7 +418,12 @@ export class CommentsService {
       workspaceId: await this.workspaceOf(appId),
     });
 
-    const threads = await this.list(appId, userId);
+    /*
+     * Se lee desde su propia versión, no desde la actual: resolver un hilo que
+     * se quedó atrás es justo lo que hay que poder hacer (RF-817), y buscarlo en
+     * la lista de hoy no lo encontraría.
+     */
+    const { threads } = await this.list(appId, userId, updated[0]!.versionId ?? undefined);
     const thread = threads.find((t) => t.id === threadId);
     if (!thread) throw new NotFoundException('That thread does not exist');
     return thread;

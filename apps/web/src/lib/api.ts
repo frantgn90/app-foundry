@@ -226,9 +226,14 @@ export interface App {
 export interface VisionDocument {
   id: string;
   type: string;
+  /** La copia de trabajo, que puede ir por delante de la versión. */
   content: string;
   currentVersionId: string | null;
   versionNo: number;
+  /** Lo que hay que devolver al guardar, commitear o descartar (RF-511). */
+  revision: number;
+  uncommittedChanges: boolean;
+  workingAuthors: { handle: string; displayName: string }[];
   canEdit: boolean;
   updatedAt: string;
 }
@@ -236,6 +241,7 @@ export interface VisionDocument {
 export interface Version {
   id: string;
   versionNo: number;
+  coauthorHandles: string[];
   authorHandle: string;
   authorDisplayName: string;
   message: string | null;
@@ -379,7 +385,7 @@ export function useDocument(appId: string) {
 export function useSaveDocument(appId: string) {
   const client = useQueryClient();
   return useMutation({
-    mutationFn: async (input: { content: string; baseVersionId: string; message?: string }) => {
+    mutationFn: async (input: { content: string; revision: number }) => {
       const { data, error, response } = await api.PUT('/api/v1/apps/{appId}/document', {
         params: { path: { appId } },
         body: input,
@@ -396,6 +402,54 @@ export function useSaveDocument(appId: string) {
     onSuccess: async () => {
       await client.invalidateQueries({ queryKey: ['document', appId] });
       await client.invalidateQueries({ queryKey: ['versions', appId] });
+      await client.invalidateQueries({ queryKey: ['apps'] });
+    },
+  });
+}
+
+/**
+ * Commitear y descartar (RF-505, RF-515).
+ *
+ * Los dos invalidan lo mismo que guardar y además los hilos: al commitear, los
+ * de la versión que se queda atrás salen de la vista, y al descartar vuelven a
+ * su sitio los que la edición había dejado huérfanos.
+ */
+export function useCommitDocument(appId: string) {
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: async (input: { message: string; revision: number }) => {
+      const { data, error, response } = await api.POST('/api/v1/apps/{appId}/document/commit', {
+        params: { path: { appId } },
+        body: input,
+      });
+      if (response.status === 409) throw new ConflictError(error as unknown as SaveConflict);
+      if (error || !data) throw new Error('Could not commit');
+      return data as VisionDocument;
+    },
+    onSuccess: async () => {
+      await client.invalidateQueries({ queryKey: ['document', appId] });
+      await client.invalidateQueries({ queryKey: ['versions', appId] });
+      await client.invalidateQueries({ queryKey: ['threads', appId] });
+      await client.invalidateQueries({ queryKey: ['apps'] });
+    },
+  });
+}
+
+export function useResetDocument(appId: string) {
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: async (input: { revision: number }) => {
+      const { data, error, response } = await api.POST('/api/v1/apps/{appId}/document/reset', {
+        params: { path: { appId } },
+        body: input,
+      });
+      if (response.status === 409) throw new ConflictError(error as unknown as SaveConflict);
+      if (error || !data) throw new Error('Could not discard those changes');
+      return data as VisionDocument;
+    },
+    onSuccess: async () => {
+      await client.invalidateQueries({ queryKey: ['document', appId] });
+      await client.invalidateQueries({ queryKey: ['threads', appId] });
       await client.invalidateQueries({ queryKey: ['apps'] });
     },
   });
@@ -557,6 +611,9 @@ export interface Thread {
   id: string;
   kind: 'GENERAL' | 'INLINE';
   status: 'OPEN' | 'RESOLVED';
+  /** La versión a la que pertenece; null en los generales (RF-817). */
+  versionId: string | null;
+  versionNo: number | null;
   anchorStatus: 'ANCHORED' | 'ORPHANED' | null;
   anchorQuote: string | null;
   anchorStart: number | null;
@@ -574,12 +631,31 @@ export interface MentionableUser {
   avatarUrl: string | null;
 }
 
-export function useThreads(appId: string) {
-  return useQuery<Thread[]>({
-    queryKey: ['threads', appId],
+/** Conversaciones vivas que quedaron en otra versión (RF-817). */
+export interface OpenElsewhere {
+  versionId: string;
+  versionNo: number;
+  openThreads: number;
+}
+
+export interface Threads {
+  threads: Thread[];
+  openElsewhere: OpenElsewhere[];
+}
+
+/**
+ * Los hilos de la versión que se está mirando (RF-817).
+ *
+ * Sin `versionId` son los de la copia de trabajo: los de la versión actual,
+ * colocados sobre el texto que se está leyendo. Con él, los de esa versión
+ * anclados en su propio texto.
+ */
+export function useThreads(appId: string, versionId: string | null) {
+  return useQuery<Threads>({
+    queryKey: ['threads', appId, versionId],
     queryFn: async () => {
       const { data, error } = await api.GET('/api/v1/apps/{appId}/threads', {
-        params: { path: { appId } },
+        params: { path: { appId }, query: versionId ? { versionId } : {} },
       });
       if (error || !data) throw new Error('Could not load comments');
       return data;
@@ -607,6 +683,8 @@ interface NewThread {
   quote?: string;
   start?: number;
   end?: number;
+  /** Sobre qué versión se comenta; solo se admite la actual (RF-817). */
+  versionId?: string;
 }
 
 export function useCreateThread(appId: string) {

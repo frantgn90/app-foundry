@@ -11,10 +11,12 @@ import type { Response } from 'express';
 
 import { CurrentUserId } from '../auth/current-user.decorator.js';
 import {
+  CommitDocumentDto,
   ConflictDto,
   ContributorDto,
   DiffDto,
   DocumentDto,
+  ResetDocumentDto,
   SaveDocumentDto,
   VersionDetailDto,
   VersionSummaryDto,
@@ -38,10 +40,11 @@ export class DocumentsController {
 
   @Put()
   @ApiOperation({
-    summary: 'Guardar una versión nueva',
+    summary: 'Guardar en la copia de trabajo',
     description:
-      'Hay que enviar la versión desde la que se editó. Si alguien guardó ' +
-      'mientras tanto, se responde 409 con lo que hay ahora en lugar de sobrescribirlo.',
+      'Guardar no crea versión: escribe en la copia de trabajo, que comparten ' +
+      'quienes pueden editar. Hay que enviar la revisión desde la que se editó; ' +
+      'si alguien guardó mientras tanto, se responde 409 con lo que hay ahora.',
   })
   @ApiOkResponse({ type: DocumentDto })
   @ApiConflictResponse({ type: ConflictDto })
@@ -51,6 +54,38 @@ export class DocumentsController {
     @CurrentUserId() userId: string,
   ): Promise<DocumentDto> {
     return this.documents.save(appId, body, userId);
+  }
+
+  @Post('commit')
+  @ApiOperation({
+    summary: 'Crear una versión con lo que hay en la copia de trabajo',
+    description:
+      'El mensaje es obligatorio y cabe en cien caracteres. Sin cambios que ' +
+      'commitear se responde 400: una versión idéntica a la anterior no cuenta nada.',
+  })
+  @ApiOkResponse({ type: DocumentDto })
+  @ApiConflictResponse({ type: ConflictDto })
+  commit(
+    @Param('appId', ParseUUIDPipe) appId: string,
+    @Body() body: CommitDocumentDto,
+    @CurrentUserId() userId: string,
+  ): Promise<DocumentDto> {
+    return this.documents.commit(appId, body, userId);
+  }
+
+  @Post('reset')
+  @ApiOperation({
+    summary: 'Descartar los cambios sin commitear',
+    description: 'Devuelve la copia de trabajo a la versión actual. Lo descartado no se recupera.',
+  })
+  @ApiOkResponse({ type: DocumentDto })
+  @ApiConflictResponse({ type: ConflictDto })
+  reset(
+    @Param('appId', ParseUUIDPipe) appId: string,
+    @Body() body: ResetDocumentDto,
+    @CurrentUserId() userId: string,
+  ): Promise<DocumentDto> {
+    return this.documents.reset(appId, body, userId);
   }
 
   @Get('versions')
@@ -92,7 +127,9 @@ export class DocumentsController {
   @Post('restore/:versionId')
   @ApiOperation({
     summary: 'Restaurar una versión anterior',
-    description: 'Crea una versión nueva con ese contenido. No borra nada.',
+    description:
+      'Deja ese contenido en la copia de trabajo, sin crear versión: se puede ' +
+      'revisar, seguir editando y commitear con su mensaje. No borra nada.',
   })
   @ApiOkResponse({ type: DocumentDto })
   restore(

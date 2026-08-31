@@ -25,19 +25,25 @@ test('mirar una versión anterior, compararla y restaurarla', async ({ page, con
   await page.getByRole('button', { name: 'Create', exact: true }).click();
   await expect(page.getByRole('heading', { name: 'Sextante' })).toHaveCount(1);
 
-  async function escribir(texto: string) {
+  /** Escribe, guarda y commitea: guardar ya no crea versión (RF-505). */
+  async function escribir(texto: string, mensaje: string) {
     await page.getByRole('button', { name: 'Edit', exact: true }).click();
     const editor = page.locator('.cm-content');
     await editor.click();
     await page.keyboard.press('ControlOrMeta+a');
     await editor.pressSequentially(texto);
-    await page.getByRole('button', { name: /^Save/ }).click();
+    await page.getByRole('button', { name: 'Save', exact: true }).click();
     await page.getByRole('button', { name: 'Stop editing' }).click();
     await expect(page.getByText(texto)).toBeVisible();
+
+    await page.getByRole('button', { name: 'Commit…' }).click();
+    await page.getByLabel('What changed?').fill(mensaje);
+    await page.getByRole('button', { name: 'Create version' }).click();
+    await expect(page.getByRole('button', { name: 'Commit…' })).toHaveCount(0);
   }
 
-  await escribir('Medir la altura de una estrella.');
-  await escribir('Medir la altura del sol al mediodia.');
+  await escribir('Medir la altura de una estrella.', 'La primera idea');
+  await escribir('Medir la altura del sol al mediodia.', 'Mejor el sol');
 
   // Exacto: el nombre del workspace de prueba también lleva «versiones» dentro.
   const historial = page.getByLabel('Version', { exact: true });
@@ -74,19 +80,59 @@ test('mirar una versión anterior, compararla y restaurarla', async ({ page, con
     await expect(page.getByText('sol al mediodia')).toHaveCount(0);
   });
 
-  await test.step('restaurarla deja constancia', async () => {
+  await test.step('restaurarla la deja sin commitear, para poder mirarla antes', async () => {
     await page.getByRole('button', { name: 'Restore', exact: true }).click();
 
-    // Se vuelve a la actual, que ahora es una versión nueva con el texto viejo:
-    // restaurar no borra nada, añade.
-    await expect(historial.locator('option:checked')).toHaveText(/current/);
-    await expect(page.getByText(/Restored version/)).toBeVisible();
+    // No hay versión nueva: el texto viejo queda en la copia de trabajo, que es
+    // lo que se está leyendo, y decide luego quien mira.
+    await expect(historial.locator('option:checked')).toHaveText('Working copy');
     await expect(page.getByText('Medir la altura de una estrella.')).toBeVisible();
+    await expect(page.getByText(/Uncommitted changes/)).toBeVisible();
+    await expect(historial.locator('option')).toHaveCount(4);
 
-    // Y comparar y restaurar se van con ella: sobre la actual no dicen nada.
-    await expect(page.getByRole('button', { name: 'Restore', exact: true })).toHaveCount(0);
-    await expect(page.getByRole('button', { name: 'Compare with current' })).toHaveCount(0);
+    // Y vuelve a poderse editar: se escribe sobre la copia de trabajo.
     await expect(page.getByRole('button', { name: 'Edit', exact: true })).toBeEnabled();
+  });
+
+  await test.step('descartar lo devuelve todo a la versión, avisando antes', async () => {
+    await page.getByRole('button', { name: 'Discard changes' }).click();
+    await expect(page.getByText(/nowhere to get them back from/)).toBeVisible();
+
+    // Cancelar no toca nada: el aviso es un aviso, no un trámite.
+    await page.getByRole('button', { name: 'Cancel' }).click();
+    await expect(page.getByText(/Uncommitted changes/)).toBeVisible();
+
+    await page.getByRole('button', { name: 'Discard changes' }).click();
+    await page.getByRole('button', { name: 'Yes, discard them' }).click();
+
+    await expect(page.getByText('Medir la altura del sol al mediodia.')).toBeVisible();
+    await expect(historial.locator('option:checked')).toHaveText(/current/);
+    await expect(page.getByRole('button', { name: 'Commit…' })).toHaveCount(0);
+  });
+
+  await test.step('commitear pide un mensaje, y con él nace la versión', async () => {
+    await page.getByRole('button', { name: 'Edit', exact: true }).click();
+    const editor = page.locator('.cm-content');
+    await editor.click();
+    await page.keyboard.press('ControlOrMeta+a');
+    await editor.pressSequentially('Medir la altura de cualquier astro.');
+    await page.getByRole('button', { name: 'Save', exact: true }).click();
+    await page.getByRole('button', { name: 'Stop editing' }).click();
+
+    // Guardar no ha creado versión: sigue habiendo tres.
+    await expect(historial.locator('option')).toHaveCount(4);
+
+    await page.getByRole('button', { name: 'Commit…' }).click();
+    // Sin mensaje no se puede crear la versión: una versión sin explicación es
+    // una fecha en una lista.
+    await expect(page.getByRole('button', { name: 'Create version' })).toBeDisabled();
+
+    await page.getByLabel('What changed?').fill('Vale para cualquier astro');
+    await page.getByRole('button', { name: 'Create version' }).click();
+
+    await expect(historial.locator('option')).toHaveCount(4);
+    await expect(historial.locator('option:checked')).toHaveText(/v4 · current/);
+    await expect(page.getByText('Vale para cualquier astro')).toBeVisible();
   });
 
   expect(erroresDePagina, 'la aplicación no debe romperse por el camino').toEqual([]);

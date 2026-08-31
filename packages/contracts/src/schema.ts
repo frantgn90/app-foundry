@@ -464,11 +464,51 @@ export interface paths {
         /** Documento de visión actual */
         get: operations["DocumentsController_get"];
         /**
-         * Guardar una versión nueva
-         * @description Hay que enviar la versión desde la que se editó. Si alguien guardó mientras tanto, se responde 409 con lo que hay ahora en lugar de sobrescribirlo.
+         * Guardar en la copia de trabajo
+         * @description Guardar no crea versión: escribe en la copia de trabajo, que comparten quienes pueden editar. Hay que enviar la revisión desde la que se editó; si alguien guardó mientras tanto, se responde 409 con lo que hay ahora.
          */
         put: operations["DocumentsController_save"];
         post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/apps/{appId}/document/commit": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Crear una versión con lo que hay en la copia de trabajo
+         * @description El mensaje es obligatorio y cabe en cien caracteres. Sin cambios que commitear se responde 400: una versión idéntica a la anterior no cuenta nada.
+         */
+        post: operations["DocumentsController_commit"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/apps/{appId}/document/reset": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Descartar los cambios sin commitear
+         * @description Devuelve la copia de trabajo a la versión actual. Lo descartado no se recupera.
+         */
+        post: operations["DocumentsController_reset"];
         delete?: never;
         options?: never;
         head?: never;
@@ -540,7 +580,7 @@ export interface paths {
         put?: never;
         /**
          * Restaurar una versión anterior
-         * @description Crea una versión nueva con ese contenido. No borra nada.
+         * @description Deja ese contenido en la copia de trabajo, sin crear versión: se puede revisar, seguir editando y commitear con su mensaje. No borra nada.
          */
         post: operations["DocumentsController_restore"];
         delete?: never;
@@ -591,8 +631,8 @@ export interface paths {
             cookie?: never;
         };
         /**
-         * Hilos de comentarios de una app
-         * @description Devuelve todos, incluidos los resueltos: la interfaz decide qué enseña.
+         * Hilos de comentarios de una versión
+         * @description Un hilo pertenece a la versión sobre la que se escribió. Sin `versionId` se devuelven los de la copia de trabajo, colocados sobre el texto que se está leyendo. Los generales van siempre, sea cual sea la versión. Devuelve todos, incluidos los resueltos: la interfaz decide qué enseña.
          */
         get: operations["CommentsController_list"];
         put?: never;
@@ -1013,18 +1053,29 @@ export interface components {
              */
             userId: string;
         };
+        WorkingAuthorDto: {
+            handle: string;
+            displayName: string;
+        };
         DocumentDto: {
             /** Format: uuid */
             id: string;
             /** @enum {string} */
             type: "VISION" | "PRD" | "TRD";
+            /** @description La copia de trabajo, que puede ir por delante de la versión */
             content: string;
             /**
              * Format: uuid
-             * @description Versión sobre la que se está editando. Hay que devolverla al guardar.
+             * @description Última versión commiteada. Es a la que pertenecen los comentarios de hoy.
              */
             currentVersionId: Record<string, never> | null;
             versionNo: number;
+            /** @description Lo que hay que devolver al guardar, commitear o descartar (RF-511). */
+            revision: number;
+            /** @description Si la copia de trabajo va por delante de la versión */
+            uncommittedChanges: boolean;
+            /** @description Quién ha guardado desde el último commit (RF-515, RF-516) */
+            workingAuthors: components["schemas"]["WorkingAuthorDto"][];
             canEdit: boolean;
             /** Format: date-time */
             updatedAt: string;
@@ -1032,13 +1083,8 @@ export interface components {
         SaveDocumentDto: {
             /** @description Contenido completo en markdown */
             content: string;
-            /**
-             * Format: uuid
-             * @description Versión desde la que se editó. Si mientras tanto alguien guardó otra, la petición se rechaza con 409 en lugar de sobrescribir.
-             */
-            baseVersionId: string;
-            /** @description Qué cambió y por qué */
-            message?: string;
+            /** @description Revisión de la copia de trabajo desde la que se editó. Si alguien guardó mientras tanto, la petición se rechaza con 409 en lugar de sobrescribir. */
+            revision: number;
         };
         ConflictDto: {
             /** @example 409 */
@@ -1049,8 +1095,20 @@ export interface components {
             /** Format: uuid */
             currentVersionId: string;
             currentVersionNo: number;
+            /** @description Revisión que hay ahora, para poder reintentar */
+            revision: number;
             /** @description Quién guardó mientras tanto */
             lastAuthorHandle: string;
+        };
+        CommitDocumentDto: {
+            /** @description Qué cambió y por qué */
+            message: string;
+            /** @description Revisión de la copia de trabajo que se está commiteando */
+            revision: number;
+        };
+        ResetDocumentDto: {
+            /** @description Revisión que se está descartando */
+            revision: number;
         };
         VersionSummaryDto: {
             /** Format: uuid */
@@ -1058,6 +1116,8 @@ export interface components {
             versionNo: number;
             authorHandle: string;
             authorDisplayName: string;
+            /** @description Quienes escribieron en ella sin commitearla (RF-516) */
+            coauthorHandles: string[];
             message: string | null;
             /** Format: date-time */
             createdAt: string;
@@ -1068,6 +1128,8 @@ export interface components {
             versionNo: number;
             authorHandle: string;
             authorDisplayName: string;
+            /** @description Quienes escribieron en ella sin commitearla (RF-516) */
+            coauthorHandles: string[];
             message: string | null;
             /** Format: date-time */
             createdAt: string;
@@ -1112,12 +1174,20 @@ export interface components {
             /** @enum {string} */
             status: "OPEN" | "RESOLVED";
             /**
+             * Format: uuid
+             * @description Versión a la que pertenece (RF-817). Null en los generales, que son de la app.
+             */
+            versionId: string | null;
+            /** @description Número de esa versión */
+            versionNo: number | null;
+            /**
              * @description Solo en hilos inline. Huérfano cuando su fragmento ya no existe.
              * @enum {string|null}
              */
             anchorStatus: "ANCHORED" | "ORPHANED" | null;
             /** @description Fragmento comentado */
             anchorQuote: string | null;
+            /** @description Posición en el texto que se ha pedido: el de la versión, o la copia de trabajo. */
             anchorStart: number | null;
             anchorEnd: number | null;
             /** @description Quién lo resolvió */
@@ -1127,6 +1197,18 @@ export interface components {
             /** Format: date-time */
             createdAt: string;
         };
+        OpenElsewhereDto: {
+            /** Format: uuid */
+            versionId: string;
+            versionNo: number;
+            openThreads: number;
+        };
+        ThreadsDto: {
+            /** @description Los de la versión pedida, más los generales */
+            threads: components["schemas"]["ThreadDto"][];
+            /** @description Conversaciones vivas que quedaron en otras versiones, de la más reciente a la más antigua */
+            openElsewhere: components["schemas"]["OpenElsewhereDto"][];
+        };
         CreateThreadDto: {
             body: string;
             /** @description Fragmento comentado. Si falta, el hilo es general. */
@@ -1134,6 +1216,11 @@ export interface components {
             /** @description Posición inicial del fragmento en el markdown */
             start?: number;
             end?: number;
+            /**
+             * Format: uuid
+             * @description Versión que se está mirando. Solo se admite comentar sobre la actual (RF-817): sobre una anterior, lo escrito quedaría anclado a un texto que ya nadie ve.
+             */
+            versionId?: string;
         };
         MentionableUserDto: {
             /** Format: uuid */
@@ -1898,6 +1985,72 @@ export interface operations {
             };
         };
     };
+    DocumentsController_commit: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                appId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CommitDocumentDto"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DocumentDto"];
+                };
+            };
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ConflictDto"];
+                };
+            };
+        };
+    };
+    DocumentsController_reset: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                appId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ResetDocumentDto"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DocumentDto"];
+                };
+            };
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ConflictDto"];
+                };
+            };
+        };
+    };
     DocumentsController_versions: {
         parameters: {
             query?: never;
@@ -2029,7 +2182,9 @@ export interface operations {
     };
     CommentsController_list: {
         parameters: {
-            query?: never;
+            query?: {
+                versionId?: string;
+            };
             header?: never;
             path: {
                 appId: string;
@@ -2043,7 +2198,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["ThreadDto"][];
+                    "application/json": components["schemas"]["ThreadsDto"];
                 };
             };
         };

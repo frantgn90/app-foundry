@@ -1041,7 +1041,7 @@
         ]
       },
       "put": {
-        "description": "Hay que enviar la versión desde la que se editó. Si alguien guardó mientras tanto, se responde 409 con lo que hay ahora en lugar de sobrescribirlo.",
+        "description": "Guardar no crea versión: escribe en la copia de trabajo, que comparten quienes pueden editar. Hay que enviar la revisión desde la que se editó; si alguien guardó mientras tanto, se responde 409 con lo que hay ahora.",
         "operationId": "DocumentsController_save",
         "parameters": [
           {
@@ -1085,7 +1085,111 @@
             }
           }
         },
-        "summary": "Guardar una versión nueva",
+        "summary": "Guardar en la copia de trabajo",
+        "tags": [
+          "documents"
+        ]
+      }
+    },
+    "/api/v1/apps/{appId}/document/commit": {
+      "post": {
+        "description": "El mensaje es obligatorio y cabe en cien caracteres. Sin cambios que commitear se responde 400: una versión idéntica a la anterior no cuenta nada.",
+        "operationId": "DocumentsController_commit",
+        "parameters": [
+          {
+            "name": "appId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CommitDocumentDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DocumentDto"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ConflictDto"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Crear una versión con lo que hay en la copia de trabajo",
+        "tags": [
+          "documents"
+        ]
+      }
+    },
+    "/api/v1/apps/{appId}/document/reset": {
+      "post": {
+        "description": "Devuelve la copia de trabajo a la versión actual. Lo descartado no se recupera.",
+        "operationId": "DocumentsController_reset",
+        "parameters": [
+          {
+            "name": "appId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ResetDocumentDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DocumentDto"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ConflictDto"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Descartar los cambios sin commitear",
         "tags": [
           "documents"
         ]
@@ -1216,7 +1320,7 @@
     },
     "/api/v1/apps/{appId}/document/restore/{versionId}": {
       "post": {
-        "description": "Crea una versión nueva con ese contenido. No borra nada.",
+        "description": "Deja ese contenido en la copia de trabajo, sin crear versión: se puede revisar, seguir editando y commitear con su mensaje. No borra nada.",
         "operationId": "DocumentsController_restore",
         "parameters": [
           {
@@ -1314,7 +1418,7 @@
     },
     "/api/v1/apps/{appId}/threads": {
       "get": {
-        "description": "Devuelve todos, incluidos los resueltos: la interfaz decide qué enseña.",
+        "description": "Un hilo pertenece a la versión sobre la que se escribió. Sin `versionId` se devuelven los de la copia de trabajo, colocados sobre el texto que se está leyendo. Los generales van siempre, sea cual sea la versión. Devuelve todos, incluidos los resueltos: la interfaz decide qué enseña.",
         "operationId": "CommentsController_list",
         "parameters": [
           {
@@ -1322,6 +1426,15 @@
             "required": true,
             "in": "path",
             "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "versionId",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "format": "uuid",
               "type": "string"
             }
           }
@@ -1332,16 +1445,13 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "array",
-                  "items": {
-                    "$ref": "#/components/schemas/ThreadDto"
-                  }
+                  "$ref": "#/components/schemas/ThreadsDto"
                 }
               }
             }
           }
         },
-        "summary": "Hilos de comentarios de una app",
+        "summary": "Hilos de comentarios de una versión",
         "tags": [
           "comments"
         ]
@@ -2575,6 +2685,21 @@
           "userId"
         ]
       },
+      "WorkingAuthorDto": {
+        "type": "object",
+        "properties": {
+          "handle": {
+            "type": "string"
+          },
+          "displayName": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "handle",
+          "displayName"
+        ]
+      },
       "DocumentDto": {
         "type": "object",
         "properties": {
@@ -2591,16 +2716,32 @@
             ]
           },
           "content": {
-            "type": "string"
+            "type": "string",
+            "description": "La copia de trabajo, que puede ir por delante de la versión"
           },
           "currentVersionId": {
             "type": "object",
             "format": "uuid",
             "nullable": true,
-            "description": "Versión sobre la que se está editando. Hay que devolverla al guardar."
+            "description": "Última versión commiteada. Es a la que pertenecen los comentarios de hoy."
           },
           "versionNo": {
             "type": "number"
+          },
+          "revision": {
+            "type": "number",
+            "description": "Lo que hay que devolver al guardar, commitear o descartar (RF-511)."
+          },
+          "uncommittedChanges": {
+            "type": "boolean",
+            "description": "Si la copia de trabajo va por delante de la versión"
+          },
+          "workingAuthors": {
+            "description": "Quién ha guardado desde el último commit (RF-515, RF-516)",
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/WorkingAuthorDto"
+            }
           },
           "canEdit": {
             "type": "boolean"
@@ -2616,6 +2757,9 @@
           "content",
           "currentVersionId",
           "versionNo",
+          "revision",
+          "uncommittedChanges",
+          "workingAuthors",
           "canEdit",
           "updatedAt"
         ]
@@ -2627,20 +2771,14 @@
             "type": "string",
             "description": "Contenido completo en markdown"
           },
-          "baseVersionId": {
-            "type": "string",
-            "format": "uuid",
-            "description": "Versión desde la que se editó. Si mientras tanto alguien guardó otra, la petición se rechaza con 409 en lugar de sobrescribir."
-          },
-          "message": {
-            "type": "string",
-            "maxLength": 200,
-            "description": "Qué cambió y por qué"
+          "revision": {
+            "type": "number",
+            "description": "Revisión de la copia de trabajo desde la que se editó. Si alguien guardó mientras tanto, la petición se rechaza con 409 en lugar de sobrescribir."
           }
         },
         "required": [
           "content",
-          "baseVersionId"
+          "revision"
         ]
       },
       "ConflictDto": {
@@ -2664,6 +2802,10 @@
           "currentVersionNo": {
             "type": "number"
           },
+          "revision": {
+            "type": "number",
+            "description": "Revisión que hay ahora, para poder reintentar"
+          },
           "lastAuthorHandle": {
             "type": "string",
             "description": "Quién guardó mientras tanto"
@@ -2675,7 +2817,38 @@
           "currentContent",
           "currentVersionId",
           "currentVersionNo",
+          "revision",
           "lastAuthorHandle"
+        ]
+      },
+      "CommitDocumentDto": {
+        "type": "object",
+        "properties": {
+          "message": {
+            "type": "string",
+            "maxLength": 100,
+            "description": "Qué cambió y por qué"
+          },
+          "revision": {
+            "type": "number",
+            "description": "Revisión de la copia de trabajo que se está commiteando"
+          }
+        },
+        "required": [
+          "message",
+          "revision"
+        ]
+      },
+      "ResetDocumentDto": {
+        "type": "object",
+        "properties": {
+          "revision": {
+            "type": "number",
+            "description": "Revisión que se está descartando"
+          }
+        },
+        "required": [
+          "revision"
         ]
       },
       "VersionSummaryDto": {
@@ -2694,6 +2867,13 @@
           "authorDisplayName": {
             "type": "string"
           },
+          "coauthorHandles": {
+            "description": "Quienes escribieron en ella sin commitearla (RF-516)",
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
           "message": {
             "type": "string",
             "nullable": true
@@ -2708,6 +2888,7 @@
           "versionNo",
           "authorHandle",
           "authorDisplayName",
+          "coauthorHandles",
           "message",
           "createdAt"
         ]
@@ -2728,6 +2909,13 @@
           "authorDisplayName": {
             "type": "string"
           },
+          "coauthorHandles": {
+            "description": "Quienes escribieron en ella sin commitearla (RF-516)",
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
           "message": {
             "type": "string",
             "nullable": true
@@ -2745,6 +2933,7 @@
           "versionNo",
           "authorHandle",
           "authorDisplayName",
+          "coauthorHandles",
           "message",
           "createdAt",
           "content"
@@ -2877,6 +3066,17 @@
               "RESOLVED"
             ]
           },
+          "versionId": {
+            "type": "string",
+            "format": "uuid",
+            "nullable": true,
+            "description": "Versión a la que pertenece (RF-817). Null en los generales, que son de la app."
+          },
+          "versionNo": {
+            "type": "number",
+            "nullable": true,
+            "description": "Número de esa versión"
+          },
           "anchorStatus": {
             "type": "string",
             "enum": [
@@ -2893,7 +3093,8 @@
           },
           "anchorStart": {
             "type": "number",
-            "nullable": true
+            "nullable": true,
+            "description": "Posición en el texto que se ha pedido: el de la versión, o la copia de trabajo."
           },
           "anchorEnd": {
             "type": "number",
@@ -2922,6 +3123,8 @@
           "id",
           "kind",
           "status",
+          "versionId",
+          "versionNo",
           "anchorStatus",
           "anchorQuote",
           "anchorStart",
@@ -2930,6 +3133,49 @@
           "canDelete",
           "comments",
           "createdAt"
+        ]
+      },
+      "OpenElsewhereDto": {
+        "type": "object",
+        "properties": {
+          "versionId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "versionNo": {
+            "type": "number"
+          },
+          "openThreads": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "versionId",
+          "versionNo",
+          "openThreads"
+        ]
+      },
+      "ThreadsDto": {
+        "type": "object",
+        "properties": {
+          "threads": {
+            "description": "Los de la versión pedida, más los generales",
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ThreadDto"
+            }
+          },
+          "openElsewhere": {
+            "description": "Conversaciones vivas que quedaron en otras versiones, de la más reciente a la más antigua",
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/OpenElsewhereDto"
+            }
+          }
+        },
+        "required": [
+          "threads",
+          "openElsewhere"
         ]
       },
       "CreateThreadDto": {
@@ -2950,6 +3196,11 @@
           },
           "end": {
             "type": "number"
+          },
+          "versionId": {
+            "type": "string",
+            "format": "uuid",
+            "description": "Versión que se está mirando. Solo se admite comentar sobre la actual (RF-817): sobre una anterior, lo escrito quedaría anclado a un texto que ya nadie ve."
           }
         },
         "required": [

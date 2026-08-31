@@ -412,29 +412,29 @@
 
 | # | Tarea | Verificación | Traza | Estado |
 |---|---|---|---|---|
-| AK1 | La copia de trabajo se separa de la versión, con su revisión | Guardar dos veces deja una sola versión y dos revisiones | RF-505 | ⏳ |
-| AK2 | Commitear con mensaje obligatorio de hasta 100 caracteres | Sin mensaje no hay versión; sin cambios tampoco | RF-505 | ⏳ |
-| AK3 | Descartar los cambios sin commitear | La copia de trabajo vuelve a la versión y queda en auditoría | RF-515 | ⏳ |
-| AK4 | Conflictos por revisión, no por versión base | Dos guardados seguidos sobre la misma versión no se pisan | RF-511 | ⏳ |
-| AK5 | Coautoría de quien guarda sin commitear | Quien escribe y no commitea sigue siendo contribuidor | RF-509, RF-516 | ⏳ |
-| AK6 | Restaurar deja los cambios sin commitear | Se puede revisar, seguir editando y ponerle mensaje | RF-510 | ⏳ |
+| AK1 | La copia de trabajo se separa de la versión, con su revisión | Guardar dos veces deja una sola versión y dos revisiones | RF-505 | ✅ |
+| AK2 | Commitear con mensaje obligatorio de hasta 100 caracteres | Sin mensaje no hay versión; sin cambios tampoco | RF-505 | ✅ |
+| AK3 | Descartar los cambios sin commitear | La copia de trabajo vuelve a la versión y queda en auditoría | RF-515 | ✅ |
+| AK4 | Conflictos por revisión, no por versión base | Dos guardados seguidos sobre la misma versión no se pisan | RF-511 | ✅ |
+| AK5 | Coautoría de quien guarda sin commitear | Quien escribe y no commitea sigue siendo contribuidor | RF-509, RF-516 | ✅ |
+| AK6 | Restaurar deja los cambios sin commitear | Se puede revisar, seguir editando y ponerle mensaje | RF-510 | ✅ |
 
 ### Bloque AL — Comentarios de su versión
 
 | # | Tarea | Verificación | Traza | Estado |
 |---|---|---|---|---|
-| AL1 | Cada hilo inline pertenece a su versión y solo se ve en ella | Commitear no arrastra la conversación a la versión nueva | RF-808, RF-817 | ⏳ |
-| AL2 | No se comenta sobre versiones que no son la actual | El menú de selección no aparece en una versión pasada | RF-817 | ⏳ |
-| AL3 | Los abiertos de versiones anteriores se resuelven y se anuncian | Desde la versión actual se ve cuántos quedan y se llega a ellos | RF-807, RF-817 | ⏳ |
-| AL4 | El ancla de la versión es inmutable; la de la copia de trabajo se recalcula | Descartar devuelve todos los hilos a su sitio | RF-808, RF-809 | ⏳ |
+| AL1 | Cada hilo inline pertenece a su versión y solo se ve en ella | Commitear no arrastra la conversación a la versión nueva | RF-808, RF-817 | ✅ |
+| AL2 | No se comenta sobre versiones que no son la actual | El menú de selección no aparece en una versión pasada | RF-817 | ✅ |
+| AL3 | Los abiertos de versiones anteriores se resuelven y se anuncian | Desde la versión actual se ve cuántos quedan y se llega a ellos | RF-807, RF-817 | ✅ |
+| AL4 | El ancla de la versión es inmutable; la de la copia de trabajo se recalcula | Descartar devuelve todos los hilos a su sitio | RF-808, RF-809 | ✅ |
 
 ### Bloque AM — Guardar, commitear y descartar desde la interfaz
 
 | # | Tarea | Verificación | Traza | Estado |
 |---|---|---|---|---|
-| AM1 | La copia de trabajo aparece en el desplegable de versiones | Se distingue de un vistazo si hay cambios sin commitear | RF-507 | ⏳ |
-| AM2 | Commit y descarte a la derecha de la fila de guardar | Commitear pide mensaje; descartar avisa y se puede cancelar | RF-505, RF-515 | ⏳ |
-| AM3 | El panel de comentarios sigue a la versión que se mira | Al elegir una versión pasada se ven sus hilos, no los de hoy | RF-817 | ⏳ |
+| AM1 | La copia de trabajo aparece en el desplegable de versiones | Se distingue de un vistazo si hay cambios sin commitear | RF-507 | ✅ |
+| AM2 | Commit y descarte a la derecha de la fila de guardar | Commitear pide mensaje; descartar avisa y se puede cancelar | RF-505, RF-515 | ✅ |
+| AM3 | El panel de comentarios sigue a la versión que se mira | Al elegir una versión pasada se ven sus hilos, no los de hoy | RF-817 | ✅ |
 
 ## Decisiones tomadas sobre requisitos
 

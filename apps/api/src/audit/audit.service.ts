@@ -26,6 +26,7 @@ export const AuditAction = {
   APP_PRECURSOR_INHERITED: 'app.precursor_inherited',
   DOCUMENT_VERSION_CREATED: 'document.version_created',
   DOCUMENT_RESTORED: 'document.restored',
+  DOCUMENT_RESET: 'document.reset',
   COMMENT_THREAD_CREATED: 'comment.thread_created',
   COMMENT_THREAD_RESOLVED: 'comment.thread_resolved',
   COMMENT_THREAD_REOPENED: 'comment.thread_reopened',

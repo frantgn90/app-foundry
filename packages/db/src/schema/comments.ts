@@ -45,13 +45,30 @@ export const commentThreads = pgTable(
     /** Contexto a cada lado: desambigua cuando la cita aparece varias veces. */
     anchorPrefix: text('anchor_prefix'),
     anchorSuffix: text('anchor_suffix'),
+    /**
+     * Posición en el fuente de **su** versión. Inmutable como ella: el fragmento
+     * anotado no cambia nunca bajo el comentario (RF-808).
+     */
     anchorStart: integer('anchor_start'),
     anchorEnd: integer('anchor_end'),
-    /** Versión en la que se comentó, para poder mostrar el contexto original. */
+    /**
+     * La versión a la que pertenece el hilo (RF-817). Null en los generales, que
+     * son de la app: la conversación sobre la idea no se cierra al commitear.
+     */
     anchoredVersionId: uuid('anchored_version_id').references(() => documentVersions.id, {
       onDelete: 'set null',
     }),
     anchorStatus: anchorStatusEnum('anchor_status'),
+
+    /**
+     * Dónde cae el fragmento en la copia de trabajo, que va por delante de la
+     * versión mientras haya cambios sin commitear. Se recalcula en cada guardado
+     * y se limpia al commitear, cuando la versión nueva vuelve a coincidir con
+     * lo que se ve (§9.3).
+     */
+    workingStart: integer('working_start'),
+    workingEnd: integer('working_end'),
+    workingStatus: anchorStatusEnum('working_status'),
 
     createdBy: uuid('created_by')
       .notNull()

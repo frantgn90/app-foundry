@@ -156,9 +156,9 @@ describe('conversaciones abiertas (RF-811)', () => {
   it('no cuenta las resueltas: lo que importa es lo que sigue esperando', async () => {
     const { items } = await listar('?archived=all');
     const beta = items.find((a) => a.name === 'Beta')!;
-    const hilos = (await (await h.as(ana).get(`/api/v1/apps/${beta.id}/threads`)).json()) as {
-      id: string;
-    }[];
+    const { threads: hilos } = (await (
+      await h.as(ana).get(`/api/v1/apps/${beta.id}/threads`)
+    ).json()) as { threads: { id: string }[] };
 
     await h.as(ana).post(`/api/v1/threads/${hilos[0]!.id}/resolve`);
 
