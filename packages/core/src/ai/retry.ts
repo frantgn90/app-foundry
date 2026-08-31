@@ -51,6 +51,7 @@ export function retryPolicyFor(kind: ProviderErrorKind): RetryPolicy {
     case ProviderErrorKind.CONTENT_FILTER:
     case ProviderErrorKind.CANCELLED:
     case ProviderErrorKind.MODEL_UNAVAILABLE:
+    case ProviderErrorKind.INVALID_REQUEST:
       return SIN_REINTENTO;
   }
 }

@@ -173,6 +173,7 @@ reintentos (RNF-703):
 | `CONTENT_FILTER` | No | el proveedor se negó |
 | `CANCELLED` | No | lo canceló una persona |
 | `MODEL_UNAVAILABLE` | No | el modelo asignado ya no existe en el catálogo (RF-1009) |
+| `INVALID_REQUEST` | No | la petición estaba mal formada: error nuestro, no suyo |
 
 Un `AUTH` **nunca** se reintenta: reintentar contra una credencial revocada solo acumula fallos y puede
 disparar el bloqueo del proveedor.

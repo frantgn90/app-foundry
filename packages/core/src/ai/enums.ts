@@ -55,5 +55,13 @@ export const ProviderErrorKind = {
   CANCELLED: 'CANCELLED',
   /** El modelo pedido no existe o dejó de estar disponible. */
   MODEL_UNAVAILABLE: 'MODEL_UNAVAILABLE',
+  /**
+   * La petición estaba mal formada.
+   *
+   * Es un error nuestro, no del proveedor: repetirla daría el mismo resultado.
+   * Existe aparte de `SCHEMA` para no regalarle a un fallo de programación el
+   * reintento que sí merece una generación desafortunada.
+   */
+  INVALID_REQUEST: 'INVALID_REQUEST',
 } as const;
 export type ProviderErrorKind = (typeof ProviderErrorKind)[keyof typeof ProviderErrorKind];

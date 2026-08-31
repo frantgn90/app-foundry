@@ -22,13 +22,14 @@
     "test:unit": "vitest run"
   },
   "dependencies": {
+    "@anthropic-ai/sdk": "^0.122.0",
     "@app-foundry/core": "workspace:*"
   },
   "devDependencies": {
     "@app-foundry/config": "workspace:*",
+    "@types/node": "26.4.0",
     "eslint": "10.9.1",
     "typescript": "6.0.3",
-    "vitest": "4.1.11",
-    "@types/node": "26.4.0"
+    "vitest": "4.1.11"
   }
 }
