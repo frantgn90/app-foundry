@@ -203,6 +203,42 @@ describe('las reservas abandonadas', () => {
   });
 });
 
+describe('la conciliación', () => {
+  /*
+   * El caso que existe para corregir: un proceso muere entre llamar al modelo y
+   * liquidar. El gasto queda en la tabla y no en el contador, y nadie lo nota
+   * —el cupo rinde de más— hasta que alguien cuadra el mes.
+   */
+  it('sube el contador hasta lo que dice el registro', async () => {
+    const k = clave();
+    await quota.reserve(k, 100, 10_000, AHORA);
+
+    expect(await quota.reconcile(k, 5_000, AHORA)).toBe(5_000);
+    expect((await quota.state(k, 10_000, AHORA)).spent).toBe(5_000);
+  });
+
+  /*
+   * Nunca lo baja: entre leer el total y escribirlo puede haberse liquidado otra
+   * invocación, y sobrescribir con el número viejo regalaría cupo ya consumido.
+   */
+  it('nunca lo baja, aunque el registro vaya por detrás', async () => {
+    const k = clave();
+    const reserva = await quota.reserve(k, 1_000, 10_000, AHORA);
+    await quota.settle(k, reserva.id, 800, AHORA);
+
+    expect(await quota.reconcile(k, 300, AHORA)).toBe(0);
+    expect((await quota.state(k, 10_000, AHORA)).spent).toBe(800);
+  });
+
+  it('cuando ya cuadra, no corrige nada', async () => {
+    const k = clave();
+    const reserva = await quota.reserve(k, 1_000, 10_000, AHORA);
+    await quota.settle(k, reserva.id, 400, AHORA);
+
+    expect(await quota.reconcile(k, 400, AHORA)).toBe(0);
+  });
+});
+
 describe('el mes', () => {
   it('se cuenta en UTC', () => {
     expect(AiQuotaService.month(Date.UTC(2026, 8, 1, 0, 0, 0))).toBe('2026-09');

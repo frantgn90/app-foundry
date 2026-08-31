@@ -86,3 +86,28 @@ redis.call('HINCRBY', KEYS[1], 'spent', tonumber(ARGV[2]))
 
 return 1
 `;
+
+/**
+ * Cuadra el contador con lo que dice el registro.
+ *
+ * Sube el gasto al total del registro **solo si el contador se había quedado
+ * corto**. Nunca lo baja: entre leer el total y escribirlo aquí puede haberse
+ * liquidado otra invocación, y sobrescribir con el número viejo regalaría cupo
+ * que ya se había consumido. Perder gasto es peor que arrastrar un desfase de
+ * unos segundos.
+ *
+ * KEYS: contador.
+ * ARGV: total según el registro.
+ * Devuelve: cuánto se ha corregido, o 0 si ya cuadraba.
+ */
+export const CONCILIAR = `
+local spent = tonumber(redis.call('HGET', KEYS[1], 'spent') or '0')
+local real = tonumber(ARGV[1])
+
+if real <= spent then
+  return 0
+end
+
+redis.call('HSET', KEYS[1], 'spent', real)
+return real - spent
+`;

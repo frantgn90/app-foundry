@@ -19,6 +19,7 @@ import { AiCatalogRefresh } from './catalog.refresh.js';
 import { AiCatalogService } from './catalog.service.js';
 import { AiProvidersController } from './providers.controller.js';
 import { AiProvidersService } from './providers.service.js';
+import { AiQuotaReconcile } from './quota.reconcile.js';
 import { AiQuotaService } from './quota.service.js';
 import { AiUsageRepository } from './usage.repository.js';
 import { AiTasksService } from './tasks.service.js';
@@ -33,6 +34,7 @@ import { WorkspaceAiController } from './workspace-ai.controller.js';
     AiCatalogRefresh,
     AiTasksService,
     AiQuotaService,
+    AiQuotaReconcile,
     AiUsageRepository,
     {
       provide: AI_REGISTRY,
@@ -78,6 +80,7 @@ import { WorkspaceAiController } from './workspace-ai.controller.js';
     AiCatalogService,
     AiTasksService,
     AiQuotaService,
+    AiQuotaReconcile,
     AiUsageRepository,
     AI_REGISTRY,
     AI_CIPHER,

@@ -5,7 +5,7 @@ import type { AiProvider } from '@app-foundry/core';
 
 import { REDIS } from '../infrastructure/tokens.js';
 import { AiUsageRepository } from './usage.repository.js';
-import { LIQUIDAR, RESERVAR } from './quota.scripts.js';
+import { CONCILIAR, LIQUIDAR, RESERVAR } from './quota.scripts.js';
 
 /** Dos meses de vida: cuando el mes siguiente está bien entrado, el viejo sobra. */
 const TTL_SEGUNDOS = 70 * 24 * 60 * 60;
@@ -152,6 +152,22 @@ export class AiQuotaService {
       );
     }
     return String(gastado);
+  }
+
+  /**
+   * Cuadra el contador con el registro (AR5, §9.3).
+   *
+   * Devuelve cuántos tokens de desfase se han corregido. En régimen normal,
+   * cero: solo hay algo que corregir cuando una liquidación se perdió por el
+   * camino.
+   */
+  async reconcile(key: QuotaKey, realTokens: number, now: number): Promise<number> {
+    return (await this.redis.eval(
+      CONCILIAR,
+      1,
+      this.keys(key, now)[0],
+      String(realTokens),
+    )) as number;
   }
 
   /** Lo gastado y lo reservado de un mes. */
