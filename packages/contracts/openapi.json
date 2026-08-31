@@ -1279,6 +1279,40 @@
         ]
       }
     },
+    "/api/v1/workspaces/{id}/ai/models": {
+      "get": {
+        "operationId": "WorkspaceAiController_models",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/AiModelDto"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "summary": "Modelos que ofrecen los proveedores configurados",
+        "tags": [
+          "ai"
+        ]
+      }
+    },
     "/api/v1/workspaces/{id}/ai/consent": {
       "get": {
         "operationId": "WorkspaceAiController_consent",
@@ -3163,6 +3197,44 @@
         },
         "required": [
           "enabled"
+        ]
+      },
+      "AiModelDto": {
+        "type": "object",
+        "properties": {
+          "provider": {
+            "type": "string",
+            "enum": [
+              "ANTHROPIC",
+              "GROQ"
+            ]
+          },
+          "id": {
+            "type": "string"
+          },
+          "displayName": {
+            "type": "string"
+          },
+          "contextWindow": {
+            "type": "number",
+            "description": "Cero significa que el proveedor no lo declara"
+          },
+          "maxOutputTokens": {
+            "type": "number",
+            "description": "Cero significa que el proveedor no lo declara"
+          },
+          "available": {
+            "type": "boolean",
+            "description": "Si el proveedor lo sigue ofreciendo"
+          }
+        },
+        "required": [
+          "provider",
+          "id",
+          "displayName",
+          "contextWindow",
+          "maxOutputTokens",
+          "available"
         ]
       },
       "WorkingAuthorDto": {

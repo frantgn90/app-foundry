@@ -14,6 +14,7 @@ import type { Env } from '@app-foundry/env';
 
 import { ENV } from '../infrastructure/tokens.js';
 import { AI_CIPHER, AI_REGISTRY } from './ai.tokens.js';
+import { AiCatalogService } from './catalog.service.js';
 import { AiProvidersController } from './providers.controller.js';
 import { AiProvidersService } from './providers.service.js';
 import { WorkspaceAiController } from './workspace-ai.controller.js';
@@ -22,6 +23,7 @@ import { WorkspaceAiController } from './workspace-ai.controller.js';
   controllers: [AiProvidersController, WorkspaceAiController],
   providers: [
     AiProvidersService,
+    AiCatalogService,
     {
       provide: AI_REGISTRY,
       inject: [ENV],
@@ -61,6 +63,6 @@ import { WorkspaceAiController } from './workspace-ai.controller.js';
       },
     },
   ],
-  exports: [AiProvidersService, AI_REGISTRY, AI_CIPHER],
+  exports: [AiProvidersService, AiCatalogService, AI_REGISTRY, AI_CIPHER],
 })
 export class AiModule {}

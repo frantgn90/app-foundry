@@ -1,5 +1,6 @@
 import { sql } from 'drizzle-orm';
 import {
+  boolean,
   foreignKey,
   index,
   integer,
@@ -112,4 +113,42 @@ export const workspaceAiCredentials = pgTable(
       name: 'workspace_ai_credentials_provider_fk',
     }).onDelete('cascade'),
   ],
+);
+
+/**
+ * Caché del catálogo de modelos de cada proveedor (T-28, RF-1007).
+ *
+ * No es una tabla de negocio: es lo que el proveedor publica sobre sí mismo, y
+ * es igual para todos los workspaces. Por eso no lleva `workspace_id` —guardar
+ * una copia por workspace sería multiplicar la misma información y multiplicar
+ * también las llamadas para refrescarla—.
+ *
+ * Se guarda en la base de datos y no en memoria para que sobreviva a un
+ * reinicio: con el proveedor caído, lo último que se supo sigue sirviendo
+ * (RF-1009).
+ *
+ * **No hay precios.** Ninguno de los dos los publica por API, y una tabla
+ * propia de tarifas envejece mal y aparenta una precisión que no tenemos: el
+ * consumo se mide en tokens (D-37).
+ */
+export const aiModels = pgTable(
+  'ai_models',
+  {
+    provider: aiProviderEnum('provider').notNull(),
+    modelId: text('model_id').notNull(),
+    displayName: text('display_name').notNull(),
+    /** Cero significa **no lo sé**, nunca «cabe todo» (RF-1106). */
+    contextWindow: integer('context_window').notNull().default(0),
+    maxOutputTokens: integer('max_output_tokens').notNull().default(0),
+    /**
+     * Si el proveedor lo sigue ofreciendo.
+     *
+     * Los que desaparecen no se borran: se marcan. Borrarlos dejaría sin
+     * explicación las asignaciones que apuntaban a ellos, y lo que hay que
+     * hacer es avisar a su dueño (RF-1009).
+     */
+    available: boolean('available').notNull().default(true),
+    fetchedAt: timestamp('fetched_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [primaryKey({ columns: [table.provider, table.modelId] })],
 );

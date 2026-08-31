@@ -99,3 +99,24 @@ export class SetAiEnabledDto {
   @IsBoolean()
   enabled!: boolean;
 }
+
+/** Un modelo del catálogo del proveedor (RF-1007). Sin precio: no lo publica nadie. */
+export class AiModelDto {
+  @ApiProperty({ enum: PROVEEDORES })
+  provider!: AiProvider;
+
+  @ApiProperty()
+  id!: string;
+
+  @ApiProperty()
+  displayName!: string;
+
+  @ApiProperty({ description: 'Cero significa que el proveedor no lo declara' })
+  contextWindow!: number;
+
+  @ApiProperty({ description: 'Cero significa que el proveedor no lo declara' })
+  maxOutputTokens!: number;
+
+  @ApiProperty({ description: 'Si el proveedor lo sigue ofreciendo' })
+  available!: boolean;
+}

@@ -80,7 +80,7 @@ export class AiProvidersService {
     body: ConfigureProviderDto,
     userId: string,
   ): Promise<AiProviderDto> {
-    await this.enforceOwner(workspaceId, userId);
+    await this.assertOwner(workspaceId, userId);
     await this.enforceEgressConsent(workspaceId);
     const cipher = this.requireCipher();
 
@@ -148,7 +148,7 @@ export class AiProvidersService {
    * arreglarlo no es lo mismo.
    */
   async verify(workspaceId: string, provider: AiProvider, userId: string): Promise<AiProviderDto> {
-    await this.enforceOwner(workspaceId, userId);
+    await this.assertOwner(workspaceId, userId);
 
     const credential = await this.readCredential(workspaceId, provider);
     const ahora = new Date();
@@ -198,7 +198,7 @@ export class AiProvidersService {
     status: 'ACTIVE' | 'DISABLED',
     userId: string,
   ): Promise<AiProviderDto> {
-    await this.enforceOwner(workspaceId, userId);
+    await this.assertOwner(workspaceId, userId);
 
     const [fila] = await currentTx()
       .update(workspaceAiProviders)
@@ -239,7 +239,7 @@ export class AiProvidersService {
 
   /** Borrar la configuración. La credencial se va con ella, en cascada (RF-1006). */
   async remove(workspaceId: string, provider: AiProvider, userId: string): Promise<void> {
-    await this.enforceOwner(workspaceId, userId);
+    await this.assertOwner(workspaceId, userId);
 
     const borradas = await currentTx()
       .delete(workspaceAiProviders)
@@ -289,7 +289,7 @@ export class AiProvidersService {
 
   /** Los ajustes de IA del workspace. Solo su dueño. */
   async settings(workspaceId: string, userId: string): Promise<AiSettingsDto> {
-    await this.enforceOwner(workspaceId, userId);
+    await this.assertOwner(workspaceId, userId);
 
     const [fila] = await currentTx()
       .select({ enabled: workspaces.aiEnabled })
@@ -310,7 +310,7 @@ export class AiProvidersService {
    * invocar por olvidarse de comprobarlo.
    */
   async setEnabled(workspaceId: string, enabled: boolean, userId: string): Promise<AiSettingsDto> {
-    await this.enforceOwner(workspaceId, userId);
+    await this.assertOwner(workspaceId, userId);
 
     await currentTx()
       .update(workspaces)
@@ -333,7 +333,7 @@ export class AiProvidersService {
    * Si alguien aceptó ya que el contenido salga a un tercero (RF-1011).
    */
   async egressConsent(workspaceId: string, userId: string): Promise<AiEgressConsentDto> {
-    await this.enforceOwner(workspaceId, userId);
+    await this.assertOwner(workspaceId, userId);
 
     const [fila] = await currentTx()
       .select({
@@ -361,7 +361,7 @@ export class AiProvidersService {
    * sí se puede es apagar la IA del workspace, que es otra cosa (AP7).
    */
   async acceptEgress(workspaceId: string, userId: string): Promise<AiEgressConsentDto> {
-    await this.enforceOwner(workspaceId, userId);
+    await this.assertOwner(workspaceId, userId);
 
     const actual = await this.egressConsent(workspaceId, userId);
     if (actual.accepted) return actual;
@@ -464,7 +464,7 @@ export class AiProvidersService {
    * lee como «no existe» y no como «no es tuyo». Aquí el rechazo se nombra
    * (RNF-102).
    */
-  private async enforceOwner(workspaceId: string, userId: string): Promise<void> {
+  async assertOwner(workspaceId: string, userId: string): Promise<void> {
     if (!(await this.isOwner(workspaceId, userId))) {
       throw new ForbiddenException('Solo el dueño del workspace configura sus proveedores de IA');
     }

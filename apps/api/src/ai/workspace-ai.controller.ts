@@ -12,7 +12,8 @@ import {
 import { ApiOkResponse, ApiOperation, ApiTags } from '@nestjs/swagger';
 
 import { CurrentUserId } from '../auth/current-user.decorator.js';
-import { AiEgressConsentDto, AiSettingsDto, SetAiEnabledDto } from './ai.dto.js';
+import { AiEgressConsentDto, AiModelDto, AiSettingsDto, SetAiEnabledDto } from './ai.dto.js';
+import { AiCatalogService } from './catalog.service.js';
 import { AiProvidersService } from './providers.service.js';
 
 /**
@@ -21,7 +22,10 @@ import { AiProvidersService } from './providers.service.js';
 @ApiTags('ai')
 @Controller('workspaces/:id/ai')
 export class WorkspaceAiController {
-  constructor(private readonly providers: AiProvidersService) {}
+  constructor(
+    private readonly providers: AiProvidersService,
+    private readonly catalog: AiCatalogService,
+  ) {}
 
   @Get()
   @ApiOperation({ summary: 'Ajustes de IA del workspace' })
@@ -42,6 +46,16 @@ export class WorkspaceAiController {
     @CurrentUserId() userId: string,
   ): Promise<AiSettingsDto> {
     return this.providers.setEnabled(workspaceId, body.enabled, userId);
+  }
+
+  @Get('models')
+  @ApiOperation({ summary: 'Modelos que ofrecen los proveedores configurados' })
+  @ApiOkResponse({ type: [AiModelDto] })
+  models(
+    @Param('id', ParseUUIDPipe) workspaceId: string,
+    @CurrentUserId() userId: string,
+  ): Promise<AiModelDto[]> {
+    return this.catalog.models(workspaceId, userId);
   }
 
   @Get('consent')
