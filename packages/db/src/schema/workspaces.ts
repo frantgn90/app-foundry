@@ -35,6 +35,15 @@ export const workspaces = pgTable(
     iconColor: text('icon_color').notNull().default('slate'),
     background: text('background').notNull().default('plain'),
     /**
+     * Interruptor general de la IA del workspace (RF-1012).
+     *
+     * Apagarlo no borra ni la configuración, ni las credenciales, ni los
+     * agentes: los deja donde están y deja de invocarse nada. Encendido por
+     * defecto porque lo que decide si hay IA es tener proveedor configurado
+     * (RF-1010); esto es el freno de mano, no la llave de contacto.
+     */
+    aiEnabled: boolean('ai_enabled').notNull().default(true),
+    /**
      * Cuándo y quién aceptó que el contenido de este workspace salga a un
      * tercero al usar la IA (RF-1011).
      *

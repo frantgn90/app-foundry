@@ -246,6 +246,13 @@
       "when": 1788209232854,
       "tag": "0034_ai_egress_consent",
       "breakpoints": true
+    },
+    {
+      "idx": 35,
+      "version": "7",
+      "when": 1788209365366,
+      "tag": "0035_ai_kill_switch",
+      "breakpoints": true
     }
   ]
 }

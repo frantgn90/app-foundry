@@ -166,6 +166,54 @@ describe('quién puede qué', () => {
   });
 });
 
+describe('el interruptor general', () => {
+  it('apagarlo no borra nada', async () => {
+    const response = await h.as(ana).patch(`/api/v1/workspaces/${ana.workspaceId}/ai`, {
+      enabled: false,
+    });
+    const body = (await response.json()) as { enabled: boolean };
+
+    expect(body.enabled).toBe(false);
+
+    /* El proveedor sigue configurado y activo: solo deja de invocarse. */
+    const lista = (await (
+      await h.as(ana).get(`/api/v1/workspaces/${ana.workspaceId}/ai/providers`)
+    ).json()) as ProviderBody[];
+    expect(lista[0]?.status).toBe('ACTIVE');
+    expect(lista[0]?.credentialHint).toBe(CLAVE.slice(-4));
+  });
+
+  /*
+   * Lo que de verdad apaga la IA no es una comprobación en el servicio sino que
+   * la función que entrega el secreto deja de entregarlo: ninguna ruta puede
+   * invocar por olvidarse de mirar el interruptor.
+   */
+  it('apagado, el secreto deja de poder leerse', async () => {
+    const response = await h
+      .as(ana)
+      .post(`/api/v1/workspaces/${ana.workspaceId}/ai/providers/ANTHROPIC/verify`);
+
+    expect(response.status).toBe(404);
+  });
+
+  it('encenderlo lo devuelve todo a su sitio', async () => {
+    await h.as(ana).patch(`/api/v1/workspaces/${ana.workspaceId}/ai`, { enabled: true });
+
+    const response = await h
+      .as(ana)
+      .post(`/api/v1/workspaces/${ana.workspaceId}/ai/providers/ANTHROPIC/verify`);
+
+    expect(response.status).toBe(200);
+  });
+
+  it('un miembro no lo toca', async () => {
+    expect(
+      (await h.as(bruno).patch(`/api/v1/workspaces/${ana.workspaceId}/ai`, { enabled: false }))
+        .status,
+    ).toBe(403);
+  });
+});
+
 describe('apagar, encender y borrar', () => {
   it('apagar deja la configuración donde estaba', async () => {
     const response = await h.as(ana).patch(ruta(ana), { status: 'DISABLED' });

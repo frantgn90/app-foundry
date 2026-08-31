@@ -47,6 +47,8 @@ export class AiProvidersController {
   }
 
   @Post(':provider/verify')
+  /* Verificar no crea nada: devuelve el proveedor tal como queda. */
+  @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Volver a comprobar la credencial guardada' })
   @ApiOkResponse({ type: AiProviderDto })
   verify(

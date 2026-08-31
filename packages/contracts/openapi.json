@@ -1209,6 +1209,76 @@
         ]
       }
     },
+    "/api/v1/workspaces/{id}/ai": {
+      "get": {
+        "operationId": "WorkspaceAiController_settings",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AiSettingsDto"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Ajustes de IA del workspace",
+        "tags": [
+          "ai"
+        ]
+      },
+      "patch": {
+        "operationId": "WorkspaceAiController_setEnabled",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SetAiEnabledDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AiSettingsDto"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Apagar o encender toda la IA del workspace, sin borrar nada",
+        "tags": [
+          "ai"
+        ]
+      }
+    },
     "/api/v1/workspaces/{id}/ai/consent": {
       "get": {
         "operationId": "WorkspaceAiController_consent",
@@ -3065,6 +3135,34 @@
           "accepted",
           "acceptedAt",
           "acceptedBy"
+        ]
+      },
+      "AiSettingsDto": {
+        "type": "object",
+        "properties": {
+          "enabled": {
+            "type": "boolean",
+            "description": "Interruptor general (RF-1012)"
+          },
+          "consent": {
+            "$ref": "#/components/schemas/AiEgressConsentDto"
+          }
+        },
+        "required": [
+          "enabled",
+          "consent"
+        ]
+      },
+      "SetAiEnabledDto": {
+        "type": "object",
+        "properties": {
+          "enabled": {
+            "type": "boolean",
+            "description": "Apagar o encender toda la IA del workspace"
+          }
+        },
+        "required": [
+          "enabled"
         ]
       },
       "WorkingAuthorDto": {

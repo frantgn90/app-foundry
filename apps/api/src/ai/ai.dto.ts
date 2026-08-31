@@ -1,5 +1,5 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { IsIn, IsString, Length } from 'class-validator';
+import { IsBoolean, IsIn, IsString, Length } from 'class-validator';
 
 import { AiProvider } from '@app-foundry/core';
 
@@ -83,4 +83,19 @@ export class AiEgressConsentDto {
 
   @ApiProperty({ nullable: true, description: 'Handle de quien lo aceptó' })
   acceptedBy!: string | null;
+}
+
+/** Los ajustes de IA del workspace, lo que no es de un proveedor concreto. */
+export class AiSettingsDto {
+  @ApiProperty({ description: 'Interruptor general (RF-1012)' })
+  enabled!: boolean;
+
+  @ApiProperty({ type: AiEgressConsentDto })
+  consent!: AiEgressConsentDto;
+}
+
+export class SetAiEnabledDto {
+  @ApiProperty({ description: 'Apagar o encender toda la IA del workspace' })
+  @IsBoolean()
+  enabled!: boolean;
 }

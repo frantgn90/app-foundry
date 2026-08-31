@@ -22,7 +22,12 @@ import { users, workspaceAiCredentials, workspaceAiProviders, workspaces } from 
 import { AuditAction, AuditService } from '../audit/audit.service.js';
 import { currentTx } from '../database/request-context.js';
 import { AI_CIPHER, AI_REGISTRY } from './ai.tokens.js';
-import type { AiEgressConsentDto, AiProviderDto, ConfigureProviderDto } from './ai.dto.js';
+import type {
+  AiEgressConsentDto,
+  AiProviderDto,
+  AiSettingsDto,
+  ConfigureProviderDto,
+} from './ai.dto.js';
 
 @Injectable()
 export class AiProvidersService {
@@ -280,6 +285,48 @@ export class AiProvidersService {
         { workspaceId, provider },
       ),
     };
+  }
+
+  /** Los ajustes de IA del workspace. Solo su dueño. */
+  async settings(workspaceId: string, userId: string): Promise<AiSettingsDto> {
+    await this.enforceOwner(workspaceId, userId);
+
+    const [fila] = await currentTx()
+      .select({ enabled: workspaces.aiEnabled })
+      .from(workspaces)
+      .where(eq(workspaces.id, workspaceId));
+
+    if (!fila) throw new NotFoundException('Ese workspace no existe');
+
+    return { enabled: fila.enabled, consent: await this.egressConsent(workspaceId, userId) };
+  }
+
+  /**
+   * Apaga o enciende toda la IA del workspace (RF-1012).
+   *
+   * No borra nada: proveedores, credenciales y agentes se quedan donde estaban.
+   * Y lo que de verdad impide invocar no es este servicio sino que, apagado, la
+   * función que entrega el secreto deja de entregarlo: así ninguna ruta puede
+   * invocar por olvidarse de comprobarlo.
+   */
+  async setEnabled(workspaceId: string, enabled: boolean, userId: string): Promise<AiSettingsDto> {
+    await this.enforceOwner(workspaceId, userId);
+
+    await currentTx()
+      .update(workspaces)
+      .set({ aiEnabled: enabled, updatedAt: new Date() })
+      .where(eq(workspaces.id, workspaceId));
+
+    await this.audit.record({
+      actorId: userId,
+      action: AuditAction.AI_TOGGLED,
+      resourceType: 'workspace',
+      resourceId: workspaceId,
+      workspaceId,
+      metadata: { enabled },
+    });
+
+    return this.settings(workspaceId, userId);
   }
 
   /**

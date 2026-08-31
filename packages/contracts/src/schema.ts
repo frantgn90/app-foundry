@@ -507,6 +507,24 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/workspaces/{id}/ai": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Ajustes de IA del workspace */
+        get: operations["WorkspaceAiController_settings"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /** Apagar o encender toda la IA del workspace, sin borrar nada */
+        patch: operations["WorkspaceAiController_setEnabled"];
+        trace?: never;
+    };
     "/api/v1/workspaces/{id}/ai/consent": {
         parameters: {
             query?: never;
@@ -1161,6 +1179,15 @@ export interface components {
             acceptedAt: Record<string, never> | null;
             /** @description Handle de quien lo aceptó */
             acceptedBy: Record<string, never> | null;
+        };
+        AiSettingsDto: {
+            /** @description Interruptor general (RF-1012) */
+            enabled: boolean;
+            consent: components["schemas"]["AiEgressConsentDto"];
+        };
+        SetAiEnabledDto: {
+            /** @description Apagar o encender toda la IA del workspace */
+            enabled: boolean;
         };
         WorkingAuthorDto: {
             handle: string;
@@ -2151,6 +2178,52 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["AiProviderDto"];
+                };
+            };
+        };
+    };
+    WorkspaceAiController_settings: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AiSettingsDto"];
+                };
+            };
+        };
+    };
+    WorkspaceAiController_setEnabled: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SetAiEnabledDto"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AiSettingsDto"];
                 };
             };
         };

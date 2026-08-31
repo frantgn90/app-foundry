@@ -33,6 +33,7 @@ export const AuditAction = {
   COMMENT_THREAD_DELETED: 'comment.thread_deleted',
   /* IA (v2). Nunca con la credencial ni con contenido dentro (RF-1703). */
   AI_EGRESS_ACCEPTED: 'ai.egress_accepted',
+  AI_TOGGLED: 'ai.toggled',
   AI_PROVIDER_CONFIGURED: 'ai.provider_configured',
   AI_PROVIDER_VERIFIED: 'ai.provider_verified',
   AI_PROVIDER_STATUS_CHANGED: 'ai.provider_status_changed',
