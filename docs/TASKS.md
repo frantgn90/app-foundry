@@ -568,7 +568,7 @@ empezar cada hito, con el mismo método que la v1.
 | # | Tarea | Verificación | Traza | Estado |
 |---|---|---|---|---|
 | AO1 | Puerto `LlmProvider`, capacidades, tipos de tarea y de petición en `core` | `core` no importa ningún SDK de proveedor, y el linter lo impide | T-21, T-22, RD-8 | ✅ |
-| AO2 | Taxonomía de errores y política de reintento asociada a cada `kind` | Un `AUTH` no se reintenta nunca; un `TRANSIENT` sí | §5.3, RNF-703 | ⬜ |
+| AO2 | Taxonomía de errores y política de reintento asociada a cada `kind` | Un `AUTH` no se reintenta nunca; un `TRANSIENT` sí | §5.3, RNF-703 | ✅ |
 | AO3 | Proveedor de mentira que implementa el puerto | Streaming simulado, cada `kind` de error y conteos deterministas, sin red | T-36, RNF-901 | ⬜ |
 | AO4 | Registro de proveedores y resolución por `ProviderId` | Añadir un proveedor es registrar un adaptador, sin tocar dominio ni interfaz | RD-8, O12 | ⬜ |
 | AO5 | Esquemas del producto en el subconjunto estricto | Un test rechaza cualquier esquema con campos opcionales o `additionalProperties` abierto | T-24 | ⬜ |

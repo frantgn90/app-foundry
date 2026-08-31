@@ -172,9 +172,15 @@ reintentos (RNF-703):
 | `SCHEMA` | Una vez | el modelo no cumplió el esquema pese a la decodificación restringida |
 | `CONTENT_FILTER` | No | el proveedor se negó |
 | `CANCELLED` | No | lo canceló una persona |
+| `MODEL_UNAVAILABLE` | No | el modelo asignado ya no existe en el catálogo (RF-1009) |
 
 Un `AUTH` **nunca** se reintenta: reintentar contra una credencial revocada solo acumula fallos y puede
 disparar el bloqueo del proveedor.
+
+La espera de los reintentables crece de forma exponencial y **con azar completo**: se sortea dentro del
+intervalo en lugar de esperar siempre lo mismo. Sin ese azar, las cinco invocaciones de una revisión que
+tropiezan a la vez reintentan en el mismo instante y vuelven a tumbar al proveedor que estaban esperando a que
+se recuperase. Cuando el proveedor dice cuánto esperar, manda él, acotado por el techo de la política.
 
 ---
 
