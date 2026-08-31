@@ -7,6 +7,7 @@ export * from './ai/provider.js';
 export * from './ai/tasks.js';
 export * from './ai/retry.js';
 export * from './ai/schema.js';
+export * from './ai/context.js';
 export * from './privacy/ip.js';
 export * from './apps/icon.js';
 export * from './apps/slug.js';

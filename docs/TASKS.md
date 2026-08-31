@@ -598,7 +598,12 @@ empezar cada hito, con el mismo método que la v1.
 | AQ3 | Tabla `workspace_task_models` y API de asignación por tarea | Solo el dueño asigna; el resto consume lo asignado | RF-1101, RF-1102, RF-1107 | ✅ |
 | AQ4 | Asignación por defecto propuesta al configurar el primer proveedor | Editable siempre; con un solo proveedor, todas las tareas van a él | RF-1103 | ✅ |
 | AQ5 | Aviso cuando el modelo asignado desaparece del catálogo | Se avisa al dueño, no se falla cuando alguien usa la función | RF-1009 | ✅ |
-| AQ6 | Rechazo por ventana de contexto insuficiente | Se explica qué pasa y qué hacer; nunca se recorta el documento en silencio | RF-1106 | ⬜ |
+| AQ6 | Rechazo por ventana de contexto insuficiente | Se explica qué pasa y qué hacer; nunca se recorta el documento en silencio | RF-1106 | ✅ |
+
+> **Sobre AQ6.** La regla vive en `core` con sus pruebas, y el punto por el que pasa toda invocación
+> —`AiTasksService.plan` y `assertFits`— está escrito y en uso desde el primer caso de uso. Como en H9 todavía
+> no hay ninguna ruta que invoque, lo que aquí queda demostrado es la regla; que se aplique de verdad se
+> comprueba en H10, con el asistente de escritura.
 
 ### Bloque AR — Consumo y cupos
 

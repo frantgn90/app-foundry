@@ -1,7 +1,13 @@
 import { BadRequestException, Inject, Injectable } from '@nestjs/common';
 import { and, eq } from 'drizzle-orm';
 
-import { AiTask, supportForTask, type AiProvider } from '@app-foundry/core';
+import {
+  AiTask,
+  explainContextFit,
+  fitsInContext,
+  supportForTask,
+  type AiProvider,
+} from '@app-foundry/core';
 import type { ProviderRegistry } from '@app-foundry/ai';
 import { aiModels, workspaceAiProviders, workspaceTaskModels } from '@app-foundry/db';
 
@@ -12,6 +18,17 @@ import type { AiTaskAssignmentDto, AssignTaskModelDto } from './ai.dto.js';
 import { AiProvidersService } from './providers.service.js';
 
 const TAREAS = Object.values(AiTask);
+
+/** Todo lo que hace falta saber para invocar una tarea. */
+export interface TaskPlan {
+  readonly provider: AiProvider;
+  readonly modelId: string;
+  /** Cero significa que el proveedor no la declara (RF-1106). */
+  readonly contextWindow: number;
+  readonly maxOutputTokens: number;
+  /** Capacidades que faltan y solo empobrecen el resultado; hay que avisarlo. */
+  readonly degraded: string[];
+}
 
 /**
  * Qué modelo atiende cada tipo de tarea (RF-1101, RF-1102).
@@ -175,6 +192,77 @@ export class AiTasksService {
         .values({ workspaceId, task, provider, modelId })
         .onConflictDoNothing();
     }
+  }
+
+  /**
+   * Resuelve una tarea a lo que hace falta para invocarla.
+   *
+   * Es el punto por el que pasará toda invocación (H10 en adelante): si la tarea
+   * no está asignada, si el modelo se retiró o si el proveedor no sabe hacer lo
+   * que exige, se rechaza **aquí**, con el motivo, en vez de dejar que falle a
+   * medio camino.
+   */
+  async plan(workspaceId: string, task: AiTask): Promise<TaskPlan> {
+    const [fila] = await currentTx()
+      .select({
+        provider: workspaceTaskModels.provider,
+        modelId: workspaceTaskModels.modelId,
+        contextWindow: aiModels.contextWindow,
+        maxOutputTokens: aiModels.maxOutputTokens,
+        available: aiModels.available,
+      })
+      .from(workspaceTaskModels)
+      .leftJoin(
+        aiModels,
+        and(
+          eq(aiModels.provider, workspaceTaskModels.provider),
+          eq(aiModels.modelId, workspaceTaskModels.modelId),
+        ),
+      )
+      .where(
+        and(eq(workspaceTaskModels.workspaceId, workspaceId), eq(workspaceTaskModels.task, task)),
+      );
+
+    if (!fila) {
+      throw new BadRequestException(`No hay modelo asignado a ${task} en este workspace`);
+    }
+    if (!fila.available) {
+      throw new BadRequestException(
+        `El modelo asignado a ${task} (${fila.modelId}) ya no está en el catálogo de su proveedor`,
+      );
+    }
+
+    const support = supportForTask(task, this.registry.get(fila.provider).capabilities);
+    if (!support.supported) {
+      throw new BadRequestException(
+        `${fila.provider} no puede atender ${task}: le falta ${support.missing.join(', ')}`,
+      );
+    }
+
+    return {
+      provider: fila.provider,
+      modelId: fila.modelId,
+      contextWindow: fila.contextWindow ?? 0,
+      maxOutputTokens: fila.maxOutputTokens ?? 0,
+      degraded: [...support.degraded],
+    };
+  }
+
+  /**
+   * Comprueba que lo que se va a enviar cabe (RF-1106).
+   *
+   * Devuelve cuántos tokens de salida se pueden reservar de verdad, ya acotados
+   * por el modelo. Y si no cabe, lo dice con el número que hay que recortar:
+   * **nunca** se recorta el documento en silencio, porque entonces el modelo
+   * responde, la respuesta parece razonable y nadie sabe que opinó sobre la
+   * mitad del texto.
+   */
+  assertFits(plan: TaskPlan, inputTokens: number, requestedOutputTokens: number): number {
+    const fit = fitsInContext(inputTokens, requestedOutputTokens, plan);
+    if (!fit.allowed) {
+      throw new BadRequestException(explainContextFit(fit, plan.modelId));
+    }
+    return fit.outputTokens;
   }
 
   private async assertUsable(
