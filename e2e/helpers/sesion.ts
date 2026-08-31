@@ -10,7 +10,15 @@ import pg from 'pg';
  * login es exactamente esto —crear la cuenta, su workspace y una sesión—, así
  * que se hace directamente y se prueba todo lo demás, que es lo que se rompe.
  */
-export async function crearSesion(handle: string): Promise<{ cookie: string; userId: string }> {
+export interface Sesion {
+  cookie: string;
+  userId: string;
+  /** El identificador real, con su sufijo: es lo que se ve en la interfaz. */
+  handle: string;
+  email: string;
+}
+
+export async function crearSesion(handle: string): Promise<Sesion> {
   const url = process.env['DATABASE_MIGRATION_URL'];
   if (!url) throw new Error('Falta DATABASE_MIGRATION_URL: carga el .env antes de ejecutar');
 
@@ -45,7 +53,7 @@ export async function crearSesion(handle: string): Promise<{ cookie: string; use
       [userId, createHash('sha256').update(token).digest(), new Date(Date.now() + 3_600_000)],
     );
 
-    return { cookie: token, userId };
+    return { cookie: token, userId, handle: identidad, email: `${identidad}@example.com` };
   } finally {
     await cliente.end();
   }

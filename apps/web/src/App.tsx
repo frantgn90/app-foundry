@@ -89,14 +89,22 @@ export function App() {
   // hay una segunda petición por tener el desplegable en la cabecera.
   const apps = useApps(selected ?? undefined);
 
-  // Al entrar se aterriza en el workspace personal (RF-301), salvo que ya
-  // estuvieras en otro la última vez.
+  /*
+   * Al entrar se aterriza en el workspace personal propio (RF-301), salvo que ya
+   * estuvieras en otro la última vez.
+   *
+   * «Propio» hay que decirlo: `isPersonal` marca el workspace como personal de
+   * su dueño, no como tuyo, y el de alguien que te invitó lo lleva igual. Sin la
+   * condición de ser quien lo posee, quien es invitado a un workspace personal
+   * que ordene antes que el suyo entra en casa ajena.
+   */
   useEffect(() => {
     if (!workspaces.data || workspaces.data.length === 0) return;
     const exists = workspaces.data.some((w) => w.id === selected);
     if (!exists) {
-      const personalWorkspace = workspaces.data.find((w) => w.isPersonal) ?? workspaces.data[0];
-      if (personalWorkspace) setSelected(personalWorkspace.id);
+      const propio =
+        workspaces.data.find((w) => w.isPersonal && w.role === 'OWNER') ?? workspaces.data[0];
+      if (propio) setSelected(propio.id);
     }
   }, [workspaces.data, selected]);
 
