@@ -611,8 +611,8 @@ empezar cada hito, con el mismo método que la v1.
 |---|---|---|---|---|
 | AR1 | Tabla `ai_invocations` con sus índices | Entrada y salida separadas; ni una línea de contenido | RF-1201, RF-1202, T-29 | ✅ |
 | AR2 | Contador en Redis con script Lua: reserva atómica y liquidación | Cinco reservas simultáneas no se saltan el cupo entre todas | T-30, §9.2 | ✅ |
-| AR3 | Reconstrucción del contador desde el registro, y fallo cerrado sin Redis | Borrando la clave, el consumo del mes vuelve a salir correcto | §9.3, T-31 | ⬜ |
-| AR4 | Barrido de reservas huérfanas | Una reserva sin liquidar deja de comer cupo al vencer | §9.2 | ⬜ |
+| AR3 | Reconstrucción del contador desde el registro, y fallo cerrado sin Redis | Borrando la clave, el consumo del mes vuelve a salir correcto | §9.3, T-31 | ✅ |
+| AR4 | Barrido de reservas huérfanas | Una reserva sin liquidar deja de comer cupo al vencer | §9.2 | ✅ |
 | AR5 | Conciliación periódica del contador contra el registro | Una liquidación perdida se corrige sola en la siguiente pasada | §9.3 | ⬜ |
 | AR6 | Cupo mensual por proveedor y corte al agotarse | Agotado uno, las tareas del otro proveedor siguen funcionando | RF-1204, RF-1210 | ⬜ |
 | AR7 | Aviso al superar el umbral configurable | Notificación dentro de la aplicación al dueño | RF-1205 | ⬜ |

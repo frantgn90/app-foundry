@@ -20,6 +20,7 @@ import { AiCatalogService } from './catalog.service.js';
 import { AiProvidersController } from './providers.controller.js';
 import { AiProvidersService } from './providers.service.js';
 import { AiQuotaService } from './quota.service.js';
+import { AiUsageRepository } from './usage.repository.js';
 import { AiTasksService } from './tasks.service.js';
 import { WorkspaceAiController } from './workspace-ai.controller.js';
 
@@ -32,6 +33,7 @@ import { WorkspaceAiController } from './workspace-ai.controller.js';
     AiCatalogRefresh,
     AiTasksService,
     AiQuotaService,
+    AiUsageRepository,
     {
       provide: AI_REGISTRY,
       inject: [ENV],
@@ -76,6 +78,7 @@ import { WorkspaceAiController } from './workspace-ai.controller.js';
     AiCatalogService,
     AiTasksService,
     AiQuotaService,
+    AiUsageRepository,
     AI_REGISTRY,
     AI_CIPHER,
   ],

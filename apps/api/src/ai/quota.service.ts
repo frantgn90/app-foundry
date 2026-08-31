@@ -4,6 +4,7 @@ import { Redis } from 'ioredis';
 import type { AiProvider } from '@app-foundry/core';
 
 import { REDIS } from '../infrastructure/tokens.js';
+import { AiUsageRepository } from './usage.repository.js';
 import { LIQUIDAR, RESERVAR } from './quota.scripts.js';
 
 /** Dos meses de vida: cuando el mes siguiente está bien entrado, el viejo sobra. */
@@ -50,7 +51,10 @@ export class QuotaExceededError extends Error {
 export class AiQuotaService {
   private readonly logger = new Logger(AiQuotaService.name);
 
-  constructor(@Inject(REDIS) private readonly redis: Redis) {}
+  constructor(
+    @Inject(REDIS) private readonly redis: Redis,
+    private readonly usage: AiUsageRepository,
+  ) {}
 
   /**
    * Aparta el techo estimado, si cabe.
@@ -66,6 +70,7 @@ export class AiQuotaService {
   ): Promise<Reservation> {
     const id = `${String(now)}-${Math.random().toString(36).slice(2, 10)}`;
     const claves = this.keys(key, now);
+    const siembra = await this.seedIfMissing(key, claves[0], now);
 
     const resultado = (await this.redis.eval(
       RESERVAR,
@@ -76,6 +81,8 @@ export class AiQuotaService {
       id,
       String(now + VIGENCIA_MS),
       String(TTL_SEGUNDOS),
+      siembra,
+      String(now),
     )) as [number, number, number, number];
 
     const [concedida, spent, reserved, cupo] = resultado;
@@ -117,6 +124,34 @@ export class AiQuotaService {
         `Reserva ${reservationId} liquidada fuera de plazo: el contador se corregirá al conciliar`,
       );
     }
+  }
+
+  /**
+   * Reconstruye el contador desde el registro cuando Redis no sabe nada (§9.3).
+   *
+   * Pasa más de lo que parece: un reinicio sin fichero, un vaciado, una
+   * instancia nueva. Si el contador arrancara en cero, el cupo del mes se
+   * duplicaría en silencio, que es justo lo que un techo de gasto no puede
+   * hacer.
+   *
+   * Se agrega solo cuando falta el dato, y la siembra viaja dentro del propio
+   * guion de reserva para que sembrar y reservar sean un mismo acto.
+   */
+  private async seedIfMissing(key: QuotaKey, counterKey: string, now: number): Promise<string> {
+    const existe = await this.redis.hexists(counterKey, 'spent');
+    if (existe === 1) return '';
+
+    const gastado = await this.usage.spentInMonth(
+      key.workspaceId,
+      key.provider,
+      AiQuotaService.month(now),
+    );
+    if (gastado > 0) {
+      this.logger.log(
+        `Contador de ${key.provider} reconstruido desde el registro: ${String(gastado)} tokens`,
+      );
+    }
+    return String(gastado);
   }
 
   /** Lo gastado y lo reservado de un mes. */

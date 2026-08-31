@@ -12,13 +12,37 @@
  */
 
 /**
- * Reserva el techo estimado si cabe.
+ * Reserva el techo estimado si cabe, sembrando y barriendo antes.
  *
  * KEYS: contador, reservas, vencimientos.
- * ARGV: estimado, cupo (-1 sin cupo), id de reserva, vencimiento, ttl.
+ * ARGV: estimado, cupo (-1 sin cupo), id de reserva, vencimiento, ttl, siembra
+ *       (vacío si el contador ya existe), y el instante actual —que no es el
+ *       vencimiento, y confundirlos barre todas las reservas vivas—.
  * Devuelve: [concedida, gastado, reservado, cupo].
  */
 export const RESERVAR = `
+-- La siembra va aquí dentro, y no en una orden aparte, para que sembrar y
+-- reservar sean el mismo acto. Con dos órdenes, una reserva que llegara entre
+-- ambas crearía la clave y la siembra ya no encontraría hueco: el gasto del mes
+-- anterior a un reinicio de Redis desaparecería sin que nadie lo notara.
+if ARGV[6] ~= '' then
+  redis.call('HSETNX', KEYS[1], 'spent', ARGV[6])
+end
+
+-- Barrido de reservas abandonadas, aquí y no en un trabajo aparte: la siguiente
+-- reserva es exactamente cuando importa que el hueco esté libre. Un proceso que
+-- muera entre reservar y liquidar dejaría cupo comido hasta fin de mes; así lo
+-- suelta el primero que vuelva a pasar por aquí.
+local vencidas = redis.call('ZRANGEBYSCORE', KEYS[3], '-inf', ARGV[7])
+for _, vencida in ipairs(vencidas) do
+  local abandonado = redis.call('HGET', KEYS[2], vencida)
+  if abandonado then
+    redis.call('HINCRBY', KEYS[1], 'reserved', -tonumber(abandonado))
+    redis.call('HDEL', KEYS[2], vencida)
+  end
+  redis.call('ZREM', KEYS[3], vencida)
+end
+
 local spent = tonumber(redis.call('HGET', KEYS[1], 'spent') or '0')
 local reserved = tonumber(redis.call('HGET', KEYS[1], 'reserved') or '0')
 local estimate = tonumber(ARGV[1])

@@ -15,6 +15,18 @@ let h: Harness;
 let redis: Redis;
 let quota: AiQuotaService;
 
+/**
+ * Lo que dice el registro de invocaciones.
+ *
+ * Va suplantado porque aquí se prueba el contador, no la consulta: lo que
+ * importa es qué hace el contador **cuando** el registro dice algo, y eso se
+ * controla mejor diciéndoselo.
+ */
+const registro = { total: 0 };
+const usage = {
+  spentInMonth: () => Promise.resolve(registro.total),
+} as unknown as ConstructorParameters<typeof AiQuotaService>[1];
+
 const AHORA = Date.UTC(2026, 8, 15, 12, 0, 0);
 let siguiente = 0;
 const clave = () => ({ workspaceId: `ws-${String(siguiente++)}`, provider: 'ANTHROPIC' as const });
@@ -22,7 +34,7 @@ const clave = () => ({ workspaceId: `ws-${String(siguiente++)}`, provider: 'ANTH
 beforeAll(async () => {
   h = await startHarness();
   redis = new Redis(h.redisUrl);
-  quota = new AiQuotaService(redis);
+  quota = new AiQuotaService(redis, usage);
 }, 240_000);
 
 afterAll(async () => {
@@ -121,6 +133,73 @@ describe('liquidar', () => {
     await quota.settle(k, reserva.id, 100, AHORA);
 
     await expect(quota.reserve(k, 800, 1_000, AHORA)).resolves.toBeDefined();
+  });
+});
+
+describe('cuando Redis no sabe nada', () => {
+  /*
+   * Pasa más de lo que parece: un reinicio sin fichero, un vaciado, una
+   * instancia nueva. Si el contador arrancara en cero, el cupo del mes se
+   * duplicaría en silencio, que es justo lo que un techo de gasto no puede
+   * hacer (§9.3).
+   */
+  it('el contador se reconstruye desde el registro', async () => {
+    const k = clave();
+    registro.total = 900;
+
+    await expect(quota.reserve(k, 200, 1_000, AHORA)).rejects.toBeInstanceOf(QuotaExceededError);
+    expect((await quota.state(k, 1_000, AHORA)).spent).toBe(900);
+
+    registro.total = 0;
+  });
+
+  it('vaciar la clave no regala cupo: se vuelve a reconstruir', async () => {
+    const k = clave();
+    const reserva = await quota.reserve(k, 500, 1_000, AHORA);
+    await quota.settle(k, reserva.id, 500, AHORA);
+    expect((await quota.state(k, 1_000, AHORA)).spent).toBe(500);
+
+    /* Como si Redis se hubiera reiniciado sin fichero. */
+    await redis.del(`quota:${k.workspaceId}:${k.provider}:2026-09`);
+    registro.total = 500;
+
+    await expect(quota.reserve(k, 600, 1_000, AHORA)).rejects.toBeInstanceOf(QuotaExceededError);
+
+    registro.total = 0;
+  });
+
+  it('con el registro también vacío, se empieza de cero y no se bloquea nada', async () => {
+    const k = clave();
+    registro.total = 0;
+
+    await expect(quota.reserve(k, 1_000, 1_000, AHORA)).resolves.toBeDefined();
+  });
+});
+
+describe('las reservas abandonadas', () => {
+  /*
+   * Un proceso que muera entre reservar y liquidar dejaría cupo comido hasta fin
+   * de mes. Se barre en la siguiente reserva, que es cuando importa que el hueco
+   * esté libre, en lugar de en un trabajo aparte que puede no llegar a tiempo.
+   */
+  it('la siguiente reserva libera lo que venció sin liquidarse', async () => {
+    const k = clave();
+    await quota.reserve(k, 900, 1_000, AHORA);
+    expect((await quota.state(k, 1_000, AHORA)).reserved).toBe(900);
+
+    /* Un cuarto de hora después, aquella reserva está abandonada. */
+    const luego = AHORA + 16 * 60 * 1000;
+    await expect(quota.reserve(k, 900, 1_000, luego)).resolves.toBeDefined();
+    expect((await quota.state(k, 1_000, luego)).reserved).toBe(900);
+  });
+
+  it('una reserva viva no se barre por el camino', async () => {
+    const k = clave();
+    await quota.reserve(k, 400, 1_000, AHORA);
+
+    await quota.reserve(k, 400, 1_000, AHORA + 60 * 1000);
+
+    expect((await quota.state(k, 1_000, AHORA)).reserved).toBe(800);
   });
 });
 
