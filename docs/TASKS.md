@@ -587,7 +587,7 @@ empezar cada hito, con el mismo método que la v1.
 | AP6 | Advertencia de envío a terceros, con registro de quién la aceptó | Activar el primer proveedor exige aceptarla | RF-1011 | ✅ |
 | AP7 | Interruptor general de IA del workspace | Apagarla no borra configuración ni agentes; volver a encenderla lo restituye | RF-1012 | ✅ |
 | AP8 | Auditoría de todo lo anterior | Ni una credencial, ni un fragmento de contenido, en ninguna entrada | RF-1702, RF-1703 | ✅ |
-| AP9 | Rotación de la clave de instancia y recifrado en lote | Con dos claves activas se descifra lo viejo y se cifra con la nueva | T-26 | ⬜ |
+| AP9 | Rotación de la clave de instancia y recifrado en lote | Con dos claves activas se descifra lo viejo y se cifra con la nueva | T-26 | ✅ |
 
 ### Bloque AQ — Catálogo de modelos y asignación por tarea
 

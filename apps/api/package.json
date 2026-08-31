@@ -11,7 +11,8 @@
     "lint": "eslint src",
     "typecheck": "tsc -p tsconfig.json",
     "openapi:export": "node dist/openapi.js",
-    "test:api": "vitest run"
+    "test:api": "vitest run",
+    "ai:rotate": "tsx src/ai/rotate-keys.ts"
   },
   "dependencies": {
     "@app-foundry/ai": "workspace:*",

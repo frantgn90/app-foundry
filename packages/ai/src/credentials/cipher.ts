@@ -58,6 +58,11 @@ const BYTES_DE_ETIQUETA = 16;
 export class CredentialCipher {
   constructor(private readonly keys: KeyRing) {}
 
+  /** Con qué versión se cifra ahora. Lo que no la lleve está pendiente de rotar. */
+  get currentKeyVersion(): number {
+    return this.keys.current.version;
+  }
+
   encrypt(apiKey: string, context: CredentialContext): EncryptedCredential {
     const { version, key } = this.keys.current;
     const nonce = randomBytes(BYTES_DE_NONCE);

@@ -336,8 +336,20 @@ código se acuerde de comprobarlo.
 - **Datos autenticados**: el cifrado se ata a `workspace_id` y `provider`. Copiar una fila a otro workspace la
   vuelve indescifrable, en vez de regalarle la clave a quien la copió.
 - **Rotación**: cada fila guarda `key_version`. Se admite una clave nueva para cifrar y las viejas solo para
-  descifrar; un comando recifra en lote. Perder todas las claves no es recuperable: la credencial se marca
-  como ilegible y se pide al dueño que la vuelva a introducir, en vez de que la aplicación falle en cada
+  descifrar, y un comando recifra en lote:
+
+  ```bash
+  AI_CREDENTIAL_KEYS=1:vieja,2:nueva pnpm --filter @app-foundry/api ai:rotate
+  ```
+
+  Va con el **rol de migraciones** y no con el de la aplicación, por dos motivos que conviene tener juntos:
+  necesita leer el texto cifrado, vedado al rol de la aplicación por permiso de columna; y corre sin ninguna
+  persona detrás, así que la función acotada —que exige pertenencia al workspace— no le sirve. Es la única vía
+  deliberadamente distinta, y por eso es un comando y no un endpoint. Admite `--dry-run`, escribe todo en una
+  transacción, y **informa** de las credenciales ilegibles en lugar de abortar: detener el lote por una
+  dejaría a los demás workspaces a medias. Termina con error si hubo alguna, que es la señal de que todavía no
+  se puede retirar la clave vieja. Perder todas las claves no es recuperable: la credencial se marca como
+  ilegible y se pide al dueño que la vuelva a introducir, en vez de que la aplicación falle en cada
   invocación.
 - **Lectura**: sin `SELECT` sobre la tabla para el rol de aplicación, y `SELECT` **por columna** sobre lo que
   no es secreto (T-27, misma técnica que T-20). Esa mitad no es adorno: sin poder leer `workspace_id` y
