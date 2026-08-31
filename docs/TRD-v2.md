@@ -609,7 +609,15 @@ cortacircuitos se emiten como eventos, no solo como mensaje en pantalla (RNF-804
 | Extremo a extremo | Configurar proveedor falso → ideas → crear app → mejorar párrafo → revisión con comentarios (RNF-905) |
 
 La suite completa sigue corriendo en CI sin credenciales de ningún proveedor. Un adaptador real solo se
-ejercita a mano, con clave propia, y nunca en CI.
+ejercita a mano, con clave propia, y nunca en CI:
+
+```bash
+ANTHROPIC_API_KEY=... pnpm --filter @app-foundry/ai smoke anthropic
+```
+
+La prueba de humo recorre las cuatro operaciones del puerto contra la API de verdad —verificar, catálogo,
+conteo, texto y objeto con esquema— y gasta unos pocos cientos de tokens. Es donde se comprueba que lo escrito
+contra la documentación se comporta como dice cuando hay alguien al otro lado.
 
 ---
 

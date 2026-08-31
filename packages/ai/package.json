@@ -17,18 +17,21 @@
   "scripts": {
     "build": "tsc -p tsconfig.build.json",
     "clean": "rm -rf dist .turbo",
-    "lint": "eslint src test",
+    "lint": "eslint src test scripts",
     "typecheck": "tsc -p tsconfig.json",
-    "test:unit": "vitest run"
+    "test:unit": "vitest run",
+    "smoke": "tsx scripts/smoke.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.122.0",
-    "@app-foundry/core": "workspace:*"
+    "@app-foundry/core": "workspace:*",
+    "groq-sdk": "^1.6.0"
   },
   "devDependencies": {
     "@app-foundry/config": "workspace:*",
     "@types/node": "26.4.0",
     "eslint": "10.9.1",
+    "tsx": "4.23.12",
     "typescript": "6.0.3",
     "vitest": "4.1.11"
   }
