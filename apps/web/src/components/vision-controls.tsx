@@ -191,22 +191,17 @@ export function VersionPicker({
 
       {version && (
         <span
-          /* Con la conversación abierta la línea se queda corta y el texto se
-             recorta; el título lo devuelve entero sin robar sitio. */
+          /* La fecha exacta y la hora se quedan en el título: la línea se corta
+             con la conversación abierta, y el mensaje —lo que dice qué se
+             cambió— tiene más derecho al sitio. */
           title={`@${version.authorHandle} · ${new Date(version.createdAt).toLocaleString()}${
             version.message ? ` · ${version.message}` : ''
           }`}
           className="min-w-0 truncate text-xs text-[var(--color-texto-suave)]"
         >
-          {/* Sin el año ni los segundos: la fecha entera se comía la línea y
-              dejaba fuera el mensaje, que es lo que dice qué se cambió. */}
-          @{version.authorHandle} ·{' '}
-          {new Date(version.createdAt).toLocaleString(undefined, {
-            day: 'numeric',
-            month: 'short',
-            hour: '2-digit',
-            minute: '2-digit',
-          })}
+          {/* Sin fecha: ya la lleva la opción elegida del desplegable, ahí al
+              lado, y repetirla solo empujaba al mensaje fuera de la línea. */}
+          @{version.authorHandle}
           {version.message ? ` · ${version.message}` : ''}
         </span>
       )}
