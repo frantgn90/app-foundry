@@ -52,6 +52,23 @@ export const envSchema = z.object({
   NOTIF_RETENTION_DAYS: days(30),
   NOTIF_MAX_PER_USER: z.coerce.number().int().positive().default(500),
 
+  /**
+   * Llavero con el que se cifran las credenciales de proveedor de IA (T-26).
+   *
+   * Formato `1:<clave en base64>,2:<clave en base64>`, con 32 bytes por clave.
+   * La de número más alto es con la que se cifra; las demás siguen ahí para
+   * poder leer lo cifrado antes de una rotación.
+   *
+   * Es opcional porque la IA lo es (RD-12): sin llavero, el producto de la v1
+   * funciona entero y lo único que no se puede es guardar una credencial. La
+   * validación del formato ocurre al usarlo, con un mensaje que dice qué falta.
+   */
+  AI_CREDENTIAL_KEYS: z.string().min(1).optional(),
+
+  /** Tope de agentes por app y de turnos por hilo (RF-1507, RF-1605). */
+  AI_MAX_AGENTS_PER_APP: z.coerce.number().int().positive().default(5),
+  AI_MAX_AGENT_TURNS_PER_THREAD: z.coerce.number().int().positive().default(3),
+
   OTEL_EXPORTER_OTLP_ENDPOINT: z.url().default('http://localhost:4318'),
   OTEL_SERVICE_NAME: z.string().default('app-foundry-api'),
   /** Permite apagar la telemetría en tests sin tocar el código. */

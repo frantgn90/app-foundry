@@ -1,5 +1,7 @@
 export * from './registry.js';
 export * from './errors.js';
+export * from './credentials/key-ring.js';
+export * from './credentials/cipher.js';
 export * from './anthropic/anthropic-provider.js';
 export * from './anthropic/errors.js';
 export * from './groq/groq-provider.js';
