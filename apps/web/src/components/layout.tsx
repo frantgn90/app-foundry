@@ -74,9 +74,12 @@ export function Layout({
             el nombre de la plataforma va en negrita porque es el origen, no
             porque importe más que dónde estás.
           */}
-          <span className="mr-1 flex items-center gap-2 text-sm font-semibold tracking-tight">
+          {/* En pantallas estrechas se queda solo el icono: el nombre de la
+              plataforma es lo que menos falta hace para saber dónde estás, y
+              partido en dos líneas empujaba la cuenta fuera de la pantalla. */}
+          <span className="mr-1 flex shrink-0 items-center gap-2 text-sm font-semibold tracking-tight">
             <Logo />
-            App Foundry
+            <span className="hidden sm:inline">App Foundry</span>
           </span>
 
           <Separator />
@@ -124,15 +127,17 @@ export function Layout({
                 dónde se está. Así la ficha no necesita una cabecera propia sólo
                 para repetirlo.
               */}
-              <StatusPill status={currentApp.isArchived ? 'ARCHIVED' : currentApp.status} />
-              <VisibilityMark accessLevel={currentApp.accessLevel} />
+              <span className="hidden items-center gap-2 sm:flex">
+                <StatusPill status={currentApp.isArchived ? 'ARCHIVED' : currentApp.status} />
+                <VisibilityMark accessLevel={currentApp.accessLevel} />
+              </span>
               <span className="hidden text-xs text-[var(--color-texto-suave)] sm:inline">
                 @{currentApp.precursorHandle}
               </span>
             </>
           )}
 
-          <div className="ml-auto flex items-center gap-3">
+          <div className="ml-auto flex shrink-0 items-center gap-2 sm:gap-3">
             {/*
               Para un administrador, la insignia es también la puerta: es donde
               iría a buscarla, y así la administración no ocupa sitio en la
@@ -254,7 +259,7 @@ function Dropdown({
           <button
             onClick={onPrimary}
             className={cn(
-              'flex max-w-52 items-center gap-2 rounded-l-lg py-1.5 pl-2 pr-1 text-sm',
+              'flex max-w-32 items-center gap-2 rounded-l-lg py-1.5 pl-2 pr-1 text-sm sm:max-w-52',
               'hover:bg-[var(--color-borde)]/40',
             )}
           >
@@ -282,7 +287,7 @@ function Dropdown({
             setOpen((v) => !v);
           }}
           className={cn(
-            'flex max-w-52 items-center gap-2 rounded-lg px-2 py-1.5 text-sm',
+            'flex max-w-32 items-center gap-2 rounded-lg px-2 py-1.5 text-sm sm:max-w-52',
             'hover:bg-[var(--color-borde)]/40',
           )}
           aria-haspopup="listbox"
