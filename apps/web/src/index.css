@@ -266,7 +266,14 @@
    * intermedios que hacen falta para que parezca gas.
    */
   --fuego-brillo: 2.4;
-  --fuego-nucleo: #f2e2c8; /* → azul muy oscuro, el cono de la base */
+  /*
+   * El origen de la llama es el complementario exacto del blanco del modo
+   * oscuro: negro. Cualquier color claro aquí se satura a blanco antes de
+   * invertirse, y blanco invertido es negro —era lo que dejaba un filo negro
+   * en la base—. Con el negro, la base sale blanca y el desenfoque la funde
+   * con el azul de encima, que es el azul pálido y poco saturado que se busca.
+   */
+  --fuego-nucleo: #000000;
   --fuego-medio: #d8a840; /* → azul intenso */
   --fuego-alto: #b8940f9c; /* → azul pálido, ya desvaneciéndose */
   /* Un lecho apenas más apagado que la página, para que la llama se apoye. */
