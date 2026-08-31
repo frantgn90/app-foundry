@@ -50,16 +50,15 @@ afterAll(async () => {
 });
 
 describe('las cuatro tareas', () => {
-  /*
-   * Se devuelven todas, también las que no tienen modelo: una tarea sin asignar
-   * es una función que no se puede ofrecer, y hay que saberlo para no enseñar un
-   * botón que no lleva a ninguna parte (RF-1010).
-   */
-  it('salen todas aunque ninguna esté asignada', async () => {
+  it('salen las cuatro, y configurar un proveedor las deja asignadas', async () => {
     const body = (await (await tareas(ana)).json()) as TaskBody[];
 
     expect(body).toHaveLength(4);
-    expect(body.every((t) => t.provider === null && !t.supported)).toBe(true);
+    /*
+     * RF-1103: sin propuesta por defecto, configurar un proveedor dejaría la IA
+     * encendida y sin nada asignado, que es como no haberla configurado.
+     */
+    expect(body.every((t) => t.provider === 'ANTHROPIC' && t.supported)).toBe(true);
     expect(body.map((t) => t.task).sort()).toEqual([
       'AGENT_REPLY',
       'AGENT_REVIEW',
@@ -68,13 +67,30 @@ describe('las cuatro tareas', () => {
     ]);
   });
 
+  /*
+   * La heurística: sin medida de capacidad que ningún proveedor publique, se usa
+   * la ventana de contexto. El pequeño para escribir, donde manda la latencia; el
+   * grande para lo que exige razonar.
+   */
+  it('el asistente de escritura estrena el modelo más pequeño', async () => {
+    const modelos = (await (
+      await h.as(ana).get(`/api/v1/workspaces/${ana.workspaceId}/ai/models`)
+    ).json()) as { id: string; contextWindow: number }[];
+    const ordenados = [...modelos].sort((a, b) => a.contextWindow - b.contextWindow);
+
+    const body = (await (await tareas(ana)).json()) as TaskBody[];
+
+    expect(body.find((t) => t.task === 'TEXT_ASSIST')?.modelId).toBe(ordenados[0]?.id);
+    expect(body.find((t) => t.task === 'AGENT_REVIEW')?.modelId).toBe(ordenados.at(-1)?.id);
+  });
+
   it('las ve un miembro, porque le dicen qué funciones existen', async () => {
     expect((await tareas(bruno)).status).toBe(200);
   });
 });
 
 describe('asignar', () => {
-  it('el dueño asigna, y la tarea pasa a poder ofrecerse', async () => {
+  it('el dueño cambia la propuesta por lo que él quiera', async () => {
     const response = await asignar(ana, 'TEXT_ASSIST', {
       provider: 'ANTHROPIC',
       modelId: modeloValido,

@@ -102,6 +102,53 @@ export class AiTasksService {
     return this.list(workspaceId);
   }
 
+  /**
+   * Propone una asignación al configurar un proveedor (RF-1103).
+   *
+   * Solo rellena lo que esté sin asignar: no pisa una decisión que ya tomó
+   * alguien. Y solo asigna las tareas que ese proveedor puede atender, así que
+   * uno sin salida con esquema no acaba encargado de generar ideas.
+   *
+   * **El criterio, y su límite.** Ningún proveedor publica una medida de
+   * capacidad ni de velocidad, así que se usa la ventana de contexto como
+   * aproximación: el modelo más pequeño para asistir a escribir, donde lo que se
+   * nota es la latencia y el texto es corto, y el más grande para lo que exige
+   * razonar. Es una heurística, no una verdad, y por eso se propone en lugar de
+   * imponerse: el dueño la cambia cuando quiera (RF-1102).
+   */
+  async proposeDefaults(workspaceId: string, provider: AiProvider): Promise<void> {
+    const modelos = await currentTx()
+      .select({ modelId: aiModels.modelId, contextWindow: aiModels.contextWindow })
+      .from(aiModels)
+      .where(and(eq(aiModels.provider, provider), eq(aiModels.available, true)))
+      .orderBy(aiModels.contextWindow);
+
+    if (modelos.length === 0) return;
+
+    const ligero = modelos[0] as { modelId: string };
+    const capaz = modelos[modelos.length - 1] as { modelId: string };
+
+    const yaAsignadas = await currentTx()
+      .select({ task: workspaceTaskModels.task })
+      .from(workspaceTaskModels)
+      .where(eq(workspaceTaskModels.workspaceId, workspaceId));
+    const ocupadas = new Set(yaAsignadas.map((fila) => fila.task));
+
+    const capacidades = this.registry.get(provider).capabilities;
+
+    for (const task of TAREAS) {
+      if (ocupadas.has(task)) continue;
+      if (!supportForTask(task, capacidades).supported) continue;
+
+      const modelId = task === AiTask.TEXT_ASSIST ? ligero.modelId : capaz.modelId;
+
+      await currentTx()
+        .insert(workspaceTaskModels)
+        .values({ workspaceId, task, provider, modelId })
+        .onConflictDoNothing();
+    }
+  }
+
   private async assertUsable(
     workspaceId: string,
     task: AiTask,

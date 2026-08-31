@@ -73,6 +73,7 @@ export class AiModule implements OnModuleInit {
   constructor(
     private readonly providers: AiProvidersService,
     private readonly catalog: AiCatalogService,
+    private readonly tasks: AiTasksService,
   ) {}
 
   /**
@@ -87,6 +88,12 @@ export class AiModule implements OnModuleInit {
   onModuleInit(): void {
     this.providers.onProviderConfigured = async (workspaceId, provider) => {
       await this.catalog.refresh(workspaceId, provider).catch(() => undefined);
+      /*
+       * Y con el catálogo ya en casa, se propone qué modelo atiende cada tarea
+       * (RF-1103): sin esto, configurar un proveedor deja la IA encendida pero
+       * sin nada asignado, que es como no haberla configurado.
+       */
+      await this.tasks.proposeDefaults(workspaceId, provider).catch(() => undefined);
     };
   }
 }
