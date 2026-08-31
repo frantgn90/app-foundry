@@ -295,19 +295,29 @@ Y a nivel de workspace:
   *El problema*, *Para quién es*, *La propuesta de valor*, *Cómo funciona (a alto nivel)*, *Qué la hace
   distinta*, *Cómo sabremos que funciona*, *Riesgos y dudas abiertas*.
 - **RF-504** — **DEBE** haber un editor markdown con **previsualización** del resultado renderizado.
-- **RF-505** — Cada guardado explícito **DEBE** crear una **versión inmutable** con autor, marca de tiempo y
-  mensaje de cambio opcional.
+- **RF-505** — Guardar y versionar **DEBEN** ser actos distintos. **Guardar** actualiza la **copia de trabajo**
+  del documento —compartida por quienes pueden editarlo— sin crear versión, y puede repetirse tantas veces
+  como haga falta. **Commitear** crea una **versión inmutable** a partir de la copia de trabajo, con autor,
+  marca de tiempo y un **mensaje obligatorio de como mucho 100 caracteres**.
 - **RF-506** — El editor **DEBERÍA** guardar un borrador automático local mientras se escribe, sin generar
   versiones.
 - **RF-507** — El usuario **DEBE** poder consultar el historial completo de versiones, ordenado
   cronológicamente y con su autor.
 - **RF-508** — El usuario **DEBE** poder ver el **diff** entre dos versiones cualesquiera.
-- **RF-509** — La lista de contribuidores de una app **DEBE** derivarse de los autores distintos de sus
-  versiones, excluyendo al precursor.
-- **RF-510** — Quien pueda editar **DEBE** poder **restaurar** una versión anterior; la restauración crea una
-  versión nueva con ese contenido y no borra historial.
-- **RF-511** — El sistema **DEBE** detectar ediciones concurrentes: si el documento cambió desde que se abrió
-  el editor, el guardado se rechaza y se ofrece ver el conflicto en lugar de sobrescribir en silencio.
+- **RF-509** — La lista de contribuidores de una app **DEBE** derivarse de quienes han escrito en sus
+  versiones —autor y coautores (RF-516)—, excluyendo al precursor.
+- **RF-510** — Quien pueda editar **DEBE** poder **restaurar** una versión anterior. Restaurar **DEBE** cargar
+  ese contenido en la copia de trabajo como cambios sin commitear, de modo que pueda revisarse, seguir
+  editándose y commitearse con su mensaje —o descartarse (RF-515)—. No borra historial.
+- **RF-511** — El sistema **DEBE** detectar ediciones concurrentes: si la copia de trabajo cambió desde que se
+  abrió el editor, el guardado se rechaza y se ofrece ver el conflicto en lugar de sobrescribir en silencio.
+  La misma comprobación **DEBE** proteger al commit y al descarte (RF-515).
+- **RF-515** — Quien pueda editar **DEBE** poder **descartar** los cambios sin commitear, devolviendo la copia
+  de trabajo a la versión actual. Como lo descartado no queda en ninguna versión, la acción **DEBE** avisar
+  antes de qué se pierde y de quién es, y **DEBE** quedar registrada en la auditoría.
+- **RF-516** — Una versión **DEBE** registrar como **coautores** a quienes guardaron cambios desde la versión
+  anterior sin ser quien commitea. Sin esto, el trabajo de quien escribe y no commitea desaparecería del
+  historial de autoría.
 - **RF-512** — Cualquiera que pueda leer la app **DEBE** poder descargarla como fichero `VISION.md`. El fichero
   **DEBE** incluir una cabecera de metadatos (nombre de la app, workspace, número de versión, autor de esa
   versión, fecha y estado), de modo que un documento exportado sea identificable fuera de la plataforma.
@@ -360,7 +370,8 @@ Y a nivel de workspace:
 ### 5.8 Comentarios y anotaciones
 
 - **RF-801** — Cada app **DEBE** tener un **hilo de comentarios general**, situado al pie del documento de
-  visión.
+  visión. El hilo general es de la **app**, no de una versión: la conversación sobre la idea es continua y no
+  se cierra porque alguien commitee.
 - **RF-802** — El sistema **DEBE** permitir además **comentarios inline**: anclados a una selección concreta de
   texto del documento renderizado, al estilo de Confluence o Google Docs.
 - **RF-803** — **DEBE** poder comentar cualquiera que tenga acceso de **lectura** a la app, incluidos los
@@ -376,13 +387,22 @@ Y a nivel de workspace:
   ocultan por defecto y se pueden mostrar; resolver no borra nada. Quien resuelve y quien reabre quedan
   registrados.
 - **RF-808** — Un comentario inline **DEBE** almacenar, además de su posición: la **cita literal** del
-  fragmento anotado y la **versión** del documento en la que se creó.
-- **RF-809** — Cuando el fragmento anotado deje de existir tras una edición, el hilo **DEBE** pasar al estado
-  **huérfano**: no desaparece ni se engancha a un fragmento equivocado, sino que permanece accesible en el
-  panel lateral mostrando su cita original y la versión en la que se hizo.
+  fragmento anotado y la **versión** del documento en la que se creó. La posición guardada es la de **esa**
+  versión y es inmutable como ella: el fragmento anotado nunca cambia bajo el comentario.
+- **RF-809** — Mientras haya cambios sin commitear, un hilo de la versión actual **DEBE** seguirse pintando
+  sobre la copia de trabajo si su fragmento sigue ahí. Cuando la edición se lo lleve por delante, el hilo
+  **DEBE** mostrarse como **huérfano** —no desaparece ni se engancha a un fragmento equivocado, sino que
+  permanece accesible en el panel con su cita original—, y **DEBE** volver a su sitio si el texto vuelve. Este
+  estado es de la copia de trabajo, nunca de la versión: sobre su propia versión el ancla siempre es exacta.
 - **RF-810** — La ficha de la app **DEBE** ofrecer un **panel lateral** con todos los hilos inline (activos,
   resueltos y huérfanos), y navegar desde un hilo hasta su fragmento en el documento.
-- **RF-811** — El listado de apps y la ficha **DEBERÍAN** mostrar el número de hilos abiertos.
+- **RF-811** — El listado de apps y la ficha **DEBERÍAN** mostrar el número de hilos abiertos, de cualquier
+  versión: lo que dice es que hay algo esperando respuesta.
+- **RF-817** — Un hilo inline pertenece a la **versión sobre la que se escribió** (RF-808). La ficha **DEBE**
+  mostrar solo los hilos de la versión que se está mirando, **DEBE** impedir comentar sobre versiones que no
+  son la actual —lo escrito quedaría anclado a un texto que ya nadie ve— y **DEBE** permitir seguir
+  resolviendo y reabriendo los de versiones anteriores. Los hilos abiertos que queden atrás **DEBEN**
+  anunciarse desde la versión actual, con un camino para llegar a ellos.
 - **RF-812** — Archivar una app **DEBE** dejar sus comentarios en sólo lectura. Eliminar una app **DEBE**
   eliminar sus comentarios.
 - **RF-813** — Los comentarios **DEBEN** conservar la autoría aunque su autor sea expulsado del workspace o

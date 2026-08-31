@@ -172,23 +172,38 @@ app_tags
 
 documents                                    -- RF-514: preparado para PRD y TRD
   id, app_id → apps, type document_type NOT NULL   -- VISION | PRD | TRD
-  current_version_id → document_versions
-  current_content text NOT NULL              -- copia de la versión actual, misma transacción
+  current_version_id → document_versions     -- HEAD: la última versión commiteada
+  current_content text NOT NULL              -- copia de trabajo, compartida (RF-505)
+  revision int NOT NULL DEFAULT 0            -- +1 en cada guardado, commit o descarte
   UNIQUE (app_id, type)
+
+document_working_authors                     -- quién ha guardado desde el último commit
+  document_id → documents, user_id → users, PRIMARY KEY (document_id, user_id)
 
 document_versions                            -- RF-505, inmutables
   id, document_id → documents, version_no int NOT NULL
   content text NOT NULL                      -- contenido completo (T-13)
-  author_id → users, message text
+  author_id → users, message text            -- mensaje obligatorio, ≤ 100 (RF-505)
   UNIQUE (document_id, version_no)
   INDEX (document_id, created_at DESC)
+
+document_version_coauthors                   -- RF-516
+  version_id → document_versions, user_id → users, PRIMARY KEY (version_id, user_id)
 ```
 
-`documents.current_content` es una desnormalización deliberada: evita un join contra `document_versions` en
-cada lectura y en cada búsqueda, y se actualiza en la misma transacción que crea la versión. La fuente de
-verdad histórica sigue siendo `document_versions`.
+`documents.current_content` **no** es una copia de la versión actual: es la copia de trabajo, y puede ir por
+delante de `current_version_id`. Que vaya por delante —que haya cambios sin commitear— se sabe comparándola
+con el contenido de esa versión, sin más estado que mantener sincronizado.
 
-**Contribuidores (RF-509)** no es una tabla: se derivan de `SELECT DISTINCT author_id FROM document_versions`
+`revision` es lo que protege de ediciones concurrentes (RF-511): el editor manda la revisión que leyó y el
+guardado se rechaza si ya no es esa. `current_version_id` no sirve para eso desde que dos guardados seguidos
+comparten versión.
+
+`document_working_authors` se vacía en cada commit y en cada descarte. Al commitear, quienes queden ahí y no
+sean el autor pasan a `document_version_coauthors`: sin eso, quien escribe y no commitea desaparecería del
+historial de autoría.
+
+**Contribuidores (RF-509)** no es una tabla: se derivan de los autores y coautores de las versiones,
 excluyendo al precursor.
 
 ### 5.4 Comentarios
@@ -198,11 +213,13 @@ comment_threads                              -- RF-801, RF-802
   id, app_id → apps, document_id → documents
   kind   thread_kind  NOT NULL               -- GENERAL | INLINE
   status thread_status NOT NULL DEFAULT 'OPEN'   -- OPEN | RESOLVED
-  -- anclaje inline (§9); null en hilos generales
+  -- anclaje inline (§9); null en hilos generales, que son de la app (RF-801)
   anchor_quote text, anchor_prefix text, anchor_suffix text
-  anchor_start int, anchor_end int
-  anchored_version_id → document_versions
+  anchor_start int, anchor_end int           -- posición en SU versión: inmutable (RF-808)
+  anchored_version_id → document_versions    -- a qué versión pertenece el hilo (RF-817)
   anchor_status anchor_status                -- ANCHORED | ORPHANED (RF-809)
+  -- posición sobre la copia de trabajo, recalculada en cada guardado (§9.3)
+  working_start int, working_end int, working_status anchor_status
   created_by → users
   resolved_by → users, resolved_at, reopened_by → users, reopened_at   -- RF-807
   INDEX (app_id, status)
@@ -370,12 +387,14 @@ POST   /workspaces/:id/apps                     # RF-401
 GET    /apps/:id · PATCH /apps/:id · DELETE /apps/:id
 POST   /apps/:id/archive · /unarchive · /transfer-precursor
 PATCH  /apps/:id/access-level                   # RF-406
-GET    /apps/:id/document · PUT /apps/:id/document      # PUT crea versión (RF-505)
+GET    /apps/:id/document · PUT /apps/:id/document      # PUT guarda, no versiona (RF-505)
+POST   /apps/:id/document/commit · /reset              # RF-505, RF-515
 GET    /apps/:id/document/versions · /versions/:id
 GET    /apps/:id/document/diff?from=&to=        # RF-508
 POST   /apps/:id/document/restore/:versionId    # RF-510
 GET    /apps/:id/document/export                # VISION.md (RF-512)
-GET    /apps/:id/threads · POST /apps/:id/threads
+GET    /apps/:id/threads?versionId=             # los de esa versión (RF-817)
+POST   /apps/:id/threads
 POST   /threads/:id/comments · PATCH · DELETE
 POST   /threads/:id/resolve · /reopen           # RF-807
 GET    /notifications · POST /notifications/read · DELETE /notifications
@@ -410,7 +429,12 @@ selección del navegador se traduce a un rango del fuente sin ambigüedad.
 
 ### 9.3 Cómo se reancla
 
-Al abrir una versión posterior, por cada hilo:
+Un hilo pertenece a su versión (RF-817) y sobre ella el ancla es exacta para siempre: `anchor_start` y
+`anchor_end` no se tocan nunca más. El reanclaje existe solo para el hueco entre la versión actual y la copia
+de trabajo, y escribe en `working_start` / `working_end` / `working_status`, que son de la copia de trabajo y
+se limpian al commitear.
+
+Por cada hilo de la versión actual, contra la copia de trabajo:
 
 1. **Coincidencia exacta en posición** — si el fuente en `[start, end)` sigue siendo `quote`, listo. Es el
    caso mayoritario: editar el final de un documento no mueve lo de arriba.
@@ -420,28 +444,42 @@ Al abrir una versión posterior, por cada hilo:
    posición original.
 4. **Coincidencia difusa** — `diff-match-patch` con `match_main` alrededor de la posición previa y umbral de
    similitud 0.7, que absorbe correcciones menores de redacción.
-5. **Huérfano** — si nada de lo anterior encuentra el texto, `anchor_status = 'ORPHANED'` (RF-809). El hilo no
-   se borra ni se engancha a un sitio equivocado: sigue en el panel lateral con su cita y su versión.
+5. **Huérfano** — si nada de lo anterior encuentra el texto, `working_status = 'ORPHANED'` (RF-809). El hilo no
+   se borra ni se engancha a un sitio equivocado: sigue en el panel lateral con su cita.
 
-El reanclaje se calcula **en el servidor al guardar una versión nueva** y se persiste, en lugar de recalcularlo
-en cada lectura: se hace una vez por edición en lugar de una vez por visita, y todo el mundo ve el mismo
-resultado. Un hilo huérfano puede volver a anclarse si una edición posterior restaura el texto.
+El reanclaje se calcula **en el servidor al guardar**, y se persiste en lugar de recalcularlo en cada lectura:
+se hace una vez por guardado en lugar de una vez por visita, y todo el mundo ve el mismo resultado. Un hilo
+huérfano vuelve a anclarse si una edición posterior devuelve el texto, y descartar los cambios (RF-515)
+devuelve todos a su sitio de golpe, porque la copia de trabajo vuelve a ser la versión.
 
 ---
 
 ## 10. Documentos: versionado, concurrencia, diff y búsqueda
 
-**Guardar (RF-505, RF-511).** `PUT /apps/:id/document` incluye `baseVersionId`. En una transacción se comprueba
-que coincide con `documents.current_version_id`; si no, se responde **409** con la versión actual para que el
-cliente muestre el conflicto en lugar de sobrescribir (RF-511). Si coincide: se inserta la versión, se
-actualiza `current_version_id` y `current_content`, se reanclan los hilos inline (§9.3), se refresca el
-`search_tsv` de la app y se emiten los eventos de dominio.
+**Guardar (RF-505, RF-511).** `PUT /apps/:id/document` incluye `revision`. En una transacción, con el documento
+bloqueado, se comprueba que coincide con `documents.revision`; si no, se responde **409** con lo que hay ahora
+para que el cliente muestre el conflicto en lugar de sobrescribir (RF-511). Si coincide: se escribe
+`current_content`, se suma 1 a `revision`, se apunta a quien guarda en `document_working_authors`, se reanclan
+los hilos inline sobre la copia de trabajo (§9.3) y se refresca el `search_tsv` de la app. **No** crea versión
+ni notifica: un aviso por cada guardado sería ruido, y lo que hay que anunciar es el commit.
+
+**Commitear (RF-505, RF-516).** `POST /apps/:id/document/commit` con `revision` y un `message` obligatorio de
+como mucho 100 caracteres. Inserta la versión con el contenido de la copia de trabajo, pasa a coautores
+quienes quedaran en `document_working_authors` sin ser el autor, vacía esa tabla, congela los hilos de la
+versión saliente —`working_*` a null, que su ancla ya es exacta sobre su propio texto— y emite el evento de
+dominio. Commitear sin cambios se rechaza: una versión idéntica a la anterior no dice nada.
+
+**Descartar (RF-515).** `POST /apps/:id/document/reset` con `revision`. Devuelve `current_content` al contenido
+de la versión actual, vacía `document_working_authors`, deja los hilos otra vez anclados donde estaban y lo
+registra en la auditoría. Es la única operación que pierde trabajo, así que la interfaz avisa antes de qué se
+pierde y de quién es (RF-515).
 
 **Diff (RF-508).** `jsdiff` sobre palabras, calculado en el cliente: ambos contenidos ya están disponibles y
 así el servidor no gasta CPU en una operación puramente visual.
 
-**Restaurar (RF-510).** Es un guardado normal cuyo contenido es el de una versión antigua. No se borra nada y
-el historial refleja quién restauró y cuándo.
+**Restaurar (RF-510).** Es un guardado normal cuyo contenido es el de una versión antigua: deja los cambios en
+la copia de trabajo, sin versión. Quien restaura decide después si lo commitea —con su mensaje— o lo descarta.
+No se borra nada.
 
 **Exportar (RF-512, T-18).** `GET /apps/:id/document/export` devuelve el markdown precedido de front-matter
 YAML:
@@ -646,10 +684,10 @@ meses.
 | RF-208 handle | §5.1, T-5 |
 | RF-301..312 workspaces | §5.2, §8 |
 | RF-401..417 apps | §5.3, §6.3, §8 |
-| RF-501..514 versionado | §5.3, §10, T-13 |
+| RF-501..516 versionado | §5.3, §10, T-13 |
 | RF-601..611 navegación | §8, §12 |
 | RF-701..705 auditoría | §5.5 |
-| RF-801..816 comentarios | §5.4, §9, §12 |
+| RF-801..817 comentarios | §5.4, §9, §12 |
 | RF-901..911 notificaciones | §5.5, §11 |
 | RNF-101..111 seguridad | §6 |
 | RNF-201..202 rendimiento | §16 |
