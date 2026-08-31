@@ -65,9 +65,10 @@ describe('guardar no es versionar (RF-505)', () => {
     const antes = await documento();
 
     for (const texto of ['# The problem\n\nUn primer intento.', '# The problem\n\nY otro mejor.']) {
-      const response = await h
-        .as(ana)
-        .put(`/api/v1/apps/${appId}/document`, { content: texto, revision: (await documento()).revision });
+      const response = await h.as(ana).put(`/api/v1/apps/${appId}/document`, {
+        content: texto,
+        revision: (await documento()).revision,
+      });
       expect(response.status).toBe(200);
     }
 
@@ -113,12 +114,10 @@ describe('guardar no es versionar (RF-505)', () => {
   });
 
   it('commitear sin cambios no crea una versión gemela', async () => {
-    const response = await h
-      .as(ana)
-      .post(`/api/v1/apps/${appId}/document/commit`, {
-        message: 'Otra vez lo mismo',
-        revision: (await documento()).revision,
-      });
+    const response = await h.as(ana).post(`/api/v1/apps/${appId}/document/commit`, {
+      message: 'Otra vez lo mismo',
+      revision: (await documento()).revision,
+    });
     expect(response.status).toBe(400);
     expect(versionesDe(await historial())).toEqual([2, 1]);
   });
@@ -218,8 +217,11 @@ describe('conflictos al guardar (RF-511)', () => {
     const vieja = (await documento()).revision - 1;
 
     expect(
-      (await h.as(ana).post(`/api/v1/apps/${appId}/document/commit`, { message: 'Tarde', revision: vieja }))
-        .status,
+      (
+        await h
+          .as(ana)
+          .post(`/api/v1/apps/${appId}/document/commit`, { message: 'Tarde', revision: vieja })
+      ).status,
     ).toBe(409);
     expect(
       (await h.as(ana).post(`/api/v1/apps/${appId}/document/reset`, { revision: vieja })).status,
@@ -306,9 +308,9 @@ describe('coautoría', () => {
   });
 
   it('quien guarda sin commitear queda como coautor de la versión', async () => {
-    const doc = (await (
-      await h.as(bruno).get(`/api/v1/apps/${compartida}/document`)
-    ).json()) as { revision: number };
+    const doc = (await (await h.as(bruno).get(`/api/v1/apps/${compartida}/document`)).json()) as {
+      revision: number;
+    };
 
     await h.as(bruno).put(`/api/v1/apps/${compartida}/document`, {
       content: '# The problem\n\nLo escribe Bruno.',

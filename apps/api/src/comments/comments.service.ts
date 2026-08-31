@@ -155,10 +155,7 @@ export class CommentsService {
    * la vista. Sin esto desaparecerían sin más, y una conversación que nadie ve
    * es una conversación perdida: aquí se dice cuántas quedan y dónde.
    */
-  private async openElsewhere(
-    appId: string,
-    version: string | null,
-  ): Promise<OpenElsewhereDto[]> {
+  private async openElsewhere(appId: string, version: string | null): Promise<OpenElsewhereDto[]> {
     const rows = await currentTx()
       .select({
         versionId: documentVersions.id,

@@ -202,7 +202,6 @@
   color: var(--color-texto);
 }
 
-
 /*
  * ─── El fuego de la forja ────────────────────────────────────────────────────
  *
@@ -332,17 +331,28 @@
   position: absolute;
   inset: 0;
   background-image:
-    var(--fuego-ruido), var(--fuego-ruido),
+    var(--fuego-ruido),
+    var(--fuego-ruido),
     /*
      * El color y, con el último tramo, la altura: la llama muere donde este
      * degradado se vuelve transparente. Más bajo que en el original, para que
      * el fuego se quede a los pies y no invada el botón de entrar.
      */
-    linear-gradient(0deg, var(--fuego-nucleo) 0px, var(--fuego-medio) 5px, var(--fuego-alto) 12%, transparent 32%),
+    linear-gradient(
+        0deg,
+        var(--fuego-nucleo) 0px,
+        var(--fuego-medio) 5px,
+        var(--fuego-alto) 12%,
+        transparent 32%
+      ),
     /* Y la elipse apaga los lados, que si no el fuego llega hasta los bordes. */
     radial-gradient(ellipse at bottom, transparent 30%, black 60%);
   /* Distinto tamaño en cada copia: si fueran iguales, subirían acompasadas. */
-  background-size: 350px 500px, 400px 650px, 100% 100%, 100% 100%;
+  background-size:
+    350px 500px,
+    400px 650px,
+    100% 100%,
+    100% 100%;
   background-blend-mode: hard-light, color-dodge, multiply;
   background-repeat: repeat, repeat, repeat, no-repeat;
   mix-blend-mode: var(--fuego-mezcla);
@@ -356,10 +366,18 @@
  */
 @keyframes fuego-forja {
   from {
-    background-position: center 0, center 0, 50% 100%, center center;
+    background-position:
+      center 0,
+      center 0,
+      50% 100%,
+      center center;
   }
   to {
-    background-position: center -500px, center -650px, 50% 100%, center center;
+    background-position:
+      center -500px,
+      center -650px,
+      50% 100%,
+      center center;
   }
 }
 

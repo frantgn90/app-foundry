@@ -66,7 +66,9 @@ test('mirar una versión anterior, compararla y restaurarla', async ({ page, con
 
     // Y no se puede escribir encima: el botón de editar se apaga y dice por qué,
     // que no es la falta de permiso.
-    await expect(page.getByRole('button', { name: 'Restore this version to edit it' })).toBeDisabled();
+    await expect(
+      page.getByRole('button', { name: 'Restore this version to edit it' }),
+    ).toBeDisabled();
   });
 
   await test.step('comparar con la actual', async () => {

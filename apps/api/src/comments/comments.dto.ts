@@ -71,7 +71,8 @@ export class ThreadsDto {
 
   @ApiProperty({
     type: [OpenElsewhereDto],
-    description: 'Conversaciones vivas que quedaron en otras versiones, de la más reciente a la más antigua',
+    description:
+      'Conversaciones vivas que quedaron en otras versiones, de la más reciente a la más antigua',
   })
   openElsewhere!: OpenElsewhereDto[];
 }

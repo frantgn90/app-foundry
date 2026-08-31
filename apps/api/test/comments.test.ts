@@ -58,7 +58,9 @@ async function guardar(content: string) {
 async function commitear(content: string, message = 'Cambio') {
   await guardar(content);
   const doc = await documento();
-  return h.as(ana).post(`/api/v1/apps/${appId}/document/commit`, { message, revision: doc.revision });
+  return h
+    .as(ana)
+    .post(`/api/v1/apps/${appId}/document/commit`, { message, revision: doc.revision });
 }
 
 beforeAll(async () => {
@@ -311,7 +313,9 @@ describe('cada hilo, en su versión', () => {
   });
 
   it('mientras no se commitea, el hilo se lee sobre la copia de trabajo', async () => {
-    await guardar('# Context\n\nAlgo nuevo arriba.\n\n# The problem\n\nDeciding what to build is guesswork.\n');
+    await guardar(
+      '# Context\n\nAlgo nuevo arriba.\n\n# The problem\n\nDeciding what to build is guesswork.\n',
+    );
 
     const enTrabajo = (await listado()).threads.find((t) => t.id === hiloInline);
     expect(enTrabajo?.anchorStatus).toBe('ANCHORED');
@@ -319,9 +323,9 @@ describe('cada hilo, en su versión', () => {
     // Se ha desplazado hacia abajo con el texto, sin dejar de ser el de su
     // versión: sobre ella sigue estando donde estaba.
     const doc = await documento();
-    expect(doc.content.slice(enTrabajo!.anchorStart!, enTrabajo!.anchorStart! + fragmento.length)).toBe(
-      fragmento,
-    );
+    expect(
+      doc.content.slice(enTrabajo!.anchorStart!, enTrabajo!.anchorStart! + fragmento.length),
+    ).toBe(fragmento);
     const enSuVersion = (await listado(ana, versionAlComentar)).threads.find(
       (t) => t.id === hiloInline,
     );
@@ -330,9 +334,10 @@ describe('cada hilo, en su versión', () => {
 
   it('al commitear, el hilo se queda en su versión y se anuncia desde la nueva', async () => {
     const doc = await documento();
-    await h
-      .as(ana)
-      .post(`/api/v1/apps/${appId}/document/commit`, { message: 'Añado contexto', revision: doc.revision });
+    await h.as(ana).post(`/api/v1/apps/${appId}/document/commit`, {
+      message: 'Añado contexto',
+      revision: doc.revision,
+    });
 
     const ahora = await listado();
     // El inline se queda atrás; el general sigue, que es de la app (RF-801).

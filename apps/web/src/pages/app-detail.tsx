@@ -484,11 +484,7 @@ export function AppDetailPage({
                 ref={readingRef}
                 onMouseUp={(event) => {
                   if (!readingRef.current) return;
-                  const offset = sourceOffsetAt(
-                    readingRef.current,
-                    event.clientX,
-                    event.clientY,
-                  );
+                  const offset = sourceOffsetAt(readingRef.current, event.clientX, event.clientY);
                   const hit =
                     offset === null
                       ? undefined
