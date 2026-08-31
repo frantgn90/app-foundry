@@ -1,9 +1,10 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { IsBoolean, IsIn, IsString, Length } from 'class-validator';
 
-import { AiProvider } from '@app-foundry/core';
+import { AiProvider, AiTask } from '@app-foundry/core';
 
 const PROVEEDORES = Object.values(AiProvider);
+const TAREAS = Object.values(AiTask);
 
 export class ProviderCapabilitiesDto {
   @ApiProperty() streaming!: boolean;
@@ -119,4 +120,42 @@ export class AiModelDto {
 
   @ApiProperty({ description: 'Si el proveedor lo sigue ofreciendo' })
   available!: boolean;
+}
+
+/**
+ * Qué modelo atiende una tarea, y con qué merma si la tiene.
+ *
+ * `supported` y `degraded` salen de comparar lo que la tarea exige con lo que el
+ * proveedor declara (RF-1008): es lo que permite dibujar la interfaz desde las
+ * capacidades y no desde una lista de proveedores conocidos.
+ */
+export class AiTaskAssignmentDto {
+  @ApiProperty({ enum: TAREAS })
+  task!: AiTask;
+
+  @ApiProperty({ enum: PROVEEDORES, nullable: true })
+  provider!: AiProvider | null;
+
+  @ApiProperty({ nullable: true })
+  modelId!: string | null;
+
+  @ApiProperty({ description: 'Si con lo asignado la tarea se puede ofrecer' })
+  supported!: boolean;
+
+  @ApiProperty({ type: [String], description: 'Capacidades que faltan y lo impiden' })
+  missing!: string[];
+
+  @ApiProperty({ type: [String], description: 'Capacidades que faltan y solo la empobrecen' })
+  degraded!: string[];
+}
+
+export class AssignTaskModelDto {
+  @ApiProperty({ enum: PROVEEDORES })
+  @IsIn(PROVEEDORES as readonly string[])
+  provider!: AiProvider;
+
+  @ApiProperty()
+  @IsString()
+  @Length(1, 200)
+  modelId!: string;
 }

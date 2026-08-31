@@ -18,6 +18,7 @@ import { AiCatalogRefresh } from './catalog.refresh.js';
 import { AiCatalogService } from './catalog.service.js';
 import { AiProvidersController } from './providers.controller.js';
 import { AiProvidersService } from './providers.service.js';
+import { AiTasksService } from './tasks.service.js';
 import { WorkspaceAiController } from './workspace-ai.controller.js';
 
 @Module({
@@ -26,6 +27,7 @@ import { WorkspaceAiController } from './workspace-ai.controller.js';
     AiProvidersService,
     AiCatalogService,
     AiCatalogRefresh,
+    AiTasksService,
     {
       provide: AI_REGISTRY,
       inject: [ENV],
@@ -65,7 +67,7 @@ import { WorkspaceAiController } from './workspace-ai.controller.js';
       },
     },
   ],
-  exports: [AiProvidersService, AiCatalogService, AI_REGISTRY, AI_CIPHER],
+  exports: [AiProvidersService, AiCatalogService, AiTasksService, AI_REGISTRY, AI_CIPHER],
 })
 export class AiModule implements OnModuleInit {
   constructor(

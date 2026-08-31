@@ -267,6 +267,13 @@
       "when": 1788210177441,
       "tag": "0037_ai_catalog_refresh",
       "breakpoints": true
+    },
+    {
+      "idx": 38,
+      "version": "7",
+      "when": 1788210373096,
+      "tag": "0038_ai_task_models",
+      "breakpoints": true
     }
   ]
 }

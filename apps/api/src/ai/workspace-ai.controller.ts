@@ -8,13 +8,24 @@ import {
   ParseUUIDPipe,
   Patch,
   Post,
+  Put,
 } from '@nestjs/common';
+
+import type { AiTask } from '@app-foundry/core';
 import { ApiOkResponse, ApiOperation, ApiTags } from '@nestjs/swagger';
 
 import { CurrentUserId } from '../auth/current-user.decorator.js';
-import { AiEgressConsentDto, AiModelDto, AiSettingsDto, SetAiEnabledDto } from './ai.dto.js';
+import {
+  AiEgressConsentDto,
+  AiModelDto,
+  AiSettingsDto,
+  AiTaskAssignmentDto,
+  AssignTaskModelDto,
+  SetAiEnabledDto,
+} from './ai.dto.js';
 import { AiCatalogService } from './catalog.service.js';
 import { AiProvidersService } from './providers.service.js';
+import { AiTasksService } from './tasks.service.js';
 
 /**
  * Lo que es del workspace y no de un proveedor concreto.
@@ -25,6 +36,7 @@ export class WorkspaceAiController {
   constructor(
     private readonly providers: AiProvidersService,
     private readonly catalog: AiCatalogService,
+    private readonly tasks: AiTasksService,
   ) {}
 
   @Get()
@@ -46,6 +58,25 @@ export class WorkspaceAiController {
     @CurrentUserId() userId: string,
   ): Promise<AiSettingsDto> {
     return this.providers.setEnabled(workspaceId, body.enabled, userId);
+  }
+
+  @Get('tasks')
+  @ApiOperation({ summary: 'Qué modelo atiende cada tipo de tarea' })
+  @ApiOkResponse({ type: [AiTaskAssignmentDto] })
+  tasks_(@Param('id', ParseUUIDPipe) workspaceId: string): Promise<AiTaskAssignmentDto[]> {
+    return this.tasks.list(workspaceId);
+  }
+
+  @Put('tasks/:task')
+  @ApiOperation({ summary: 'Asignar modelo a un tipo de tarea. Solo el dueño' })
+  @ApiOkResponse({ type: [AiTaskAssignmentDto] })
+  assign(
+    @Param('id', ParseUUIDPipe) workspaceId: string,
+    @Param('task') task: AiTask,
+    @Body() body: AssignTaskModelDto,
+    @CurrentUserId() userId: string,
+  ): Promise<AiTaskAssignmentDto[]> {
+    return this.tasks.assign(workspaceId, task, body, userId);
   }
 
   @Get('models')

@@ -14,7 +14,7 @@ import {
   uuid,
 } from 'drizzle-orm/pg-core';
 
-import { aiProviderEnum, providerStatusEnum } from './enums.js';
+import { aiProviderEnum, aiTaskEnum, providerStatusEnum } from './enums.js';
 import { bytea } from './types.js';
 import { users } from './users.js';
 import { workspaces } from './workspaces.js';
@@ -151,4 +151,36 @@ export const aiModels = pgTable(
     fetchedAt: timestamp('fetched_at', { withTimezone: true }).notNull().defaultNow(),
   },
   (table) => [primaryKey({ columns: [table.provider, table.modelId] })],
+);
+
+/**
+ * Qué modelo atiende cada tipo de tarea en este workspace (RF-1101, RF-1102).
+ *
+ * La asignación es **por tipo de tarea** y no por función ni por usuario: es
+ * donde el dueño decide en qué gasta su cuota, y lo que hace útil tener dos
+ * proveedores a la vez —uno rápido para reescribir un párrafo, uno capaz para
+ * razonar— (D-34).
+ *
+ * Cuelga del proveedor configurado, así que borrarlo se lleva por delante sus
+ * asignaciones: una tarea apuntando a un proveedor que ya no está sería una
+ * invocación que falla en el momento más inoportuno. Lo que queda entonces es
+ * una tarea sin asignar, que la interfaz sabe explicar (RF-1006).
+ */
+export const workspaceTaskModels = pgTable(
+  'workspace_task_models',
+  {
+    workspaceId: uuid('workspace_id').notNull(),
+    task: aiTaskEnum('task').notNull(),
+    provider: aiProviderEnum('provider').notNull(),
+    modelId: text('model_id').notNull(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    primaryKey({ columns: [table.workspaceId, table.task] }),
+    foreignKey({
+      columns: [table.workspaceId, table.provider],
+      foreignColumns: [workspaceAiProviders.workspaceId, workspaceAiProviders.provider],
+      name: 'workspace_task_models_provider_fk',
+    }).onDelete('cascade'),
+  ],
 );

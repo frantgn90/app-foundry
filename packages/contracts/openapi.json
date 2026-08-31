@@ -1279,6 +1279,92 @@
         ]
       }
     },
+    "/api/v1/workspaces/{id}/ai/tasks": {
+      "get": {
+        "operationId": "WorkspaceAiController_tasks_",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/AiTaskAssignmentDto"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "summary": "Qué modelo atiende cada tipo de tarea",
+        "tags": [
+          "ai"
+        ]
+      }
+    },
+    "/api/v1/workspaces/{id}/ai/tasks/{task}": {
+      "put": {
+        "operationId": "WorkspaceAiController_assign",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "task",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AssignTaskModelDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/AiTaskAssignmentDto"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "summary": "Asignar modelo a un tipo de tarea. Solo el dueño",
+        "tags": [
+          "ai"
+        ]
+      }
+    },
     "/api/v1/workspaces/{id}/ai/models": {
       "get": {
         "operationId": "WorkspaceAiController_models",
@@ -3197,6 +3283,77 @@
         },
         "required": [
           "enabled"
+        ]
+      },
+      "AiTaskAssignmentDto": {
+        "type": "object",
+        "properties": {
+          "task": {
+            "type": "string",
+            "enum": [
+              "IDEA_GENERATION",
+              "TEXT_ASSIST",
+              "AGENT_REVIEW",
+              "AGENT_REPLY"
+            ]
+          },
+          "provider": {
+            "type": "string",
+            "enum": [
+              "ANTHROPIC",
+              "GROQ"
+            ],
+            "nullable": true
+          },
+          "modelId": {
+            "type": "object",
+            "nullable": true
+          },
+          "supported": {
+            "type": "boolean",
+            "description": "Si con lo asignado la tarea se puede ofrecer"
+          },
+          "missing": {
+            "description": "Capacidades que faltan y lo impiden",
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "degraded": {
+            "description": "Capacidades que faltan y solo la empobrecen",
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "required": [
+          "task",
+          "provider",
+          "modelId",
+          "supported",
+          "missing",
+          "degraded"
+        ]
+      },
+      "AssignTaskModelDto": {
+        "type": "object",
+        "properties": {
+          "provider": {
+            "type": "string",
+            "enum": [
+              "ANTHROPIC",
+              "GROQ"
+            ]
+          },
+          "modelId": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "provider",
+          "modelId"
         ]
       },
       "AiModelDto": {

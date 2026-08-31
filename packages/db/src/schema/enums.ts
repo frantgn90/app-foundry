@@ -69,3 +69,17 @@ export const aiProviderEnum = pgEnum('ai_provider', ['ANTHROPIC', 'GROQ']);
  * no es lo mismo (RF-1006).
  */
 export const providerStatusEnum = pgEnum('provider_status', ['ACTIVE', 'DISABLED', 'INVALID']);
+
+/**
+ * Para qué se invoca a un modelo (RF-1101).
+ *
+ * Sincronizado con `AiTask` de `@app-foundry/core`. Es un enum y no una tabla
+ * porque añadir un uso nuevo de IA es una decisión de producto, no un dato que
+ * alguien dé de alta (RD-11).
+ */
+export const aiTaskEnum = pgEnum('ai_task', [
+  'IDEA_GENERATION',
+  'TEXT_ASSIST',
+  'AGENT_REVIEW',
+  'AGENT_REPLY',
+]);

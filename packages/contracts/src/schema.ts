@@ -525,6 +525,40 @@ export interface paths {
         patch: operations["WorkspaceAiController_setEnabled"];
         trace?: never;
     };
+    "/api/v1/workspaces/{id}/ai/tasks": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Qué modelo atiende cada tipo de tarea */
+        get: operations["WorkspaceAiController_tasks_"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/workspaces/{id}/ai/tasks/{task}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Asignar modelo a un tipo de tarea. Solo el dueño */
+        put: operations["WorkspaceAiController_assign"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/workspaces/{id}/ai/models": {
         parameters: {
             query?: never;
@@ -1205,6 +1239,24 @@ export interface components {
         SetAiEnabledDto: {
             /** @description Apagar o encender toda la IA del workspace */
             enabled: boolean;
+        };
+        AiTaskAssignmentDto: {
+            /** @enum {string} */
+            task: "IDEA_GENERATION" | "TEXT_ASSIST" | "AGENT_REVIEW" | "AGENT_REPLY";
+            /** @enum {string|null} */
+            provider: "ANTHROPIC" | "GROQ" | null;
+            modelId: Record<string, never> | null;
+            /** @description Si con lo asignado la tarea se puede ofrecer */
+            supported: boolean;
+            /** @description Capacidades que faltan y lo impiden */
+            missing: string[];
+            /** @description Capacidades que faltan y solo la empobrecen */
+            degraded: string[];
+        };
+        AssignTaskModelDto: {
+            /** @enum {string} */
+            provider: "ANTHROPIC" | "GROQ";
+            modelId: string;
         };
         AiModelDto: {
             /** @enum {string} */
@@ -2253,6 +2305,53 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["AiSettingsDto"];
+                };
+            };
+        };
+    };
+    WorkspaceAiController_tasks_: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AiTaskAssignmentDto"][];
+                };
+            };
+        };
+    };
+    WorkspaceAiController_assign: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+                task: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AssignTaskModelDto"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AiTaskAssignmentDto"][];
                 };
             };
         };
