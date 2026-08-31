@@ -92,6 +92,13 @@ export async function startHarness(): Promise<Harness> {
   process.env['GITHUB_CLIENT_SECRET'] = 'test';
   process.env['OTEL_ENABLED'] = 'false';
   process.env['NODE_ENV'] = 'test';
+  /*
+   * La IA de los tests habla con el proveedor de mentira y cifra con un llavero
+   * de juguete. Todo lo demás —selección de proveedor, permisos, cifrado,
+   * políticas— es el camino real (T-36, RNF-901).
+   */
+  process.env['AI_USE_FAKE_PROVIDER'] = 'true';
+  process.env['AI_CREDENTIAL_KEYS'] = `1:${Buffer.alloc(32, 7).toString('base64')}`;
 
   const app = await NestFactory.create(AppModule, { logger: false });
   app.setGlobalPrefix('api/v1', { exclude: ['health/live', 'health/ready'] });

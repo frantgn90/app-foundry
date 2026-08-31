@@ -26,6 +26,9 @@ importers:
 
   apps/api:
     dependencies:
+      '@app-foundry/ai':
+        specifier: workspace:*
+        version: link:../../packages/ai
       '@app-foundry/core':
         specifier: workspace:*
         version: link:../../packages/core

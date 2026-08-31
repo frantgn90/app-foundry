@@ -65,6 +65,19 @@ export const envSchema = z.object({
    */
   AI_CREDENTIAL_KEYS: z.string().min(1).optional(),
 
+  /**
+   * Sustituye los adaptadores reales por el de mentira (T-36).
+   *
+   * Es lo que permite que los tests de API y el recorrido de extremo a extremo
+   * ejerciten el camino completo sin gastar la cuota de nadie. Se ignora en
+   * producción por si acaso: el valor de una variable de entorno no debería
+   * poder apagar la IA de verdad.
+   */
+  AI_USE_FAKE_PROVIDER: z
+    .enum(['true', 'false'])
+    .default('false')
+    .transform((v) => v === 'true'),
+
   /** Tope de agentes por app y de turnos por hilo (RF-1507, RF-1605). */
   AI_MAX_AGENTS_PER_APP: z.coerce.number().int().positive().default(5),
   AI_MAX_AGENT_TURNS_PER_THREAD: z.coerce.number().int().positive().default(3),

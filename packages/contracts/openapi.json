@@ -1010,6 +1010,205 @@
         ]
       }
     },
+    "/api/v1/workspaces/{id}/ai/providers": {
+      "get": {
+        "operationId": "AiProvidersController_list",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/AiProviderDto"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "summary": "Proveedores de IA configurados en el workspace",
+        "tags": [
+          "ai"
+        ]
+      }
+    },
+    "/api/v1/workspaces/{id}/ai/providers/{provider}": {
+      "put": {
+        "operationId": "AiProvidersController_configure",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "provider",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ConfigureProviderDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AiProviderDto"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Configurar la credencial de un proveedor. Solo el dueño",
+        "tags": [
+          "ai"
+        ]
+      },
+      "patch": {
+        "operationId": "AiProvidersController_setStatus",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "provider",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SetProviderStatusDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AiProviderDto"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Apagar o encender un proveedor sin borrarlo",
+        "tags": [
+          "ai"
+        ]
+      },
+      "delete": {
+        "operationId": "AiProvidersController_remove",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "provider",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": ""
+          }
+        },
+        "summary": "Borrar la configuración de un proveedor y su credencial",
+        "tags": [
+          "ai"
+        ]
+      }
+    },
+    "/api/v1/workspaces/{id}/ai/providers/{provider}/verify": {
+      "post": {
+        "operationId": "AiProvidersController_verify",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "provider",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AiProviderDto"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Volver a comprobar la credencial guardada",
+        "tags": [
+          "ai"
+        ]
+      }
+    },
     "/api/v1/apps/{appId}/document": {
       "get": {
         "operationId": "DocumentsController_get",
@@ -2683,6 +2882,107 @@
         },
         "required": [
           "userId"
+        ]
+      },
+      "ProviderCapabilitiesDto": {
+        "type": "object",
+        "properties": {
+          "streaming": {
+            "type": "boolean"
+          },
+          "schemaOutput": {
+            "type": "boolean",
+            "description": "Garantiza que la respuesta cumple un esquema declarado"
+          },
+          "webSearch": {
+            "type": "boolean",
+            "description": "Busca en la web desde su propia infraestructura"
+          },
+          "exactTokenCount": {
+            "type": "boolean",
+            "description": "Cuenta los tokens por API en vez de obligar a aproximar"
+          }
+        },
+        "required": [
+          "streaming",
+          "schemaOutput",
+          "webSearch",
+          "exactTokenCount"
+        ]
+      },
+      "AiProviderDto": {
+        "type": "object",
+        "properties": {
+          "provider": {
+            "type": "string",
+            "enum": [
+              "ANTHROPIC",
+              "GROQ"
+            ]
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "ACTIVE",
+              "DISABLED",
+              "INVALID"
+            ]
+          },
+          "capabilities": {
+            "$ref": "#/components/schemas/ProviderCapabilitiesDto"
+          },
+          "credentialHint": {
+            "type": "string",
+            "description": "Últimos caracteres de la clave, para reconocerla. Solo para el dueño"
+          },
+          "monthlyTokenQuota": {
+            "type": "object",
+            "nullable": true,
+            "description": "Cupo mensual de tokens. Solo para el dueño"
+          },
+          "quotaAlertPct": {
+            "type": "number",
+            "description": "Porcentaje del cupo al que se avisa. Solo para el dueño"
+          },
+          "verifiedAt": {
+            "type": "object",
+            "nullable": true,
+            "description": "Solo para el dueño"
+          }
+        },
+        "required": [
+          "provider",
+          "status",
+          "capabilities"
+        ]
+      },
+      "ConfigureProviderDto": {
+        "type": "object",
+        "properties": {
+          "apiKey": {
+            "type": "string",
+            "description": "La clave del proveedor. Se cifra al guardarla y no vuelve a salir de aquí",
+            "minLength": 8,
+            "maxLength": 400
+          }
+        },
+        "required": [
+          "apiKey"
+        ]
+      },
+      "SetProviderStatusDto": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "string",
+            "enum": [
+              "ACTIVE",
+              "DISABLED"
+            ]
+          }
+        },
+        "required": [
+          "status"
         ]
       },
       "WorkingAuthorDto": {

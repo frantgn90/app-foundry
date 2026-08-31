@@ -454,6 +454,59 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/workspaces/{id}/ai/providers": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Proveedores de IA configurados en el workspace */
+        get: operations["AiProvidersController_list"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/workspaces/{id}/ai/providers/{provider}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Configurar la credencial de un proveedor. Solo el dueño */
+        put: operations["AiProvidersController_configure"];
+        post?: never;
+        /** Borrar la configuración de un proveedor y su credencial */
+        delete: operations["AiProvidersController_remove"];
+        options?: never;
+        head?: never;
+        /** Apagar o encender un proveedor sin borrarlo */
+        patch: operations["AiProvidersController_setStatus"];
+        trace?: never;
+    };
+    "/api/v1/workspaces/{id}/ai/providers/{provider}/verify": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Volver a comprobar la credencial guardada */
+        post: operations["AiProvidersController_verify"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/apps/{appId}/document": {
         parameters: {
             query?: never;
@@ -1052,6 +1105,38 @@ export interface components {
              * @description Miembro del workspace que pasa a ser precursor
              */
             userId: string;
+        };
+        ProviderCapabilitiesDto: {
+            streaming: boolean;
+            /** @description Garantiza que la respuesta cumple un esquema declarado */
+            schemaOutput: boolean;
+            /** @description Busca en la web desde su propia infraestructura */
+            webSearch: boolean;
+            /** @description Cuenta los tokens por API en vez de obligar a aproximar */
+            exactTokenCount: boolean;
+        };
+        AiProviderDto: {
+            /** @enum {string} */
+            provider: "ANTHROPIC" | "GROQ";
+            /** @enum {string} */
+            status: "ACTIVE" | "DISABLED" | "INVALID";
+            capabilities: components["schemas"]["ProviderCapabilitiesDto"];
+            /** @description Últimos caracteres de la clave, para reconocerla. Solo para el dueño */
+            credentialHint?: string;
+            /** @description Cupo mensual de tokens. Solo para el dueño */
+            monthlyTokenQuota?: Record<string, never> | null;
+            /** @description Porcentaje del cupo al que se avisa. Solo para el dueño */
+            quotaAlertPct?: number;
+            /** @description Solo para el dueño */
+            verifiedAt?: Record<string, never> | null;
+        };
+        ConfigureProviderDto: {
+            /** @description La clave del proveedor. Se cifra al guardarla y no vuelve a salir de aquí */
+            apiKey: string;
+        };
+        SetProviderStatusDto: {
+            /** @enum {string} */
+            status: "ACTIVE" | "DISABLED";
         };
         WorkingAuthorDto: {
             handle: string;
@@ -1927,6 +2012,121 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["AppSummaryDto"];
+                };
+            };
+        };
+    };
+    AiProvidersController_list: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AiProviderDto"][];
+                };
+            };
+        };
+    };
+    AiProvidersController_configure: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+                provider: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ConfigureProviderDto"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AiProviderDto"];
+                };
+            };
+        };
+    };
+    AiProvidersController_remove: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+                provider: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    AiProvidersController_setStatus: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+                provider: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SetProviderStatusDto"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AiProviderDto"];
+                };
+            };
+        };
+    };
+    AiProvidersController_verify: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+                provider: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AiProviderDto"];
                 };
             };
         };

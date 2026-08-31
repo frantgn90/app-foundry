@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { APP_GUARD, APP_INTERCEPTOR } from '@nestjs/core';
 
+import { AiModule } from './ai/ai.module.js';
 import { AppsModule } from './apps/apps.module.js';
 import { AuditModule } from './audit/audit.service.js';
 import { AdminModule } from './admin/admin.module.js';
@@ -27,6 +28,7 @@ import { WorkspacesModule } from './workspaces/workspaces.module.js';
     AuthModule,
     WorkspacesModule,
     AppsModule,
+    AiModule,
     DocumentsModule,
     CommentsModule,
     HealthModule,

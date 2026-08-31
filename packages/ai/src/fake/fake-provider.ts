@@ -92,8 +92,13 @@ export class FakeProvider implements LlmProvider {
 
   verify(credential: Credential): Promise<void> {
     this.calls.push({ operation: 'verify', inputChars: 0 });
+    /*
+     * Coincidencia por contenido y no por igualdad: los DTO exigen una longitud
+     * mínima a la clave, así que un test necesita una clave larga que además sea
+     * reconociblemente mala.
+     */
     const invalidas = this.script.invalidKeys ?? ['invalid'];
-    if (invalidas.includes(credential.apiKey)) {
+    if (invalidas.some((marca) => credential.apiKey.includes(marca))) {
       return Promise.reject(new ProviderError(ProviderErrorKind.AUTH, 'credencial rechazada'));
     }
     return Promise.resolve();

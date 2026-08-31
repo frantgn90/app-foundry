@@ -14,6 +14,7 @@
     "test:api": "vitest run"
   },
   "dependencies": {
+    "@app-foundry/ai": "workspace:*",
     "@app-foundry/core": "workspace:*",
     "@app-foundry/db": "workspace:*",
     "@app-foundry/env": "workspace:*",
