@@ -141,15 +141,22 @@ interface ModelInfo {
 
 type GenerationEvent<T = never> =
   | { type: 'delta'; text: string }
-  | { type: 'partial'; value: DeepPartial<T> }   // solo en streamObject
+  | { type: 'partial'; value: unknown }          // solo en streamObject
   | { type: 'sources'; sources: WebSource[] }    // solo con búsqueda web
-  | { type: 'usage'; inputTokens: number; outputTokens: number }
-  | { type: 'done'; value?: T }
-  | { type: 'error'; kind: ProviderErrorKind; retryable: boolean };
+  | { type: 'usage'; usage: TokenUsage }
+  | { type: 'done'; value?: T };
 ```
 
-Toda petición lleva `AbortSignal`: cancelar corta la llamada al proveedor, no solo deja de escuchar
-(RNF-702).
+**Los errores se lanzan, no se emiten.** Un fallo sale del iterador como cualquier otra excepción del
+lenguaje, en vez de viajar como un evento más de la secuencia. Un evento de error se puede ignorar sin querer
+—basta con no contemplar ese caso en el `switch`— y entonces la operación termina pareciendo un éxito vacío;
+una excepción atraviesa el `for await`, se recoge con `try`/`catch` y encaja con la envoltura de reintentos
+sin ceremonia. Lo que se lanza es un `ProviderError` con su `kind` de la tabla de abajo.
+
+Toda petición admite una señal de cancelación: cancelar corta la llamada al proveedor, no solo deja de
+escuchar (RNF-702). El tipo se declara en `core` con la forma de `AbortSignal` —para que uno real encaje sin
+adaptador— pero no lo nombra: el dominio no depende de la biblioteca de ninguna plataforma, y esa es
+justamente la restricción que mantiene el puerto reutilizable desde el MCP de la v3.
 
 ### 5.3 Taxonomía de errores
 
