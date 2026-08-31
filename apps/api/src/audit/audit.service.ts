@@ -35,6 +35,7 @@ export const AuditAction = {
   AI_EGRESS_ACCEPTED: 'ai.egress_accepted',
   AI_TOGGLED: 'ai.toggled',
   AI_TASK_ASSIGNED: 'ai.task_assigned',
+  AI_QUOTA_CHANGED: 'ai.quota_changed',
   AI_PROVIDER_CONFIGURED: 'ai.provider_configured',
   AI_PROVIDER_VERIFIED: 'ai.provider_verified',
   AI_PROVIDER_STATUS_CHANGED: 'ai.provider_status_changed',

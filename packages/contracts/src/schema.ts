@@ -507,6 +507,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/workspaces/{id}/ai/providers/{provider}/quota": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Fijar el cupo mensual de tokens de un proveedor. Solo el dueño */
+        put: operations["AiProvidersController_setQuota"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/workspaces/{id}/ai": {
         parameters: {
             query?: never;
@@ -1224,6 +1241,12 @@ export interface components {
         SetProviderStatusDto: {
             /** @enum {string} */
             status: "ACTIVE" | "DISABLED";
+        };
+        SetQuotaDto: {
+            /** @description Cupo mensual de tokens. Nulo o ausente lo deja sin techo */
+            monthlyTokenQuota?: Record<string, never> | null;
+            /** @description A qué porcentaje se avisa */
+            quotaAlertPct?: number;
         };
         AiEgressConsentDto: {
             accepted: boolean;
@@ -2254,6 +2277,32 @@ export interface operations {
             cookie?: never;
         };
         requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AiProviderDto"];
+                };
+            };
+        };
+    };
+    AiProvidersController_setQuota: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+                provider: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SetQuotaDto"];
+            };
+        };
         responses: {
             200: {
                 headers: {

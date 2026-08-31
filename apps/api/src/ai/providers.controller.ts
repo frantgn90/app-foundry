@@ -16,7 +16,12 @@ import { ApiNoContentResponse, ApiOkResponse, ApiOperation, ApiTags } from '@nes
 import type { AiProvider } from '@app-foundry/core';
 
 import { CurrentUserId } from '../auth/current-user.decorator.js';
-import { AiProviderDto, ConfigureProviderDto, SetProviderStatusDto } from './ai.dto.js';
+import {
+  AiProviderDto,
+  ConfigureProviderDto,
+  SetProviderStatusDto,
+  SetQuotaDto,
+} from './ai.dto.js';
 import { AiProvidersService } from './providers.service.js';
 
 @ApiTags('ai')
@@ -69,6 +74,26 @@ export class AiProvidersController {
     @CurrentUserId() userId: string,
   ): Promise<AiProviderDto> {
     return this.providers.setStatus(workspaceId, provider, body.status, userId);
+  }
+
+  @Put(':provider/quota')
+  @ApiOperation({ summary: 'Fijar el cupo mensual de tokens de un proveedor. Solo el dueño' })
+  @ApiOkResponse({ type: AiProviderDto })
+  setQuota(
+    @Param('id', ParseUUIDPipe) workspaceId: string,
+    @Param('provider') provider: AiProvider,
+    @Body() body: SetQuotaDto,
+    @CurrentUserId() userId: string,
+  ): Promise<AiProviderDto> {
+    return this.providers.setQuota(
+      workspaceId,
+      provider,
+      {
+        monthlyTokenQuota: body.monthlyTokenQuota ?? null,
+        ...(body.quotaAlertPct !== undefined && { quotaAlertPct: body.quotaAlertPct }),
+      },
+      userId,
+    );
   }
 
   @Delete(':provider')

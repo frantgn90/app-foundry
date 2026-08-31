@@ -36,6 +36,14 @@ export interface Harness {
   redisUrl: string;
   createUser: (handle: string) => Promise<TestUser>;
   /**
+   * Un servicio de la aplicación ya montada.
+   *
+   * Para lo que no tiene ruta propia todavía —el paso por el que pasará toda
+   * invocación—: se ejercita el servicio de verdad, con sus dependencias reales,
+   * en lugar de reconstruirlo a mano y probar otra cosa.
+   */
+  resolve: <T>(token: string | symbol | (new (...args: never[]) => T)) => T;
+  /**
    * Da de alta a alguien por el mismo camino que el login real.
    *
    * `createUser` siembra las filas directamente, que es más rápido y sirve para
@@ -184,6 +192,7 @@ export async function startHarness(): Promise<Harness> {
 
   return {
     redisUrl: redis.getConnectionUrl(),
+    resolve: (token) => app.get(token as never),
     signIn,
     baseUrl: url,
     db: seeding.db,

@@ -304,6 +304,63 @@ export class AiProvidersService {
    */
   onProviderConfigured?: (workspaceId: string, provider: AiProvider) => Promise<void>;
 
+  /** El cupo mensual de un proveedor, o nulo si no tiene (RF-1204). */
+  async quotaOf(workspaceId: string, provider: AiProvider): Promise<number | null> {
+    const [fila] = await currentTx()
+      .select({ quota: workspaceAiProviders.monthlyTokenQuota })
+      .from(workspaceAiProviders)
+      .where(
+        and(
+          eq(workspaceAiProviders.workspaceId, workspaceId),
+          eq(workspaceAiProviders.provider, provider),
+        ),
+      );
+
+    return fila?.quota ?? null;
+  }
+
+  /**
+   * Fija el cupo mensual de tokens y el umbral de aviso (RF-1204, RF-1205).
+   *
+   * Va por proveedor y no por workspace: un millón de tokens no vale lo mismo en
+   * cada uno, así que un cupo único mediría volumen y no gasto (D-30).
+   */
+  async setQuota(
+    workspaceId: string,
+    provider: AiProvider,
+    body: { monthlyTokenQuota: number | null; quotaAlertPct?: number },
+    userId: string,
+  ): Promise<AiProviderDto> {
+    await this.assertOwner(workspaceId, userId);
+
+    const [fila] = await currentTx()
+      .update(workspaceAiProviders)
+      .set({
+        monthlyTokenQuota: body.monthlyTokenQuota,
+        ...(body.quotaAlertPct !== undefined && { quotaAlertPct: body.quotaAlertPct }),
+        updatedAt: new Date(),
+      })
+      .where(
+        and(
+          eq(workspaceAiProviders.workspaceId, workspaceId),
+          eq(workspaceAiProviders.provider, provider),
+        ),
+      )
+      .returning({ provider: workspaceAiProviders.provider });
+
+    if (!fila) throw new NotFoundException('Ese proveedor no está configurado');
+
+    await this.audit.record({
+      actorId: userId,
+      action: AuditAction.AI_QUOTA_CHANGED,
+      resourceType: 'ai_provider',
+      workspaceId,
+      metadata: { provider, monthlyTokenQuota: body.monthlyTokenQuota },
+    });
+
+    return this.one(workspaceId, provider, userId);
+  }
+
   /** Los ajustes de IA del workspace. Solo su dueño. */
   async settings(workspaceId: string, userId: string): Promise<AiSettingsDto> {
     await this.assertOwner(workspaceId, userId);

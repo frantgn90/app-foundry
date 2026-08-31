@@ -1209,6 +1209,55 @@
         ]
       }
     },
+    "/api/v1/workspaces/{id}/ai/providers/{provider}/quota": {
+      "put": {
+        "operationId": "AiProvidersController_setQuota",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "provider",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SetQuotaDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AiProviderDto"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Fijar el cupo mensual de tokens de un proveedor. Solo el dueño",
+        "tags": [
+          "ai"
+        ]
+      }
+    },
     "/api/v1/workspaces/{id}/ai": {
       "get": {
         "operationId": "WorkspaceAiController_settings",
@@ -3234,6 +3283,22 @@
         "required": [
           "status"
         ]
+      },
+      "SetQuotaDto": {
+        "type": "object",
+        "properties": {
+          "monthlyTokenQuota": {
+            "type": "object",
+            "nullable": true,
+            "description": "Cupo mensual de tokens. Nulo o ausente lo deja sin techo"
+          },
+          "quotaAlertPct": {
+            "type": "number",
+            "minimum": 1,
+            "maximum": 100,
+            "description": "A qué porcentaje se avisa"
+          }
+        }
       },
       "AiEgressConsentDto": {
         "type": "object",

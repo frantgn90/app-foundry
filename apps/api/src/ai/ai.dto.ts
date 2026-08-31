@@ -1,5 +1,15 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { IsBoolean, IsIn, IsString, Length } from 'class-validator';
+import {
+  IsBoolean,
+  IsIn,
+  IsInt,
+  IsOptional,
+  IsPositive,
+  Max,
+  Min,
+  IsString,
+  Length,
+} from 'class-validator';
 
 import { AiProvider, AiTask } from '@app-foundry/core';
 
@@ -161,4 +171,22 @@ export class AssignTaskModelDto {
   @IsString()
   @Length(1, 200)
   modelId!: string;
+}
+
+export class SetQuotaDto {
+  @ApiPropertyOptional({
+    nullable: true,
+    description: 'Cupo mensual de tokens. Nulo o ausente lo deja sin techo',
+  })
+  @IsOptional()
+  @IsInt()
+  @IsPositive()
+  monthlyTokenQuota?: number | null;
+
+  @ApiPropertyOptional({ minimum: 1, maximum: 100, description: 'A qué porcentaje se avisa' })
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  @Max(100)
+  quotaAlertPct?: number;
 }
