@@ -550,3 +550,87 @@ empezar cada hito, con el mismo método que la v1.
 | **H12** | Agentes: modelo, plantillas, instancias, autoría polimórfica, menciones y respuestas           | Un interlocutor con perfil         |
 | **H13** | Revisión en abanico: cola, estimación, confirmación, cancelación y cortafuegos                 | **Pensar acompañado, completo**    |
 | **H14** | Panel de Grafana, recorrido de extremo a extremo, conciliación de cupos y cierre               | v2 completa                        |
+
+---
+
+## H9 — La IA tiene grifo y contador
+
+> Objetivo: que exista una forma de hablar con un modelo y que **ninguna llamada pueda escaparse sin
+> credencial, sin cupo y sin registro**. No entrega nada visible salvo los ajustes del workspace, y es
+> deliberado: cualquier función de IA construida antes de esto nacería sin techo, y añadírselo después es
+> reescribirla (RD-10).
+>
+> Alcance: el asistente de escritura es H10; ideas, H11; agentes, H12 y H13. Aquí solo el grifo, el contador
+> y las dos primeras implementaciones del contrato.
+
+### Bloque AO — El contrato de proveedor
+
+| # | Tarea | Verificación | Traza | Estado |
+|---|---|---|---|---|
+| AO1 | Puerto `LlmProvider`, capacidades, tipos de tarea y de petición en `core` | `core` no importa ningún SDK de proveedor, y el linter lo impide | T-21, T-22, RD-8 | ⬜ |
+| AO2 | Taxonomía de errores y política de reintento asociada a cada `kind` | Un `AUTH` no se reintenta nunca; un `TRANSIENT` sí | §5.3, RNF-703 | ⬜ |
+| AO3 | Proveedor de mentira que implementa el puerto | Streaming simulado, cada `kind` de error y conteos deterministas, sin red | T-36, RNF-901 | ⬜ |
+| AO4 | Registro de proveedores y resolución por `ProviderId` | Añadir un proveedor es registrar un adaptador, sin tocar dominio ni interfaz | RD-8, O12 | ⬜ |
+| AO5 | Esquemas del producto en el subconjunto estricto | Un test rechaza cualquier esquema con campos opcionales o `additionalProperties` abierto | T-24 | ⬜ |
+| AO6 | Adaptador de Anthropic: texto, objeto con esquema, búsqueda web y conteo exacto | Contra el SDK oficial; el error de búsqueda que llega con HTTP 200 se traduce a la taxonomía | T-23, §6 | ⬜ |
+| AO7 | Adaptador de Groq: texto, objeto con decodificación restringida y aproximación de tokens | El mismo esquema del producto vale sin traducción; la aproximación redondea siempre al alza | T-23, T-24, §10 | ⬜ |
+
+### Bloque AP — Credenciales y proveedores del workspace
+
+| # | Tarea | Verificación | Traza | Estado |
+|---|---|---|---|---|
+| AP1 | Tablas `workspace_ai_providers` y `workspace_ai_credentials` | El esquema declarado coincide con el aplicado | §7.1, RF-1001 | ⬜ |
+| AP2 | Cifrado AES-256-GCM con clave versionada y datos autenticados | Mover una fila cifrada a otro workspace la vuelve indescifrable | T-26, RNF-601 | ⬜ |
+| AP3 | Función `SECURITY DEFINER` y `SELECT` revocado sobre la credencial | El rol de aplicación no puede leer la tabla directamente | T-27, RNF-603 | ⬜ |
+| AP4 | Políticas RLS de las tablas nuevas y ampliación de la suite de aislamiento | Un miembro que no es dueño no lee la credencial de su propio workspace | RNF-603, RNF-904 | ⬜ |
+| AP5 | API de configurar, verificar, desactivar y borrar un proveedor | Una clave inválida se rechaza en el acto y con motivo; el proveedor no queda activo | RF-1002..1006 | ⬜ |
+| AP6 | Advertencia de envío a terceros, con registro de quién la aceptó | Activar el primer proveedor exige aceptarla | RF-1011 | ⬜ |
+| AP7 | Interruptor general de IA del workspace | Apagarla no borra configuración ni agentes; volver a encenderla lo restituye | RF-1012 | ⬜ |
+| AP8 | Auditoría de todo lo anterior | Ni una credencial, ni un fragmento de contenido, en ninguna entrada | RF-1702, RF-1703 | ⬜ |
+| AP9 | Rotación de la clave de instancia y recifrado en lote | Con dos claves activas se descifra lo viejo y se cifra con la nueva | T-26 | ⬜ |
+
+### Bloque AQ — Catálogo de modelos y asignación por tarea
+
+| # | Tarea | Verificación | Traza | Estado |
+|---|---|---|---|---|
+| AQ1 | Tabla `ai_models` y lectura del catálogo desde la API del proveedor | Ventana de contexto y capacidades salen del proveedor, no de una constante | T-28, RF-1007 | ⬜ |
+| AQ2 | Caché con refresco en segundo plano y último catálogo conocido | Con el proveedor caído se sigue sirviendo lo último que se supo | RF-1009 | ⬜ |
+| AQ3 | Tabla `workspace_task_models` y API de asignación por tarea | Solo el dueño asigna; el resto consume lo asignado | RF-1101, RF-1102, RF-1107 | ⬜ |
+| AQ4 | Asignación por defecto propuesta al configurar el primer proveedor | Editable siempre; con un solo proveedor, todas las tareas van a él | RF-1103 | ⬜ |
+| AQ5 | Aviso cuando el modelo asignado desaparece del catálogo | Se avisa al dueño, no se falla cuando alguien usa la función | RF-1009 | ⬜ |
+| AQ6 | Rechazo por ventana de contexto insuficiente | Se explica qué pasa y qué hacer; nunca se recorta el documento en silencio | RF-1106 | ⬜ |
+
+### Bloque AR — Consumo y cupos
+
+| # | Tarea | Verificación | Traza | Estado |
+|---|---|---|---|---|
+| AR1 | Tabla `ai_invocations` con sus índices | Entrada y salida separadas; ni una línea de contenido | RF-1201, RF-1202, T-29 | ⬜ |
+| AR2 | Contador en Redis con script Lua: reserva atómica y liquidación | Cinco reservas simultáneas no se saltan el cupo entre todas | T-30, §9.2 | ⬜ |
+| AR3 | Reconstrucción del contador desde el registro, y fallo cerrado sin Redis | Borrando la clave, el consumo del mes vuelve a salir correcto | §9.3, T-31 | ⬜ |
+| AR4 | Barrido de reservas huérfanas | Una reserva sin liquidar deja de comer cupo al vencer | §9.2 | ⬜ |
+| AR5 | Conciliación periódica del contador contra el registro | Una liquidación perdida se corrige sola en la siguiente pasada | §9.3 | ⬜ |
+| AR6 | Cupo mensual por proveedor y corte al agotarse | Agotado uno, las tareas del otro proveedor siguen funcionando | RF-1204, RF-1210 | ⬜ |
+| AR7 | Aviso al superar el umbral configurable | Notificación dentro de la aplicación al dueño | RF-1205 | ⬜ |
+| AR8 | Límite de invocaciones por miembro y ventana | Sobre el rate limiting que ya existe | RF-1206 | ⬜ |
+| AR9 | Estimación previa como techo: entrada contada y salida al máximo | La cifra enseñada nunca se queda por debajo del consumo real | RF-1207, §10 | ⬜ |
+| AR10 | API de consumo del workspace | Cada miembro ve el suyo; el dueño, todo | RF-1208 | ⬜ |
+| AR11 | Suite de cupos | Concurrencia, reconstrucción, corte y fallo cerrado, con casos negativos | RNF-903 | ⬜ |
+
+### Bloque AS — Ajustes del workspace
+
+| # | Tarea | Verificación | Traza | Estado |
+|---|---|---|---|---|
+| AS1 | Página de proveedores: alta, verificación, estado y credencial enmascarada | La clave no viaja al cliente ni entera ni descifrable | RF-1002, RF-1004 | ⬜ |
+| AS2 | Asignación de modelo por tarea desde la interfaz | Se dibuja a partir de las capacidades declaradas, no de una lista fija | RF-1008, RF-1102 | ⬜ |
+| AS3 | Cupos y umbral de aviso | Un cupo por proveedor configurado | RF-1204, RF-1205 | ⬜ |
+| AS4 | Página de consumo del mes | Desglose por proveedor, tarea, modelo y miembro, con entrada y salida separadas | RF-1208 | ⬜ |
+| AS5 | Sin proveedor activo, ninguna función de IA aparece | Ni botones deshabilitados, ni código de IA descargado | RF-1010 | ⬜ |
+
+### Bloque AT — Observabilidad
+
+| # | Tarea | Verificación | Traza | Estado |
+|---|---|---|---|---|
+| AT1 | Traza por invocación, hija de quien la originó | Con proveedor, modelo, tarea, tokens y latencias; nunca contenido | RNF-801 | ⬜ |
+| AT2 | Métricas de invocaciones, tokens, consumo frente al cupo y errores | Visibles en Prometheus con las etiquetas acordadas | RNF-802 | ⬜ |
+| AT3 | Panel de Grafana de la IA | Junto a los que ya existen, sin tocarlos | RNF-803 | ⬜ |
+| AT4 | Cupo agotado y cortacircuitos, como eventos observables | No solo un mensaje en la interfaz | RNF-804 | ⬜ |
