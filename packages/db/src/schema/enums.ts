@@ -84,3 +84,17 @@ export const aiTaskEnum = pgEnum('ai_task', [
   'AGENT_REVIEW',
   'AGENT_REPLY',
 ]);
+
+/**
+ * Cómo terminó una invocación (RF-1201).
+ *
+ * `QUOTA_BLOCKED` se registra aunque no haya habido llamada: sin él, un cupo
+ * agotado sería un hueco en el registro, y la pregunta «¿por qué dejó de
+ * funcionar el martes?» no tendría respuesta.
+ */
+export const aiOutcomeEnum = pgEnum('ai_outcome', [
+  'COMPLETED',
+  'FAILED',
+  'CANCELLED',
+  'QUOTA_BLOCKED',
+]);

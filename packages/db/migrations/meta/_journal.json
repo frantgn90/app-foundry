@@ -281,6 +281,13 @@
       "when": 1788210679426,
       "tag": "0039_ai_model_unavailable_notice",
       "breakpoints": true
+    },
+    {
+      "idx": 40,
+      "version": "7",
+      "when": 1788211341361,
+      "tag": "0040_ai_invocations",
+      "breakpoints": true
     }
   ]
 }

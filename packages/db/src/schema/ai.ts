@@ -14,8 +14,9 @@ import {
   uuid,
 } from 'drizzle-orm/pg-core';
 
-import { aiProviderEnum, aiTaskEnum, providerStatusEnum } from './enums.js';
+import { aiOutcomeEnum, aiProviderEnum, aiTaskEnum, providerStatusEnum } from './enums.js';
 import { bytea } from './types.js';
+import { apps } from './apps.js';
 import { users } from './users.js';
 import { workspaces } from './workspaces.js';
 
@@ -182,5 +183,56 @@ export const workspaceTaskModels = pgTable(
       foreignColumns: [workspaceAiProviders.workspaceId, workspaceAiProviders.provider],
       name: 'workspace_task_models_provider_fk',
     }).onDelete('cascade'),
+  ],
+);
+
+/**
+ * Una llamada a un modelo, con lo que costó (RF-1201, RD-10).
+ *
+ * Es la **verdad** del consumo: el contador de Redis es una caché derivable de
+ * esta tabla, y de aquí se reconstruye cuando hace falta (§9.3 del TRD v2).
+ *
+ * **No guarda contenido**: ni el prompt, ni el documento, ni la respuesta
+ * (RF-1202, RNF-112). Mide, no archiva.
+ *
+ * Entrada y salida van separadas siempre. Hoy no calculamos importes porque
+ * nadie publica sus tarifas, pero guardarlas por separado permite valorar el
+ * histórico entero el día que haga falta, sin haber perdido un dato (D-37).
+ */
+export const aiInvocations = pgTable(
+  'ai_invocations',
+  {
+    id: uuid('id')
+      .primaryKey()
+      .default(sql`uuidv7()`),
+    workspaceId: uuid('workspace_id')
+      .notNull()
+      .references(() => workspaces.id, { onDelete: 'cascade' }),
+    /** La app sobre la que se invocó, si fue sobre alguna. */
+    appId: uuid('app_id').references(() => apps.id, { onDelete: 'set null' }),
+    /**
+     * Quién la provocó.
+     *
+     * Se conserva el consumo aunque la cuenta desaparezca: lo gastado ya se
+     * gastó, y borrarlo descuadraría el mes.
+     */
+    actorUserId: uuid('actor_user_id').references(() => users.id, { onDelete: 'set null' }),
+    task: aiTaskEnum('task').notNull(),
+    provider: aiProviderEnum('provider').notNull(),
+    modelId: text('model_id').notNull(),
+    inputTokens: integer('input_tokens').notNull().default(0),
+    outputTokens: integer('output_tokens').notNull().default(0),
+    /** Hasta la primera palabra: es lo que se nota al usarlo (RNF-706). */
+    ttftMs: integer('ttft_ms'),
+    latencyMs: integer('latency_ms'),
+    outcome: aiOutcomeEnum('outcome').notNull(),
+    /** El `kind` de la taxonomía cuando falló. Nunca el mensaje del proveedor. */
+    errorKind: text('error_kind'),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    index('ai_invocations_workspace_idx').on(table.workspaceId, table.createdAt),
+    /** Para reconstruir el contador de un mes y proveedor sin recorrer la tabla. */
+    index('ai_invocations_quota_idx').on(table.workspaceId, table.provider, table.createdAt),
   ],
 );
