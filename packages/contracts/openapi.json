@@ -1209,6 +1209,66 @@
         ]
       }
     },
+    "/api/v1/workspaces/{id}/ai/consent": {
+      "get": {
+        "operationId": "WorkspaceAiController_consent",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AiEgressConsentDto"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Si se aceptó que el contenido salga a un tercero",
+        "tags": [
+          "ai"
+        ]
+      },
+      "post": {
+        "operationId": "WorkspaceAiController_accept",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AiEgressConsentDto"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Aceptar el envío de contenido a terceros. Idempotente y sin vuelta atrás",
+        "tags": [
+          "ai"
+        ]
+      }
+    },
     "/api/v1/apps/{appId}/document": {
       "get": {
         "operationId": "DocumentsController_get",
@@ -2983,6 +3043,28 @@
         },
         "required": [
           "status"
+        ]
+      },
+      "AiEgressConsentDto": {
+        "type": "object",
+        "properties": {
+          "accepted": {
+            "type": "boolean"
+          },
+          "acceptedAt": {
+            "type": "object",
+            "nullable": true
+          },
+          "acceptedBy": {
+            "type": "object",
+            "nullable": true,
+            "description": "Handle de quien lo aceptó"
+          }
+        },
+        "required": [
+          "accepted",
+          "acceptedAt",
+          "acceptedBy"
         ]
       },
       "WorkingAuthorDto": {

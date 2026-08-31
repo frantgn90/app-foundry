@@ -507,6 +507,24 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/workspaces/{id}/ai/consent": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Si se aceptó que el contenido salga a un tercero */
+        get: operations["WorkspaceAiController_consent"];
+        put?: never;
+        /** Aceptar el envío de contenido a terceros. Idempotente y sin vuelta atrás */
+        post: operations["WorkspaceAiController_accept"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/apps/{appId}/document": {
         parameters: {
             query?: never;
@@ -1137,6 +1155,12 @@ export interface components {
         SetProviderStatusDto: {
             /** @enum {string} */
             status: "ACTIVE" | "DISABLED";
+        };
+        AiEgressConsentDto: {
+            accepted: boolean;
+            acceptedAt: Record<string, never> | null;
+            /** @description Handle de quien lo aceptó */
+            acceptedBy: Record<string, never> | null;
         };
         WorkingAuthorDto: {
             handle: string;
@@ -2127,6 +2151,48 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["AiProviderDto"];
+                };
+            };
+        };
+    };
+    WorkspaceAiController_consent: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AiEgressConsentDto"];
+                };
+            };
+        };
+    };
+    WorkspaceAiController_accept: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AiEgressConsentDto"];
                 };
             };
         };

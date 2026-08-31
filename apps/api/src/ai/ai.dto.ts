@@ -66,3 +66,21 @@ export class SetProviderStatusDto {
   @IsIn(['ACTIVE', 'DISABLED'])
   status!: 'ACTIVE' | 'DISABLED';
 }
+
+/**
+ * Si en este workspace se ha aceptado que el contenido salga a un tercero
+ * (RF-1011).
+ *
+ * Es un hecho del workspace, no de cada proveedor: lo que se consiente es que
+ * el texto de las apps deje de estar solo aquí.
+ */
+export class AiEgressConsentDto {
+  @ApiProperty()
+  accepted!: boolean;
+
+  @ApiProperty({ nullable: true })
+  acceptedAt!: string | null;
+
+  @ApiProperty({ nullable: true, description: 'Handle de quien lo aceptó' })
+  acceptedBy!: string | null;
+}

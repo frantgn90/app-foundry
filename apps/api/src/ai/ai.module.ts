@@ -16,9 +16,10 @@ import { ENV } from '../infrastructure/tokens.js';
 import { AI_CIPHER, AI_REGISTRY } from './ai.tokens.js';
 import { AiProvidersController } from './providers.controller.js';
 import { AiProvidersService } from './providers.service.js';
+import { WorkspaceAiController } from './workspace-ai.controller.js';
 
 @Module({
-  controllers: [AiProvidersController],
+  controllers: [AiProvidersController, WorkspaceAiController],
   providers: [
     AiProvidersService,
     {

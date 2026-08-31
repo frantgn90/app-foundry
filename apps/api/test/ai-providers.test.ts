@@ -42,6 +42,52 @@ afterAll(async () => {
   await h.stop();
 });
 
+describe('antes de nada, la advertencia', () => {
+  /*
+   * RF-1011: configurar un proveedor es empezar a mandar el contenido de las
+   * apps a un tercero, y eso se acepta a sabiendas o no se hace.
+   */
+  it('sin aceptar el envío a terceros no se puede configurar nada', async () => {
+    const response = await h.as(ana).put(ruta(ana), { apiKey: CLAVE });
+
+    expect(response.status).toBe(409);
+    expect(await response.text()).toMatch(/tercero/i);
+  });
+
+  it('la aceptación queda con nombre y fecha', async () => {
+    const response = await h.as(ana).post(`/api/v1/workspaces/${ana.workspaceId}/ai/consent`);
+    const body = (await response.json()) as {
+      accepted: boolean;
+      acceptedAt: string | null;
+      acceptedBy: string | null;
+    };
+
+    expect(body.accepted).toBe(true);
+    expect(body.acceptedBy).toBe('ana');
+    expect(body.acceptedAt).not.toBeNull();
+  });
+
+  it('aceptar dos veces no cambia quién ni cuándo', async () => {
+    const primera = (await (
+      await h.as(ana).get(`/api/v1/workspaces/${ana.workspaceId}/ai/consent`)
+    ).json()) as { acceptedAt: string };
+
+    await h.as(ana).post(`/api/v1/workspaces/${ana.workspaceId}/ai/consent`);
+
+    const segunda = (await (
+      await h.as(ana).get(`/api/v1/workspaces/${ana.workspaceId}/ai/consent`)
+    ).json()) as { acceptedAt: string };
+
+    expect(segunda.acceptedAt).toBe(primera.acceptedAt);
+  });
+
+  it('no la acepta un miembro por el dueño', async () => {
+    const response = await h.as(bruno).post(`/api/v1/workspaces/${ana.workspaceId}/ai/consent`);
+
+    expect(response.status).toBe(403);
+  });
+});
+
 describe('configurar un proveedor', () => {
   it('el dueño lo configura y queda activo', async () => {
     const response = await h.as(ana).put(ruta(ana), { apiKey: CLAVE });

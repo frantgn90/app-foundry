@@ -1,5 +1,6 @@
 import {
   BadRequestException,
+  ConflictException,
   ForbiddenException,
   Inject,
   Injectable,
@@ -16,12 +17,12 @@ import {
 } from '@app-foundry/core';
 import { CredentialCipher } from '@app-foundry/ai';
 import type { ProviderRegistry } from '@app-foundry/ai';
-import { workspaceAiCredentials, workspaceAiProviders, workspaces } from '@app-foundry/db';
+import { users, workspaceAiCredentials, workspaceAiProviders, workspaces } from '@app-foundry/db';
 
 import { AuditAction, AuditService } from '../audit/audit.service.js';
 import { currentTx } from '../database/request-context.js';
 import { AI_CIPHER, AI_REGISTRY } from './ai.tokens.js';
-import type { AiProviderDto, ConfigureProviderDto } from './ai.dto.js';
+import type { AiEgressConsentDto, AiProviderDto, ConfigureProviderDto } from './ai.dto.js';
 
 @Injectable()
 export class AiProvidersService {
@@ -75,6 +76,7 @@ export class AiProvidersService {
     userId: string,
   ): Promise<AiProviderDto> {
     await this.enforceOwner(workspaceId, userId);
+    await this.enforceEgressConsent(workspaceId);
     const cipher = this.requireCipher();
 
     const apiKey = body.apiKey.trim();
@@ -278,6 +280,79 @@ export class AiProvidersService {
         { workspaceId, provider },
       ),
     };
+  }
+
+  /**
+   * Si alguien aceptó ya que el contenido salga a un tercero (RF-1011).
+   */
+  async egressConsent(workspaceId: string, userId: string): Promise<AiEgressConsentDto> {
+    await this.enforceOwner(workspaceId, userId);
+
+    const [fila] = await currentTx()
+      .select({
+        acceptedAt: workspaces.aiEgressAcceptedAt,
+        handle: users.handle,
+      })
+      .from(workspaces)
+      .leftJoin(users, eq(users.id, workspaces.aiEgressAcceptedBy))
+      .where(eq(workspaces.id, workspaceId));
+
+    if (!fila) throw new NotFoundException('Ese workspace no existe');
+
+    return {
+      accepted: fila.acceptedAt !== null,
+      acceptedAt: fila.acceptedAt?.toISOString() ?? null,
+      acceptedBy: fila.handle ?? null,
+    };
+  }
+
+  /**
+   * Deja constancia de la aceptación.
+   *
+   * Es idempotente y **no se puede retirar**: lo ya enviado a un tercero no se
+   * desenvía, así que un botón de «me arrepiento» prometería algo falso. Lo que
+   * sí se puede es apagar la IA del workspace, que es otra cosa (AP7).
+   */
+  async acceptEgress(workspaceId: string, userId: string): Promise<AiEgressConsentDto> {
+    await this.enforceOwner(workspaceId, userId);
+
+    const actual = await this.egressConsent(workspaceId, userId);
+    if (actual.accepted) return actual;
+
+    await currentTx()
+      .update(workspaces)
+      .set({ aiEgressAcceptedAt: new Date(), aiEgressAcceptedBy: userId, updatedAt: new Date() })
+      .where(eq(workspaces.id, workspaceId));
+
+    await this.audit.record({
+      actorId: userId,
+      action: AuditAction.AI_EGRESS_ACCEPTED,
+      resourceType: 'workspace',
+      resourceId: workspaceId,
+      workspaceId,
+    });
+
+    return this.egressConsent(workspaceId, userId);
+  }
+
+  /**
+   * Sin aceptación no se guarda ninguna credencial.
+   *
+   * Se comprueba aquí y no en la interfaz porque es donde de verdad empieza el
+   * envío a terceros: un cliente que se salte el diálogo no puede saltarse esto
+   * (RNF-101).
+   */
+  private async enforceEgressConsent(workspaceId: string): Promise<void> {
+    const [fila] = await currentTx()
+      .select({ acceptedAt: workspaces.aiEgressAcceptedAt })
+      .from(workspaces)
+      .where(eq(workspaces.id, workspaceId));
+
+    if (!fila?.acceptedAt) {
+      throw new ConflictException(
+        'Antes de configurar un proveedor hay que aceptar que el contenido de las apps de este workspace se envíe a un tercero',
+      );
+    }
   }
 
   private async one(

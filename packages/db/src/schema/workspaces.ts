@@ -34,6 +34,19 @@ export const workspaces = pgTable(
     iconEmoji: text('icon_emoji').notNull().default('🗂️'),
     iconColor: text('icon_color').notNull().default('slate'),
     background: text('background').notNull().default('plain'),
+    /**
+     * Cuándo y quién aceptó que el contenido de este workspace salga a un
+     * tercero al usar la IA (RF-1011).
+     *
+     * Es un hecho del workspace y no de cada proveedor: lo que se consiente es
+     * que el texto de las apps deje de estar solo aquí, y eso pasa igual con uno
+     * que con dos. Se conserva aunque se borren todos los proveedores, porque lo
+     * ya enviado no se puede desenviar.
+     */
+    aiEgressAcceptedAt: timestamp('ai_egress_accepted_at', { withTimezone: true }),
+    aiEgressAcceptedBy: uuid('ai_egress_accepted_by').references(() => users.id, {
+      onDelete: 'set null',
+    }),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
   },
