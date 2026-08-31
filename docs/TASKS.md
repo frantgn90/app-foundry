@@ -615,7 +615,7 @@ empezar cada hito, con el mismo método que la v1.
 | AR4 | Barrido de reservas huérfanas | Una reserva sin liquidar deja de comer cupo al vencer | §9.2 | ✅ |
 | AR5 | Conciliación periódica del contador contra el registro | Una liquidación perdida se corrige sola en la siguiente pasada | §9.3 | ✅ |
 | AR6 | Cupo mensual por proveedor y corte al agotarse | Agotado uno, las tareas del otro proveedor siguen funcionando | RF-1204, RF-1210 | ✅ |
-| AR7 | Aviso al superar el umbral configurable | Notificación dentro de la aplicación al dueño | RF-1205 | ⬜ |
+| AR7 | Aviso al superar el umbral configurable | Notificación dentro de la aplicación al dueño | RF-1205 | ✅ |
 | AR8 | Límite de invocaciones por miembro y ventana | Sobre el rate limiting que ya existe | RF-1206 | ⬜ |
 | AR9 | Estimación previa como techo: entrada contada y salida al máximo | La cifra enseñada nunca se queda por debajo del consumo real | RF-1207, §10 | ✅ |
 | AR10 | API de consumo del workspace | Cada miembro ve el suyo; el dueño, todo | RF-1208 | ⬜ |

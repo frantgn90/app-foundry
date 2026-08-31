@@ -319,6 +319,33 @@ export class AiProvidersService {
     return fila?.quota ?? null;
   }
 
+  /** El cupo, su umbral de aviso y a quién avisar. */
+  async quotaSettingsOf(
+    workspaceId: string,
+    provider: AiProvider,
+  ): Promise<{ quota: number | null; alertPct: number; ownerId: string }> {
+    const [fila] = await currentTx()
+      .select({
+        quota: workspaceAiProviders.monthlyTokenQuota,
+        alertPct: workspaceAiProviders.quotaAlertPct,
+        ownerId: workspaces.ownerId,
+      })
+      .from(workspaceAiProviders)
+      .innerJoin(workspaces, eq(workspaces.id, workspaceAiProviders.workspaceId))
+      .where(
+        and(
+          eq(workspaceAiProviders.workspaceId, workspaceId),
+          eq(workspaceAiProviders.provider, provider),
+        ),
+      );
+
+    return {
+      quota: fila?.quota ?? null,
+      alertPct: fila?.alertPct ?? 80,
+      ownerId: fila?.ownerId ?? '',
+    };
+  }
+
   /**
    * Fija el cupo mensual de tokens y el umbral de aviso (RF-1204, RF-1205).
    *

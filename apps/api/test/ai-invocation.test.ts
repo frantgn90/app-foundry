@@ -28,7 +28,10 @@ const peticion = {
 
 const comoAna = <T>(fn: () => Promise<T>): Promise<T> => conIdentidad(db, ana.id, fn);
 
-const empezar = (extra: Partial<typeof peticion> = {}, now = AHORA) =>
+const empezar = (
+  extra: Partial<typeof peticion> & { maxOutputTokens?: number } = {},
+  now = AHORA,
+) =>
   comoAna(() =>
     invocaciones.begin(
       { workspaceId: ana.workspaceId, task: 'TEXT_ASSIST', userId: ana.id },
@@ -117,6 +120,64 @@ describe('el corte por cupo', () => {
     await ponerCupo(null);
 
     await expect(empezar()).resolves.toBeDefined();
+  });
+});
+
+describe('el aviso de umbral', () => {
+  /*
+   * Otro mes, contador limpio: los bloques anteriores dejan reservas vivas a
+   * propósito —no llaman a `finish`— y aquí lo que se mide es el umbral, no el
+   * barrido.
+   */
+  const OTRO_MES = Date.UTC(2026, 10, 5, 12, 0, 0);
+
+  /*
+   * Enterarse al agotarse el cupo es enterarse tarde: para entonces la IA ya se
+   * apagó y alguien se quedó a media revisión (RF-1205).
+   */
+  it('al pasar del umbral le llega un aviso al dueño', async () => {
+    await ponerCupo(10_000);
+    const empezada = await empezar({}, OTRO_MES);
+
+    await comoAna(() =>
+      invocaciones.finish(
+        { workspaceId: ana.workspaceId, task: 'TEXT_ASSIST', userId: ana.id },
+        empezada,
+        { inputTokens: 8_500, outputTokens: 0 },
+        { outcome: 'COMPLETED', now: OTRO_MES + 10 },
+      ),
+    );
+
+    const avisos = (await (await h.as(ana).get('/api/v1/notifications')).json()) as {
+      items: { type: string; payload: Record<string, string> }[];
+    };
+    const umbral = avisos.items.find((a) => a.type === 'AI_QUOTA_THRESHOLD');
+
+    expect(umbral).toBeDefined();
+    expect(umbral?.payload['provider']).toBe('ANTHROPIC');
+  });
+
+  /*
+   * Uno que se repita en cada invocación a partir del 80 % deja de leerse antes
+   * de llegar al 90 %.
+   */
+  it('solo una vez por mes y proveedor', async () => {
+    /* Pequeña a propósito: lo que queda de cupo es poco y no es lo que se mide. */
+    const empezada = await empezar({ maxOutputTokens: 100 }, OTRO_MES);
+    await comoAna(() =>
+      invocaciones.finish(
+        { workspaceId: ana.workspaceId, task: 'TEXT_ASSIST', userId: ana.id },
+        empezada,
+        { inputTokens: 500, outputTokens: 0 },
+        { outcome: 'COMPLETED', now: OTRO_MES + 10 },
+      ),
+    );
+
+    const avisos = (await (await h.as(ana).get('/api/v1/notifications')).json()) as {
+      items: { type: string }[];
+    };
+
+    expect(avisos.items.filter((a) => a.type === 'AI_QUOTA_THRESHOLD')).toHaveLength(1);
   });
 });
 

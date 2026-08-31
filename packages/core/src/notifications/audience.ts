@@ -18,7 +18,9 @@ export type NotificationType =
   | 'PRECURSOR_TRANSFERRED'
   | 'APPS_INHERITED'
   /** El modelo asignado a una tarea de IA ya no está en el catálogo (RF-1009). */
-  | 'AI_MODEL_UNAVAILABLE';
+  | 'AI_MODEL_UNAVAILABLE'
+  /** El consumo de un proveedor ha pasado del umbral de aviso (RF-1205). */
+  | 'AI_QUOTA_THRESHOLD';
 
 /**
  * Quiénes rondan una acción, ya consultados de la base de datos.
@@ -117,6 +119,7 @@ export function audiencia(type: NotificationType, entorno: Entorno): Aviso[] {
        * con un modelo que el proveedor retiró hace semanas.
        */
       case 'AI_MODEL_UNAVAILABLE':
+      case 'AI_QUOTA_THRESHOLD':
         return unicos([destinatario]);
 
       // La mención no tiene más audiencia que los mencionados.

@@ -9,6 +9,7 @@ import { conIdentidad } from '../database/con-identidad.js';
 import { currentTx } from '../database/request-context.js';
 import { DATABASE } from '../infrastructure/tokens.js';
 import { AI_REGISTRY } from './ai.tokens.js';
+import { NotificationsService } from '../notifications/notifications.service.js';
 import { AiProvidersService } from './providers.service.js';
 import { AiQuotaService, QuotaExceededError, type Reservation } from './quota.service.js';
 import { AiTasksService, type TaskPlan } from './tasks.service.js';
@@ -51,6 +52,7 @@ export class AiInvocationService {
     private readonly tasks: AiTasksService,
     private readonly providers: AiProvidersService,
     private readonly quota: AiQuotaService,
+    private readonly notifications: NotificationsService,
     @Inject(AI_REGISTRY) private readonly registry: ProviderRegistry,
     @Inject(DATABASE) private readonly db: Database,
   ) {}
@@ -166,6 +168,42 @@ export class AiInvocationService {
       ...(resultado.errorKind !== undefined && { errorKind: resultado.errorKind }),
       ...(resultado.ttftMs !== undefined && { ttftMs: resultado.ttftMs }),
       latencyMs: ahora - started.startedAt,
+    });
+
+    await this.warnIfNearQuota(context, started);
+  }
+
+  /**
+   * Avisa al dueño al pasar del umbral (RF-1205).
+   *
+   * Enterarse al agotarse el cupo es enterarse tarde: para entonces la IA ya se
+   * ha apagado y alguien se ha quedado a media revisión. El aviso sale una sola
+   * vez por mes y proveedor: uno que se repita en cada invocación a partir del
+   * 80 % deja de leerse antes de llegar al 90 %.
+   */
+  private async warnIfNearQuota(
+    context: InvocationContext,
+    started: StartedInvocation,
+  ): Promise<void> {
+    const key = { workspaceId: context.workspaceId, provider: started.plan.provider };
+    const ajustes = await this.providers.quotaSettingsOf(
+      context.workspaceId,
+      started.plan.provider,
+    );
+    if (ajustes.quota === null) return;
+
+    const estado = await this.quota.state(key, ajustes.quota, started.startedAt);
+    const porcentaje = Math.round((estado.spent / ajustes.quota) * 100);
+    if (porcentaje < ajustes.alertPct) return;
+
+    if (!(await this.quota.claimThresholdAlert(key, started.startedAt))) return;
+
+    await this.notifications.emit({
+      type: 'AI_QUOTA_THRESHOLD',
+      /* No lo ha hecho nadie: lo ha hecho el uso acumulado del mes. */
+      entorno: { actor: '', destinatario: ajustes.ownerId },
+      workspaceId: context.workspaceId,
+      payload: { provider: started.plan.provider, pct: String(porcentaje) },
     });
   }
 

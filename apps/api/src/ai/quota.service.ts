@@ -170,6 +170,17 @@ export class AiQuotaService {
     )) as number;
   }
 
+  /**
+   * Marca que ya se ha avisado de este umbral, y dice si es la primera vez.
+   *
+   * Una sola vez por mes y proveedor: un aviso que se repite en cada invocación
+   * a partir del 80 % deja de leerse antes de llegar al 90 %.
+   */
+  async claimThresholdAlert(key: QuotaKey, now: number): Promise<boolean> {
+    const puesta = await this.redis.hsetnx(this.keys(key, now)[0], 'alerted', '1');
+    return puesta === 1;
+  }
+
   /** Lo gastado y lo reservado de un mes. */
   async state(key: QuotaKey, quota: number | null, now: number): Promise<QuotaState> {
     const [spent, reserved] = await this.redis.hmget(this.keys(key, now)[0], 'spent', 'reserved');
