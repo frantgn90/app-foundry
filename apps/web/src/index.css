@@ -201,3 +201,167 @@
   background-color: color-mix(in oklab, var(--color-acento) 30%, transparent);
   color: var(--color-texto);
 }
+
+
+/*
+ * ─── El fuego de la forja ────────────────────────────────────────────────────
+ *
+ * Adaptado de «CSS Only Fire», de Simon Goellner (@simeydotme):
+ * https://codepen.io/simeydotme/pen/PoyzbPM
+ *
+ * Cómo funciona, de dentro afuera:
+ *
+ *  1. Dos copias de una textura de ruido, de distinto tamaño, que suben en
+ *     bucle a distinta velocidad. Al mezclarse (`hard-light`, `color-dodge`)
+ *     su interferencia nunca se repite igual: de ahí el parpadeo.
+ *  2. Un degradado vertical de color —el más caliente abajo— que se multiplica
+ *     por el ruido, y una elipse que apaga los lados.
+ *  3. `brightness → blur → contrast`: el desenfoque promedia el ruido hasta
+ *     dejar un campo continuo, y el contraste lo recorta en lenguas de llama.
+ *     Este es el paso que convierte grano en fuego; sin el desenfoque previo,
+ *     el contraste solo daría una mancha blanca.
+ *
+ * No hay JavaScript: lo único que se anima es `background-position`.
+ */
+
+/*
+ * La textura: ruido fractal en un SVG en línea.
+ *
+ * El original tira de una foto de purpurina alojada en CodePen. Generarla aquí
+ * evita depender de un servidor ajeno y deja los parámetros a la vista, pero
+ * hubo que buscarlos: no vale cualquier ruido. Lo que decide la forma de las
+ * llamas no es el grano en sí, sino cuánto varía su densidad a la escala del
+ * desenfoque; un ruido de la misma media pero parejo se promedia a gris plano y
+ * sale una mancha en vez de fuego.
+ *
+ * Así que estos valores están medidos contra la foto original: igualan su
+ * luminancia media (0,21) y, sobre todo, su desviación al promediar en bloques
+ * de 7 px —0,065—, que es justo el radio del desenfoque. Las cinco octavas son
+ * las que deshilachan el borde de la llama: con dos, sale una columna lisa.
+ */
+:root {
+  --fuego-ruido: url("data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' width='350' height='500'><filter id='r' x='0' y='0' width='100%25' height='100%25' color-interpolation-filters='sRGB'><feTurbulence type='fractalNoise' baseFrequency='0.09' numOctaves='5' stitchTiles='stitch' seed='3'/><feColorMatrix type='saturate' values='0'/><feColorMatrix type='matrix' values='1 0 0 0 0 0 1 0 0 0 0 0 1 0 0 0 0 0 0 1'/><feComponentTransfer><feFuncR type='gamma' exponent='2.6'/><feFuncG type='gamma' exponent='2.6'/><feFuncB type='gamma' exponent='2.6'/></feComponentTransfer></filter><rect width='350' height='500' filter='url(%23r)'/></svg>");
+
+  /*
+   * ── Modo claro: llama de gas ──
+   *
+   * Sobre un fondo claro, `color-dodge` no puede pintar fuego: divide por lo
+   * que hay debajo, y sobre casi blanco cualquier llama se satura y tapa la
+   * página. Así que en claro se invierte la llama y se mezcla con `multiply`,
+   * que sobre blanco deja el color tal cual y donde no hay llama no toca nada.
+   *
+   * Invertir tiene un efecto afortunado: los naranjas y oros del original se
+   * convierten justo en los azules de un fuego de gas. Por eso los colores de
+   * aquí abajo están escritos «del revés» —son el complemento del azul que se
+   * quiere ver—, y por eso el más caliente es el más oscuro: en una llama de
+   * gas el cono de la base es azul profundo, no blanco.
+   */
+  --fuego-mezcla: multiply;
+  --fuego-invertir: invert(1);
+  /*
+   * Menos brillo que en oscuro, y no por gusto: `contrast(6)` lleva cada canal
+   * a su extremo, así que con el brillo del original la llama se quedaba en
+   * azul puro y cian eléctrico, sin nada en medio. Bajándolo, los canales caen
+   * dentro del tramo que el contraste todavía respeta y aparecen los tonos
+   * intermedios que hacen falta para que parezca gas.
+   */
+  --fuego-brillo: 2.4;
+  --fuego-nucleo: #f2e2c8; /* → azul muy oscuro, el cono de la base */
+  --fuego-medio: #d8a840; /* → azul intenso */
+  --fuego-alto: #b8940f9c; /* → azul pálido, ya desvaneciéndose */
+  /* Un lecho apenas más apagado que la página, para que la llama se apoye. */
+  --fuego-lecho: oklch(94% 0.012 250);
+}
+
+/*
+ * ── Modo oscuro: la forja ──
+ *
+ * Aquí sí vale la receta original tal cual: sobre fondo oscuro `color-dodge`
+ * enciende, y los colores son los del fuego de verdad.
+ */
+:root[data-theme='dark'],
+:root[data-theme='dark'] :root {
+  --fuego-mezcla: color-dodge;
+  --fuego-invertir: invert(0);
+  --fuego-brillo: 3.7;
+  --fuego-nucleo: white;
+  --fuego-medio: #ff8951;
+  --fuego-alto: #dcbc169c;
+  --fuego-lecho: oklch(24% 0.02 265);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme='light']) {
+    --fuego-mezcla: color-dodge;
+    --fuego-invertir: invert(0);
+    --fuego-brillo: 3.7;
+    --fuego-nucleo: white;
+    --fuego-medio: #ff8951;
+    --fuego-alto: #dcbc169c;
+    --fuego-lecho: oklch(24% 0.02 265);
+  }
+}
+
+.fuego-forja {
+  position: fixed;
+  inset: 0;
+  overflow: hidden;
+  /* Detrás del contenido y sordo al ratón: es decorado, no interfaz. */
+  z-index: -10;
+  pointer-events: none;
+  /*
+   * El fuego trae su propio fondo, del color de la página, porque `position:
+   * fixed` ya aísla la mezcla: sin fondo aquí, `mix-blend-mode` no tendría con
+   * qué mezclarse y la llama saldría plana. Del fondo al lecho, para que las
+   * brasas no empiecen de golpe.
+   */
+  background: linear-gradient(to bottom, var(--color-fondo) 40%, var(--fuego-lecho) 64%);
+  /* El navegador puede saltarse todo lo de dentro al componer el resto. */
+  contain: strict;
+}
+
+.fuego-forja::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background-image:
+    var(--fuego-ruido), var(--fuego-ruido),
+    /*
+     * El color y, con el último tramo, la altura: la llama muere donde este
+     * degradado se vuelve transparente. Más bajo que en el original, para que
+     * el fuego se quede a los pies y no invada el botón de entrar.
+     */
+    linear-gradient(0deg, var(--fuego-nucleo) 0px, var(--fuego-medio) 5px, var(--fuego-alto) 12%, transparent 32%),
+    /* Y la elipse apaga los lados, que si no el fuego llega hasta los bordes. */
+    radial-gradient(ellipse at bottom, transparent 30%, black 60%);
+  /* Distinto tamaño en cada copia: si fueran iguales, subirían acompasadas. */
+  background-size: 350px 500px, 400px 650px, 100% 100%, 100% 100%;
+  background-blend-mode: hard-light, color-dodge, multiply;
+  background-repeat: repeat, repeat, repeat, no-repeat;
+  mix-blend-mode: var(--fuego-mezcla);
+  filter: brightness(var(--fuego-brillo)) blur(7px) contrast(6) var(--fuego-invertir);
+  animation: fuego-forja 1.75s linear infinite;
+}
+
+/*
+ * Cada vuelta recorre justo un mosaico de cada textura, así que el salto del
+ * final al principio cae sobre el mismo píxel y no se ve costura.
+ */
+@keyframes fuego-forja {
+  from {
+    background-position: center 0, center 0, 50% 100%, center center;
+  }
+  to {
+    background-position: center -500px, center -650px, 50% 100%, center center;
+  }
+}
+
+/*
+ * Quien pide menos movimiento se queda con las brasas: mismo fuego, quieto.
+ * Quitar la capa entera sería cambiarle el dibujo a la página, no solo pararla.
+ */
+@media (prefers-reduced-motion: reduce) {
+  .fuego-forja::before {
+    animation: none;
+  }
+}
