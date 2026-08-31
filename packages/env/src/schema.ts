@@ -78,6 +78,12 @@ export const envSchema = z.object({
     .default('false')
     .transform((v) => v === 'true'),
 
+  /**
+   * Cuánto vive el catálogo de modelos antes de volver a preguntarle al
+   * proveedor (RF-1009). Cambia poco, así que un día es de sobra.
+   */
+  AI_MODEL_CATALOG_TTL_HOURS: z.coerce.number().int().positive().default(24),
+
   /** Tope de agentes por app y de turnos por hilo (RF-1507, RF-1605). */
   AI_MAX_AGENTS_PER_APP: z.coerce.number().int().positive().default(5),
   AI_MAX_AGENT_TURNS_PER_THREAD: z.coerce.number().int().positive().default(3),

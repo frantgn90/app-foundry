@@ -594,7 +594,7 @@ empezar cada hito, con el mismo método que la v1.
 | # | Tarea | Verificación | Traza | Estado |
 |---|---|---|---|---|
 | AQ1 | Tabla `ai_models` y lectura del catálogo desde la API del proveedor | Ventana de contexto y capacidades salen del proveedor, no de una constante | T-28, RF-1007 | ✅ |
-| AQ2 | Caché con refresco en segundo plano y último catálogo conocido | Con el proveedor caído se sigue sirviendo lo último que se supo | RF-1009 | ⬜ |
+| AQ2 | Caché con refresco en segundo plano y último catálogo conocido | Con el proveedor caído se sigue sirviendo lo último que se supo | RF-1009 | ✅ |
 | AQ3 | Tabla `workspace_task_models` y API de asignación por tarea | Solo el dueño asigna; el resto consume lo asignado | RF-1101, RF-1102, RF-1107 | ⬜ |
 | AQ4 | Asignación por defecto propuesta al configurar el primer proveedor | Editable siempre; con un solo proveedor, todas las tareas van a él | RF-1103 | ⬜ |
 | AQ5 | Aviso cuando el modelo asignado desaparece del catálogo | Se avisa al dueño, no se falla cuando alguien usa la función | RF-1009 | ⬜ |

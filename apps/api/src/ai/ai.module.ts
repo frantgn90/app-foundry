@@ -1,4 +1,4 @@
-import { Logger, Module } from '@nestjs/common';
+import { Logger, Module, type OnModuleInit } from '@nestjs/common';
 
 import {
   AnthropicProvider,
@@ -14,6 +14,7 @@ import type { Env } from '@app-foundry/env';
 
 import { ENV } from '../infrastructure/tokens.js';
 import { AI_CIPHER, AI_REGISTRY } from './ai.tokens.js';
+import { AiCatalogRefresh } from './catalog.refresh.js';
 import { AiCatalogService } from './catalog.service.js';
 import { AiProvidersController } from './providers.controller.js';
 import { AiProvidersService } from './providers.service.js';
@@ -24,6 +25,7 @@ import { WorkspaceAiController } from './workspace-ai.controller.js';
   providers: [
     AiProvidersService,
     AiCatalogService,
+    AiCatalogRefresh,
     {
       provide: AI_REGISTRY,
       inject: [ENV],
@@ -65,4 +67,24 @@ import { WorkspaceAiController } from './workspace-ai.controller.js';
   ],
   exports: [AiProvidersService, AiCatalogService, AI_REGISTRY, AI_CIPHER],
 })
-export class AiModule {}
+export class AiModule implements OnModuleInit {
+  constructor(
+    private readonly providers: AiProvidersService,
+    private readonly catalog: AiCatalogService,
+  ) {}
+
+  /**
+   * Cierra el círculo entre los dos servicios sin que se inyecten mutuamente.
+   *
+   * El catálogo necesita al de proveedores para leer la credencial; el de
+   * proveedores necesita avisar al catálogo cuando alguien configura uno. En
+   * lugar de una dependencia circular, el módulo enchufa el enganche al
+   * arrancar. Los fallos se tragan a propósito: configurar un proveedor no puede
+   * fallar porque el catálogo no se dejara leer.
+   */
+  onModuleInit(): void {
+    this.providers.onProviderConfigured = async (workspaceId, provider) => {
+      await this.catalog.refresh(workspaceId, provider).catch(() => undefined);
+    };
+  }
+}

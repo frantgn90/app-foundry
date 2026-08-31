@@ -1,4 +1,4 @@
-import { Inject, Injectable, Logger } from '@nestjs/common';
+import { Inject, Injectable } from '@nestjs/common';
 import { and, eq, inArray, notInArray } from 'drizzle-orm';
 
 import type { AiProvider, ModelInfo } from '@app-foundry/core';
@@ -19,8 +19,6 @@ import { AiProvidersService } from './providers.service.js';
  */
 @Injectable()
 export class AiCatalogService {
-  private readonly logger = new Logger(AiCatalogService.name);
-
   constructor(
     private readonly providers: AiProvidersService,
     @Inject(AI_REGISTRY) private readonly registry: ProviderRegistry,
@@ -40,10 +38,12 @@ export class AiCatalogService {
     const configurados = await this.activeProviders(workspaceId, userId);
     if (configurados.length === 0) return [];
 
-    for (const provider of configurados) {
-      await this.refreshIfEmpty(workspaceId, provider);
-    }
-
+    /*
+     * Se sirve **solo** de la caché: pedirle el catálogo al proveedor mientras
+     * alguien espera una pantalla ataría el tiempo de respuesta a un tercero
+     * (RF-1009). Quien lo mantiene al día es el refresco de fondo, y quien lo
+     * estrena es el momento de configurar el proveedor.
+     */
     const filas = await currentTx()
       .select()
       .from(aiModels)
@@ -117,33 +117,8 @@ export class AiCatalogService {
       .where(and(eq(aiModels.provider, provider), notInArray(aiModels.modelId, vistos)));
   }
 
-  /** Refresca solo si no sabemos nada todavía de ese proveedor. */
-  private async refreshIfEmpty(workspaceId: string, provider: AiProvider): Promise<void> {
-    const [existente] = await currentTx()
-      .select({ modelId: aiModels.modelId })
-      .from(aiModels)
-      .where(eq(aiModels.provider, provider))
-      .limit(1);
-
-    if (existente) return;
-
-    try {
-      await this.refresh(workspaceId, provider);
-    } catch (error) {
-      /*
-       * Que el proveedor no conteste no puede tumbar la pantalla de ajustes: se
-       * sirve lo que se sepa —aquí, nada— y se anota.
-       */
-      this.logger.warn(`No se pudo leer el catálogo de ${provider}: ${mensajeDe(error)}`);
-    }
-  }
-
   private async activeProviders(workspaceId: string, userId: string): Promise<AiProvider[]> {
     const configurados = await this.providers.list(workspaceId, userId);
     return configurados.filter((p) => p.status === 'ACTIVE').map((p) => p.provider);
   }
-}
-
-function mensajeDe(error: unknown): string {
-  return error instanceof Error ? error.message : 'motivo desconocido';
 }

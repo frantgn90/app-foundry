@@ -1,3 +1,4 @@
+import { sql } from 'drizzle-orm';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
 import { type Harness, startHarness, type TestUser } from './harness.js';
@@ -89,5 +90,52 @@ describe('con un proveedor configurado', () => {
     const segunda = (await (await modelos(ana, ana)).json()) as ModelBody[];
 
     expect(segunda).toEqual(primera);
+  });
+});
+
+/**
+ * El refresco de fondo, por su parte visible: a quién decide refrescar.
+ *
+ * En régimen normal no hay nada que hacer, y esa es la comprobación que importa:
+ * un refresco que se dispara siempre sería llamar al proveedor en cada vuelta.
+ */
+describe('a quién le toca refrescar', () => {
+  const candidatos = async (edad: string) => {
+    const filas = await h.db.execute(
+      sql`SELECT * FROM ai_catalog_refresh_candidates(${edad}::interval)`,
+    );
+    return filas.rows as { workspace_id: string; provider: string; owner_id: string }[];
+  };
+
+  it('con el catálogo recién traído, a nadie', async () => {
+    expect(await candidatos('24 hours')).toHaveLength(0);
+  });
+
+  it('con el catálogo viejo, al proveedor configurado y con la credencial de su dueño', async () => {
+    const filas = await candidatos('0 seconds');
+
+    expect(filas).toHaveLength(1);
+    expect(filas[0]).toMatchObject({
+      workspace_id: ana.workspaceId,
+      provider: 'ANTHROPIC',
+      owner_id: ana.id,
+    });
+  });
+
+  /* Con la IA apagada no se llama a nadie, tampoco desde el fondo (RF-1012). */
+  it('con la IA del workspace apagada, a nadie', async () => {
+    await h.as(ana).patch(`/api/v1/workspaces/${ana.workspaceId}/ai`, { enabled: false });
+
+    expect(await candidatos('0 seconds')).toHaveLength(0);
+
+    await h.as(ana).patch(`/api/v1/workspaces/${ana.workspaceId}/ai`, { enabled: true });
+  });
+
+  it('con el proveedor desactivado, tampoco', async () => {
+    await h.as(ana).patch(`/api/v1/workspaces/${ana.workspaceId}/ai/providers/ANTHROPIC`, {
+      status: 'DISABLED',
+    });
+
+    expect(await candidatos('0 seconds')).toHaveLength(0);
   });
 });

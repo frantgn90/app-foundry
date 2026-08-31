@@ -134,6 +134,14 @@ export class AiProvidersService {
       metadata: { provider },
     });
 
+    /*
+     * El catálogo se estrena aquí y no la primera vez que alguien abre los
+     * ajustes: configurar es una acción, y esperar un segundo por ella se
+     * entiende; esperar al pintar una pantalla, no (RF-1009). Si el proveedor no
+     * contesta ahora, el refresco de fondo lo intentará después.
+     */
+    await this.onProviderConfigured?.(workspaceId, provider);
+
     const [dto] = await this.list(workspaceId, userId).then((todos) =>
       todos.filter((p) => p.provider === provider),
     );
@@ -286,6 +294,15 @@ export class AiProvidersService {
       ),
     };
   }
+
+  /**
+   * Enganche para estrenar el catálogo al configurar un proveedor.
+   *
+   * Va como enganche y no como dependencia directa porque el catálogo ya depende
+   * de este servicio para leer la credencial: inyectarlo al revés cerraría el
+   * círculo. Lo pone el módulo al arrancar.
+   */
+  onProviderConfigured?: (workspaceId: string, provider: AiProvider) => Promise<void>;
 
   /** Los ajustes de IA del workspace. Solo su dueño. */
   async settings(workspaceId: string, userId: string): Promise<AiSettingsDto> {

@@ -260,6 +260,13 @@
       "when": 1788209946156,
       "tag": "0036_ai_models_catalog",
       "breakpoints": true
+    },
+    {
+      "idx": 37,
+      "version": "7",
+      "when": 1788210177441,
+      "tag": "0037_ai_catalog_refresh",
+      "breakpoints": true
     }
   ]
 }
