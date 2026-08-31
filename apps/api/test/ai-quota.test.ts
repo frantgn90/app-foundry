@@ -1,7 +1,7 @@
 import { Redis } from 'ioredis';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
-import { AiQuotaService, QuotaExceededError } from '../src/ai/quota.service.js';
+import { AiQuotaService, QuotaExceededError, RateLimitedError } from '../src/ai/quota.service.js';
 import { type Harness, startHarness } from './harness.js';
 
 /**
@@ -236,6 +236,50 @@ describe('la conciliación', () => {
     await quota.settle(k, reserva.id, 400, AHORA);
 
     expect(await quota.reconcile(k, 400, AHORA)).toBe(0);
+  });
+});
+
+describe('el ritmo', () => {
+  /*
+   * Acota el ritmo, no el volumen: para el volumen está el cupo de tokens. Son
+   * cosas distintas —mil llamadas cortas y diez larguísimas no se parecen en
+   * nada— y conviene no mezclarlas (RF-1206).
+   */
+  it('deja pasar hasta el límite y frena al siguiente', async () => {
+    const ws = `ws-ritmo-${String(siguiente++)}`;
+
+    for (let i = 0; i < 3; i += 1) {
+      await expect(quota.consumeRate(ws, 'ana', 3, AHORA)).resolves.toBeUndefined();
+    }
+
+    await expect(quota.consumeRate(ws, 'ana', 3, AHORA)).rejects.toBeInstanceOf(RateLimitedError);
+  });
+
+  it('cada persona lleva su propia cuenta', async () => {
+    const ws = `ws-ritmo-${String(siguiente++)}`;
+    await quota.consumeRate(ws, 'ana', 1, AHORA);
+
+    await expect(quota.consumeRate(ws, 'bruno', 1, AHORA)).resolves.toBeUndefined();
+  });
+
+  it('la hora siguiente empieza de cero', async () => {
+    const ws = `ws-ritmo-${String(siguiente++)}`;
+    await quota.consumeRate(ws, 'ana', 1, AHORA);
+    await expect(quota.consumeRate(ws, 'ana', 1, AHORA)).rejects.toBeInstanceOf(RateLimitedError);
+
+    await expect(quota.consumeRate(ws, 'ana', 1, AHORA + 60 * 60 * 1000)).resolves.toBeUndefined();
+  });
+
+  it('dice cuánto esperar, que es lo único que se puede hacer', async () => {
+    const ws = `ws-ritmo-${String(siguiente++)}`;
+    await quota.consumeRate(ws, 'ana', 1, AHORA);
+
+    const error = (await quota
+      .consumeRate(ws, 'ana', 1, AHORA)
+      .catch((e: unknown) => e)) as RateLimitedError;
+
+    expect(error.retryAfterSeconds).toBeGreaterThan(0);
+    expect(error.retryAfterSeconds).toBeLessThanOrEqual(3_600);
   });
 });
 

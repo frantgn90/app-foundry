@@ -29,6 +29,20 @@ export interface QuotaState {
   readonly quota: number | null;
 }
 
+/**
+ * Demasiadas invocaciones en poco rato (RF-1206).
+ *
+ * Es distinto de quedarse sin cupo: aquí no falta cuota, sobra prisa. Y el
+ * remedio también es distinto —esperar, en vez de ampliar el techo—, así que
+ * merece su propio error.
+ */
+export class RateLimitedError extends Error {
+  constructor(readonly retryAfterSeconds: number) {
+    super('Has hecho demasiadas peticiones de IA en poco rato');
+    this.name = 'RateLimitedError';
+  }
+}
+
 export class QuotaExceededError extends Error {
   constructor(readonly state: QuotaState) {
     super('El cupo mensual de tokens de este proveedor está agotado');
@@ -168,6 +182,31 @@ export class AiQuotaService {
       this.keys(key, now)[0],
       String(realTokens),
     )) as number;
+  }
+
+  /**
+   * Cuenta una invocación más de esta persona y falla si va demasiado deprisa.
+   *
+   * La ventana es una hora corrida por reloj, no deslizante: es más burda y
+   * mucho más barata, y lo que se busca es frenar un bucle, no medir con
+   * precisión.
+   */
+  async consumeRate(
+    workspaceId: string,
+    userId: string,
+    limit: number,
+    now: number,
+  ): Promise<void> {
+    const hora = new Date(now).toISOString().slice(0, 13);
+    const clave = `ai:rate:${workspaceId}:${userId}:${hora}`;
+
+    const usadas = await this.redis.incr(clave);
+    if (usadas === 1) await this.redis.expire(clave, 3_600);
+
+    if (usadas > limit) {
+      const segundos = 3_600 - Math.floor((now % 3_600_000) / 1_000);
+      throw new RateLimitedError(segundos);
+    }
   }
 
   /**

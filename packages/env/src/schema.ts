@@ -84,6 +84,15 @@ export const envSchema = z.object({
    */
   AI_MODEL_CATALOG_TTL_HOURS: z.coerce.number().int().positive().default(24),
 
+  /**
+   * Cuántas invocaciones puede provocar un miembro por hora (RF-1206).
+   *
+   * Acota el **ritmo**, no el volumen: para el volumen está el cupo de tokens.
+   * Son cosas distintas y conviene no mezclarlas —mil llamadas cortas y diez
+   * larguísimas no se parecen en nada—.
+   */
+  AI_MAX_INVOCATIONS_PER_MEMBER_HOUR: z.coerce.number().int().positive().default(60),
+
   /** Tope de agentes por app y de turnos por hilo (RF-1507, RF-1605). */
   AI_MAX_AGENTS_PER_APP: z.coerce.number().int().positive().default(5),
   AI_MAX_AGENT_TURNS_PER_THREAD: z.coerce.number().int().positive().default(3),

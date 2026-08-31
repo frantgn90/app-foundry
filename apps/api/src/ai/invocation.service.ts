@@ -2,12 +2,13 @@ import { Injectable, Logger } from '@nestjs/common';
 import { Inject } from '@nestjs/common';
 
 import type { AiTask, Credential, TextRequest, TokenUsage } from '@app-foundry/core';
+import type { Env } from '@app-foundry/env';
 import type { ProviderRegistry } from '@app-foundry/ai';
 import { aiInvocations, type Database } from '@app-foundry/db';
 
 import { conIdentidad } from '../database/con-identidad.js';
 import { currentTx } from '../database/request-context.js';
-import { DATABASE } from '../infrastructure/tokens.js';
+import { DATABASE, ENV } from '../infrastructure/tokens.js';
 import { AI_REGISTRY } from './ai.tokens.js';
 import { NotificationsService } from '../notifications/notifications.service.js';
 import { AiProvidersService } from './providers.service.js';
@@ -55,6 +56,7 @@ export class AiInvocationService {
     private readonly notifications: NotificationsService,
     @Inject(AI_REGISTRY) private readonly registry: ProviderRegistry,
     @Inject(DATABASE) private readonly db: Database,
+    @Inject(ENV) private readonly env: Env,
   ) {}
 
   /**
@@ -70,6 +72,17 @@ export class AiInvocationService {
     request: Omit<TextRequest, 'model' | 'maxOutputTokens'> & { maxOutputTokens?: number },
     now = Date.now(),
   ): Promise<StartedInvocation> {
+    /*
+     * El ritmo se comprueba lo primero: si alguien está en un bucle, lo barato
+     * es pararlo antes de contar tokens y antes de tocar la base de datos.
+     */
+    await this.quota.consumeRate(
+      context.workspaceId,
+      context.userId,
+      this.env.AI_MAX_INVOCATIONS_PER_MEMBER_HOUR,
+      now,
+    );
+
     const plan = await this.tasks.plan(context.workspaceId, context.task);
     const credential = await this.providers.readCredential(context.workspaceId, plan.provider);
 
