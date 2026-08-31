@@ -10,6 +10,32 @@
 
 ---
 
+## Estado: v1 cerrada (31 de agosto de 2026)
+
+Los ocho hitos están hechos y verificados: 145 tareas más 25 mejoras salidas de usar el producto.
+
+De los requisitos quedan dos salvedades, ambas decididas a conciencia y anotadas abajo, no olvidadas:
+**RF-206** (editar nombre visible y avatar) no se implementa —el perfil se hereda de GitHub y solo se
+muestra—, y **RF-605** se cumple en su intención pero no en su letra: la acción de crear es lo más visible de
+la pantalla, aunque ya no sea un botón llamado «Nueva app». Todo lo demás está cumplido, incluidas las
+**DEBERÍA**. El porqué de cada decisión está en [Decisiones tomadas sobre
+requisitos](#decisiones-tomadas-sobre-requisitos).
+
+Lo que sostiene la afirmación, ejecutable en local con un comando:
+
+| Suite | Qué cubre | Cuántos |
+|---|---|---|
+| API | Cada ruta con sus casos negativos, contra Postgres real | 149 |
+| Aislamiento | Las políticas RLS ejecutadas con el rol de la aplicación, no como superusuario | 87 |
+| Unitarios | Anclaje, reanclaje, audiencia de los avisos, configuración | 79 |
+| Extremo a extremo | Cinco recorridos, uno de ellos con dos identidades a la vez | 5 |
+
+**Lo único que queda decidido a medias** es qué hacer con las apps del workspace personal de una cuenta
+desactivada cuando vencen los noventa días de gracia y no hay a quién dárselas (RF-414). No bloquea: hasta
+que alguien lo decida, las apps siguen ahí y el plazo solo está apuntado.
+
+---
+
 ## H0 — Andamiaje
 
 > Objetivo: que exista el esqueleto sobre el que se apoya todo lo demás, con observabilidad y CI desde el
@@ -436,6 +462,13 @@
 | AM2 | Commit y descarte a la derecha de la fila de guardar | Commitear pide mensaje; descartar avisa y se puede cancelar | RF-505, RF-515 | ✅ |
 | AM3 | El panel de comentarios sigue a la versión que se mira | Al elegir una versión pasada se ven sus hilos, no los de hoy | RF-817 | ✅ |
 
+### Bloque AN — Cerrar la v1
+
+| # | Tarea | Verificación | Traza | Estado |
+|---|---|---|---|---|
+| AN1 | Recorrido de extremo a extremo con dos identidades | Invitar, editar como invitada y ver el historial a nombre de quien escribió | RNF-402 | ✅ |
+| AN2 | Entrar aterriza en el workspace propio, no en el que ordene antes | Una invitada entra en el suyo aunque el ajeno se llame antes | RF-301 | ✅ |
+
 ## Decisiones tomadas sobre requisitos
 
 | Requisito | Decisión |
@@ -445,6 +478,7 @@
 | RF-414 · Apps de un dueño desactivado | **Resuelto con periodo de gracia.** Su workspace personal deja de abrirse mientras la cuenta esté parada, y vuelve sola al reactivarla; las apps que sostenía en workspaces ajenos pasan a su dueño en el acto, porque esconderlas castigaría a un equipo entero por la suspensión de una persona. Queda apuntada la fecha para contar los noventa días. Qué hacer al vencer el plazo con las de su propio workspace, cuando no hay a quién dárselas, sigue sin decidir. |
 | Editar sobre el resultado (WYSIWYG) | **Descartado por ahora.** Obligaría a convertir markdown → documento → markdown en cada guardado, y esa vuelta normaliza el texto: el historial se llenaría de diffs que nadie hizo y el reanclaje recalcularía sobre un texto cambiado solo. La vía viable, si se retoma, es editar bloque a bloque usando los rangos de origen que ya lleva cada elemento renderizado. |
 | RF-605 · «Nueva app» como acción más visible | **Se cumple sin el botón.** El campo para crear está siempre puesto y es lo primero bajo la cabecera, así que la acción es más visible que antes, aunque ya no exista un botón con ese nombre. |
+| RNF-402 · Recorrido de extremo a extremo | **Cubierto con dos identidades.** El recorrido completo —invitar, editar como invitada y ver el historial— corre con dos sesiones a la vez, que es donde falla lo de trabajar en equipo: lo que ve la invitada, lo que puede tocar y a nombre de quién queda. Cazó de paso que entrar aterrizaba en el workspace ajeno si su nombre ordenaba antes. |
 | RF-206 · Editar nombre visible y avatar | **No se implementa.** Todo el perfil se hereda de GitHub y se actualiza al entrar; mantener una copia editable obligaría a decidir cuál manda cada vez que cambie allí (RF-208). La página de cuenta los muestra, en solo lectura. |
 
 ## Mejoras detectadas usando el producto
@@ -475,6 +509,10 @@
 | U19 | Los metadatos de la app, en la línea del título | Tres líneas de cabecera para datos que se miran una vez al llegar | ✅ |
 | U20 | Conversación plegable, hilos opacos, descarga junto a los controles y etiquetas con forma | Escribir a media pantalla incomoda, y lo transparente se teñía con el fondo del workspace | ✅ |
 | U21 | Un solo interruptor y IBM Plex Mono en el editor | Dos interruptores para decidir una cosa | ✅ |
+| U22 | El historial, en un desplegable sobre el documento | La pestaña obligaba a salir del texto para mirar su propia historia | ✅ |
+| U23 | Guardar dejó de crear versión; commitear la crea y le pone nombre | El historial acumulaba una entrada por cada coma | ✅ |
+| U24 | El resaltado también se pinta al mirar una versión anterior | La caja de la versión no llevaba el `ref` y el pintado limpiaba en vez de dibujar | ✅ |
+| U25 | Entrar aterriza en el workspace propio | `isPersonal` marca el de su dueño, no el tuyo: una invitada podía entrar en casa ajena. Lo cazó el recorrido con dos identidades | ✅ |
 
 ---
 
@@ -490,3 +528,4 @@ Se desglosarán al cerrar el hito anterior.
 | **H5** ✅ | Notificaciones, SSE, purga                                                                 | Que nada se quede sin leer    |
 | **H6** ✅ | Búsqueda, filtros, iconos, tema, estados vacíos, atajos                                    | La UI atractiva de O7         |
 | **H7** ✅ | Admin, auditoría, Playwright, paneles de Grafana, Dockerfiles                              | v1 completa                   |
+| **H8** ✅ | Guardar deja de versionar: copia de trabajo, commits con mensaje y comentarios por versión  | Un historial que se puede leer |
