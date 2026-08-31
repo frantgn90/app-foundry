@@ -513,6 +513,11 @@ que alguien lo decida, las apps siguen ahí y el plazo solo está apuntado.
 | U23 | Guardar dejó de crear versión; commitear la crea y le pone nombre | El historial acumulaba una entrada por cada coma | ✅ |
 | U24 | El resaltado también se pinta al mirar una versión anterior | La caja de la versión no llevaba el `ref` y el pintado limpiaba en vez de dibujar | ✅ |
 | U25 | Entrar aterriza en el workspace propio | `isPersonal` marca el de su dueño, no el tuyo: una invitada podía entrar en casa ajena. Lo cazó el recorrido con dos identidades | ✅ |
+| U26 | El menú flotante, bajo la selección y a su derecha, no donde quedó el puntero | Se posiciona con el ratón: arrastrar deprisa lo deja lejos, y arrastrar hacia la izquierda lo deja al principio | ⬜ |
+| U27 | Detectar la selección por el cambio de selección, y resolver también los bloques enteros | Doble clic, triple clic, teclado y títulos no ofrecían menú: el disparador era `mouseup` y el rastro de posición se buscaba desde el contenedor común | ⬜ |
+
+> U26 y U27 son requisito de la v2 (RF-1414..1416): el asistente de escritura cuelga de ese mismo menú, así
+> que dejan de ser una molestia al comentar y pasan a inutilizar media función nueva. Se arreglan en **H10**.
 
 ---
 
@@ -529,3 +534,19 @@ Se desglosarán al cerrar el hito anterior.
 | **H6** ✅ | Búsqueda, filtros, iconos, tema, estados vacíos, atajos                                    | La UI atractiva de O7         |
 | **H7** ✅ | Admin, auditoría, Playwright, paneles de Grafana, Dockerfiles                              | v1 completa                   |
 | **H8** ✅ | Guardar deja de versionar: copia de trabajo, commits con mensaje y comentarios por versión  | Un historial que se puede leer |
+
+---
+
+## v2 — Pensar acompañado
+
+Documentos origen: [REQUIREMENTS-v2.md](./REQUIREMENTS-v2.md) · [TRD-v2.md](./TRD-v2.md). Se desglosarán al
+empezar cada hito, con el mismo método que la v1.
+
+| Hito    | Contenido                                                                                     | Deja usable                        |
+| ------- | --------------------------------------------------------------------------------------------- | ---------------------------------- |
+| **H9**  | Puerto y adaptadores, cifrado de credenciales, catálogo por API, modelo por tarea, cupos       | La IA ya tiene grifo y contador    |
+| **H10** | Arreglo del menú de selección (U26, U27) y asistente de escritura, con diff que se acepta      | **Primer valor real**              |
+| **H11** | Generación de ideas, con y sin búsqueda web, y la app creada con su visión sembrada            | Cierra «no tengo ideas»            |
+| **H12** | Agentes: modelo, plantillas, instancias, autoría polimórfica, menciones y respuestas           | Un interlocutor con perfil         |
+| **H13** | Revisión en abanico: cola, estimación, confirmación, cancelación y cortafuegos                 | **Pensar acompañado, completo**    |
+| **H14** | Panel de Grafana, recorrido de extremo a extremo, conciliación de cupos y cierre               | v2 completa                        |

@@ -8,11 +8,13 @@ la plataforma; aquí vive la idea.
 
 ## Documentación
 
-| Documento                                    | Contenido                                                                                |
-| -------------------------------------------- | ---------------------------------------------------------------------------------------- |
-| [docs/REQUIREMENTS.md](docs/REQUIREMENTS.md) | Qué hace la v1: requisitos funcionales y no funcionales, roles y criterios de aceptación |
-| [docs/TRD.md](docs/TRD.md)                   | Cómo se construye: arquitectura, modelo de datos, seguridad y plan de implementación     |
-| [docs/TASKS.md](docs/TASKS.md)               | Estado del trabajo, tarea a tarea                                                        |
+| Documento                                          | Contenido                                                                                |
+| -------------------------------------------------- | ---------------------------------------------------------------------------------------- |
+| [docs/REQUIREMENTS.md](docs/REQUIREMENTS.md)       | Qué hace la v1: requisitos funcionales y no funcionales, roles y criterios de aceptación |
+| [docs/TRD.md](docs/TRD.md)                         | Cómo se construye la v1: arquitectura, modelo de datos, seguridad y plan                 |
+| [docs/REQUIREMENTS-v2.md](docs/REQUIREMENTS-v2.md) | Qué añade la v2: IA para definir ideas —proveedores, asistente y agentes contributors—   |
+| [docs/TRD-v2.md](docs/TRD-v2.md)                   | Cómo se construye la v2: contrato de proveedor, cupos, cola de revisiones y agentes      |
+| [docs/TASKS.md](docs/TASKS.md)                     | Estado del trabajo, tarea a tarea                                                        |
 
 ## Requisitos previos
 
