@@ -25,15 +25,15 @@ import { MentionInput } from '../components/mention-input.js';
 import { AppSettingsPage } from './app-settings.js';
 import { DiffView } from '../components/diff-view.js';
 import { MarkdownEditor } from '../components/editor.js';
-import { EditToggle } from '../components/vision-controls.js';
+import { EditToggle, VersionPicker } from '../components/vision-controls.js';
 import { Markdown } from '../components/markdown.js';
 import { TagList } from '../components/app-status.js';
 import { Button } from '../components/ui/button.js';
-import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card.js';
+import { Card } from '../components/ui/card.js';
 import { useShortcuts } from '../lib/shortcuts.js';
 import { cn } from '../lib/utils.js';
 
-type Tab = 'vision' | 'history' | 'settings';
+type Tab = 'vision' | 'settings';
 
 /** Clave del borrador local, por app: no se mezclan entre sí (RF-506). */
 const draftKey = (appId: string) => `app-foundry:draft:${appId}`;
@@ -71,7 +71,12 @@ export function AppDetailPage({
   const [conversacionAbierta, setConversacionAbierta] = useState(true);
   const [draft, setDraft] = useState<string | null>(null);
   const [conflict, setConflict] = useState<SaveConflict | null>(null);
-  const [comparing, setComparing] = useState<string | null>(null);
+  /*
+   * Versión que se está mirando, `null` mientras sea la actual. El historial
+   * dejó de ser una pestaña: se elige aquí y el documento de debajo cambia.
+   */
+  const [versionElegida, setVersionElegida] = useState<string | null>(null);
+  const [mostrandoDiff, setMostrandoDiff] = useState(false);
   const [selectedThread, setSelectedThread] = useState<string | null>(initialThreadId);
   // Solo se hace scroll cuando el hilo se elige desde el panel; al pinchar en el
   // texto ya se está mirando el sitio.
@@ -125,7 +130,7 @@ export function AppDetailPage({
     ),
   );
 
-  const comparison = useVersionContent(appId, comparing);
+  const elegida = useVersionContent(appId, versionElegida);
   const threads = useThreads(appId);
   const people = useMentionable(appId);
   const createThread = useCreateThread(appId);
@@ -204,6 +209,8 @@ export function AppDetailPage({
     pendingSelection,
     tab,
     editando,
+    versionElegida,
+    mostrandoDiff,
     scrollToThread,
     document.data?.content,
   ]);
@@ -289,7 +296,7 @@ export function AppDetailPage({
       <h1 className="sr-only">{app.data.name}</h1>
 
       <nav className="flex items-center gap-1 border-b border-[var(--color-borde)]">
-        {(['vision', 'history', 'settings'] as const).map((t) => (
+        {(['vision', 'settings'] as const).map((t) => (
           <button
             key={t}
             onClick={() => {
@@ -303,7 +310,7 @@ export function AppDetailPage({
                 : 'text-[var(--color-texto-suave)] hover:text-[var(--color-texto)]',
             )}
           >
-            {t === 'vision' ? `VISION.md v${String(document.data.versionNo)}` : t}
+            {t === 'vision' ? 'VISION.md' : t}
             {t === 'vision' && hasUnsavedChanges && ' •'}
             {tab === t && (
               <span className="absolute inset-x-2 -bottom-px h-0.5 bg-[var(--color-acento)]" />
@@ -346,18 +353,60 @@ export function AppDetailPage({
         >
           <div className="flex flex-col gap-3">
             {/*
-              Los tres botones comparten alto y línea: editar y descargar como
-              iconos cuadrados, y la conversación pegada a la derecha, que es
-              donde está el panel que despliega.
+              Una sola fila para todo lo que se hace con el documento: el
+              historial a la izquierda, editar y descargar como iconos cuadrados
+              a la derecha, y la conversación pegada al borde, que es donde está
+              el panel que despliega. Todo con el mismo alto.
             */}
             <div className="flex h-8 items-center gap-2">
+              {/*
+                El historial ocupa la izquierda de esta fila, que antes estaba
+                vacía. Mientras se escribe no se enseña: se escribe siempre sobre
+                la versión actual, y un desplegable que solo puede decir una cosa
+                es un adorno.
+              */}
+              {!editando && (
+                <VersionPicker
+                  versions={versions.data ?? []}
+                  currentVersionId={document.data.currentVersionId}
+                  elegida={versionElegida}
+                  mostrandoDiff={mostrandoDiff}
+                  puedeRestaurar={document.data.canEdit}
+                  restaurando={restore.isPending}
+                  onElegir={(id) => {
+                    setVersionElegida(id);
+                    setMostrandoDiff(false);
+                  }}
+                  onDiff={() => {
+                    setMostrandoDiff(!mostrandoDiff);
+                  }}
+                  onRestaurar={() => {
+                    if (!versionElegida) return;
+                    restore.mutate(versionElegida, {
+                      onSuccess: (updated) => {
+                        setDraft(updated.content);
+                        setVersionElegida(null);
+                        setMostrandoDiff(false);
+                      },
+                    });
+                  }}
+                />
+              )}
+
               {/* Agrupados y empujados a la derecha: si el desplegar la
                   conversación fuera quien empujara, estos dos saltarían de sitio
                   al plegarla y volverían al desplegarla. */}
               <span className="ml-auto flex items-center gap-2">
                 <EditToggle
                   editando={editando}
-                  puedeEditar={document.data.canEdit}
+                  /* Una versión pasada se mira, no se escribe: para cambiarla
+                     hay que restaurarla antes, que es lo que deja constancia. */
+                  puedeEditar={document.data.canEdit && versionElegida === null}
+                  razonBloqueo={
+                    versionElegida !== null
+                      ? 'Restore this version to edit it'
+                      : 'You can read this app but not edit it'
+                  }
                   onEditando={setEditando}
                 />
 
@@ -389,7 +438,30 @@ export function AppDetailPage({
               )}
             </div>
 
-            {!editando ? (
+            {versionElegida !== null ? (
+              /*
+                Una versión pasada: o su texto, o lo que cambió desde ella hasta
+                hoy. Sin comentar por encima —las anclas apuntan a posiciones del
+                documento actual, y sobre otro texto caerían en cualquier sitio.
+              */
+              <Card className="p-6">
+                {elegida.isPending && (
+                  <p className="text-sm text-[var(--color-texto-suave)]">Loading…</p>
+                )}
+                {elegida.data &&
+                  (mostrandoDiff ? (
+                    <div className="flex flex-col gap-2">
+                      <p className="text-xs text-[var(--color-texto-suave)]">
+                        What changed between v{elegida.data.versionNo} and the current v
+                        {document.data.versionNo}.
+                      </p>
+                      <DiffView from={elegida.data.content} to={document.data.content} />
+                    </div>
+                  ) : (
+                    <Markdown content={elegida.data.content} />
+                  ))}
+              </Card>
+            ) : !editando ? (
               <>
                 {/*
               Al soltar el ratón se mira si hay una selección utilizable. Si no
@@ -537,71 +609,6 @@ export function AppDetailPage({
         <AppSettingsPage app={app.data} workspaceId={workspaceId} onDeleted={onBack} />
       )}
 
-      {tab === 'history' && (
-        <div className="flex flex-col gap-4">
-          <Card>
-            <CardHeader>
-              <CardTitle>History</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <ul className="flex flex-col divide-y divide-[var(--color-borde)]">
-                {versions.data?.map((version) => (
-                  <li key={version.id} className="flex items-center gap-3 py-2.5">
-                    <span className="min-w-0 flex-1">
-                      <span className="block text-sm">
-                        <span className="font-medium">v{version.versionNo}</span>{' '}
-                        {version.message ?? '—'}
-                      </span>
-                      <span className="block text-xs text-[var(--color-texto-suave)]">
-                        @{version.authorHandle} · {new Date(version.createdAt).toLocaleString()}
-                      </span>
-                    </span>
-                    <Button
-                      variant="ghost"
-                      className="px-2 py-1 text-xs"
-                      onClick={() => {
-                        setComparing(comparing === version.id ? null : version.id);
-                      }}
-                    >
-                      {comparing === version.id ? 'Hide changes' : 'Compare'}
-                    </Button>
-                    {document.data?.canEdit && version.id !== document.data.currentVersionId && (
-                      <Button
-                        variant="secondary"
-                        className="px-2 py-1 text-xs"
-                        disabled={restore.isPending}
-                        onClick={() => {
-                          restore.mutate(version.id, {
-                            onSuccess: (updated) => {
-                              setDraft(updated.content);
-                              setTab('vision');
-                            },
-                          });
-                        }}
-                      >
-                        Restore
-                      </Button>
-                    )}
-                  </li>
-                ))}
-              </ul>
-            </CardContent>
-          </Card>
-
-          {comparing && comparison.data && (
-            <Card>
-              <CardHeader>
-                <CardTitle>
-                  v{comparison.data.versionNo} compared with the current version
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <DiffView from={comparison.data.content} to={document.data.content} />
-              </CardContent>
-            </Card>
-          )}
-        </div>
-      )}
     </div>
   );
 }
