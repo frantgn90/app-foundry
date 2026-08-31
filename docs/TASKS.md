@@ -581,7 +581,7 @@ empezar cada hito, con el mismo método que la v1.
 |---|---|---|---|---|
 | AP1 | Tablas `workspace_ai_providers` y `workspace_ai_credentials` | El esquema declarado coincide con el aplicado | §7.1, RF-1001 | ✅ |
 | AP2 | Cifrado AES-256-GCM con clave versionada y datos autenticados | Mover una fila cifrada a otro workspace la vuelve indescifrable | T-26, RNF-601 | ✅ |
-| AP3 | Función `SECURITY DEFINER` y `SELECT` revocado sobre la credencial | El rol de aplicación no puede leer la tabla directamente | T-27, RNF-603 | ⬜ |
+| AP3 | Función `SECURITY DEFINER` y `SELECT` revocado sobre la credencial | El rol de aplicación no puede leer la tabla directamente | T-27, RNF-603 | ✅ |
 | AP4 | Políticas RLS de las tablas nuevas y ampliación de la suite de aislamiento | Un miembro que no es dueño no lee la credencial de su propio workspace | RNF-603, RNF-904 | ⬜ |
 | AP5 | API de configurar, verificar, desactivar y borrar un proveedor | Una clave inválida se rechaza en el acto y con motivo; el proveedor no queda activo | RF-1002..1006 | ⬜ |
 | AP6 | Advertencia de envío a terceros, con registro de quién la aceptó | Activar el primer proveedor exige aceptarla | RF-1011 | ⬜ |

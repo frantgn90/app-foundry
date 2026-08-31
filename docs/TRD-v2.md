@@ -339,9 +339,14 @@ código se acuerde de comprobarlo.
   descifrar; un comando recifra en lote. Perder todas las claves no es recuperable: la credencial se marca
   como ilegible y se pide al dueño que la vuelva a introducir, en vez de que la aplicación falle en cada
   invocación.
-- **Lectura**: sin `SELECT` para el rol de aplicación (T-27). Una función `SECURITY DEFINER` con `search_path`
-  fijo devuelve el texto cifrado de un `(workspace, provider)` concreto; no acepta filtros arbitrarios ni
-  devuelve listados.
+- **Lectura**: sin `SELECT` sobre la tabla para el rol de aplicación, y `SELECT` **por columna** sobre lo que
+  no es secreto (T-27, misma técnica que T-20). Esa mitad no es adorno: sin poder leer `workspace_id` y
+  `provider` el rol no podría ni actualizar su propia fila, porque un `UPDATE ... WHERE` exige leer las
+  columnas del filtro. La única vía al cifrado es una función `SECURITY DEFINER` con `search_path` fijo que
+  recibe un par concreto, no acepta filtros arbitrarios y no devuelve listados. Además exige dos cosas: que
+  **haya una persona detrás** —quien pide el secreto ha de ser miembro de ese workspace, y el trabajo en
+  segundo plano corre con la identidad de quien lo provocó— y que el proveedor esté **activo**, de modo que
+  uno desactivado no se pueda usar ni por descuido.
 - **Salida**: ningún DTO expone la credencial. El único dato que viaja al cliente es `credential_hint`
   (RF-1004). Los mensajes de error del proveedor se normalizan antes de reenviarse: nunca se propaga tal cual
   un cuerpo que pueda contener la clave (RNF-602).

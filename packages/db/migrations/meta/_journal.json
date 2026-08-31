@@ -225,6 +225,13 @@
       "when": 1788206538734,
       "tag": "0031_ai_providers",
       "breakpoints": true
+    },
+    {
+      "idx": 32,
+      "version": "7",
+      "when": 1788206847094,
+      "tag": "0032_ai_credentials_locked",
+      "breakpoints": true
     }
   ]
 }
