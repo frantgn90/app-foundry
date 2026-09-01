@@ -35,7 +35,7 @@ const empezar = (
   comoAna(() =>
     invocaciones.begin(
       { workspaceId: ana.workspaceId, task: 'TEXT_ASSIST', userId: ana.id },
-      { ...peticion, ...extra },
+      [{ label: 'única', request: { ...peticion, ...extra } }],
       now,
     ),
   );

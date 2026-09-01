@@ -1,13 +1,7 @@
 import { BadRequestException, Inject, Injectable } from '@nestjs/common';
 import { and, eq } from 'drizzle-orm';
 
-import {
-  AiTask,
-  explainContextFit,
-  fitsInContext,
-  supportForTask,
-  type AiProvider,
-} from '@app-foundry/core';
+import { AiTask, supportForTask, type AiProvider } from '@app-foundry/core';
 import type { ProviderRegistry } from '@app-foundry/ai';
 import { aiModels, workspaceAiProviders, workspaceTaskModels, workspaces } from '@app-foundry/db';
 
@@ -289,23 +283,6 @@ export class AiTasksService {
       maxOutputTokens: fila.maxOutputTokens ?? 0,
       degraded: [...support.degraded],
     };
-  }
-
-  /**
-   * Comprueba que lo que se va a enviar cabe (RF-1106).
-   *
-   * Devuelve cuántos tokens de salida se pueden reservar de verdad, ya acotados
-   * por el modelo. Y si no cabe, lo dice con el número que hay que recortar:
-   * **nunca** se recorta el documento en silencio, porque entonces el modelo
-   * responde, la respuesta parece razonable y nadie sabe que opinó sobre la
-   * mitad del texto.
-   */
-  assertFits(plan: TaskPlan, inputTokens: number, requestedOutputTokens: number): number {
-    const fit = fitsInContext(inputTokens, requestedOutputTokens, plan);
-    if (!fit.allowed) {
-      throw new BadRequestException(explainContextFit(fit, plan.modelId));
-    }
-    return fit.outputTokens;
   }
 
   private async assertUsable(

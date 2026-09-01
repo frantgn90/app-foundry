@@ -11,10 +11,17 @@ import {
   Length,
 } from 'class-validator';
 
-import { AiProvider, AiTask } from '@app-foundry/core';
+import {
+  AiProvider,
+  AiTask,
+  ASSIST_ACTIONS,
+  type AssistAction,
+  AssistScope,
+} from '@app-foundry/core';
 
 const PROVEEDORES = Object.values(AiProvider);
 const TAREAS = Object.values(AiTask);
+const ALCANCES = Object.values(AssistScope);
 
 export class ProviderCapabilitiesDto {
   @ApiProperty() streaming!: boolean;
@@ -257,4 +264,41 @@ export class AiAvailabilityDto {
 
   @ApiProperty({ type: [AiTaskAvailabilityDto] })
   tasks!: AiTaskAvailabilityDto[];
+}
+
+/**
+ * Lo que se le pide al asistente de escritura (RF-1401, RF-1411).
+ *
+ * `start` y `end` son posiciones en el **fuente** de la copia de trabajo, las
+ * mismas que ancla un comentario, y solo valen con alcance de selección.
+ *
+ * `revision` es lo que hace que esas posiciones signifiquen algo: si el
+ * documento ha cambiado desde que el cliente lo leyó, apuntan a otro texto. Es
+ * la misma protección que la de un guardado concurrente (RF-511, RF-1408).
+ */
+export class AssistDto {
+  @ApiProperty({ enum: ASSIST_ACTIONS })
+  @IsIn(ASSIST_ACTIONS)
+  action!: AssistAction;
+
+  @ApiProperty({ enum: ALCANCES })
+  @IsIn(ALCANCES)
+  scope!: AssistScope;
+
+  @ApiPropertyOptional({ type: Number, description: 'Inicio de la selección en el fuente' })
+  @IsOptional()
+  @IsInt()
+  @Min(0)
+  start?: number;
+
+  @ApiPropertyOptional({ type: Number, description: 'Fin de la selección en el fuente' })
+  @IsOptional()
+  @IsInt()
+  @Min(0)
+  end?: number;
+
+  @ApiProperty({ description: 'La revisión de la copia de trabajo que se está mirando' })
+  @IsInt()
+  @Min(0)
+  revision!: number;
 }

@@ -12,10 +12,14 @@ import {
 import { AiProvider } from '@app-foundry/core';
 import type { Env } from '@app-foundry/env';
 
+import { DocumentsModule } from '../documents/documents.module.js';
 import { NotificationsModule } from '../notifications/notifications.module.js';
 import { ENV } from '../infrastructure/tokens.js';
 import { AI_CIPHER, AI_REGISTRY } from './ai.tokens.js';
+import { AiAssistController } from './assist.controller.js';
+import { AiAssistService } from './assist.service.js';
 import { AiCatalogRefresh } from './catalog.refresh.js';
+import { AiCircuitService } from './circuit.service.js';
 import { AiCatalogService } from './catalog.service.js';
 import { AiProvidersController } from './providers.controller.js';
 import { AiProvidersService } from './providers.service.js';
@@ -28,13 +32,15 @@ import { AiTasksService } from './tasks.service.js';
 import { WorkspaceAiController } from './workspace-ai.controller.js';
 
 @Module({
-  imports: [NotificationsModule],
-  controllers: [AiProvidersController, WorkspaceAiController],
+  imports: [NotificationsModule, DocumentsModule],
+  controllers: [AiProvidersController, WorkspaceAiController, AiAssistController],
   providers: [
     AiProvidersService,
     AiCatalogService,
     AiCatalogRefresh,
     AiTasksService,
+    AiAssistService,
+    AiCircuitService,
     AiQuotaService,
     AiQuotaReconcile,
     AiInvocationService,
@@ -83,6 +89,8 @@ import { WorkspaceAiController } from './workspace-ai.controller.js';
     AiProvidersService,
     AiCatalogService,
     AiTasksService,
+    AiAssistService,
+    AiCircuitService,
     AiQuotaService,
     AiQuotaReconcile,
     AiInvocationService,

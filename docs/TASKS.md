@@ -637,15 +637,16 @@ Solo se desglosa el hito en curso. H9 está cerrada; H10 está desglosada abajo.
 | AT3 | Panel de Grafana de la IA | Junto a los que ya existen, sin tocarlos | RNF-803 | ✅ |
 | AT4 | Cupo agotado y cortacircuitos, como eventos observables | No solo un mensaje en la interfaz | RNF-804 | ✅ |
 
-> **Sobre AT4.** El corte por cupo se emite como métrica y se ve en el panel. El cortacircuitos tiene su
-> métrica puesta y su sitio en el panel, pero **todavía no lo abre nadie**: el cortacircuitos en sí vive en la
-> ejecución de invocaciones (§11 del TRD v2), que llega con el asistente en H10. Hasta entonces esa gráfica
-> estará plana, y conviene saber por qué.
+> **Sobre AT4.** El corte por cupo se emite como métrica y se ve en el panel. El cortacircuitos tenía su
+> métrica puesta pero no lo abría nadie, porque el cortacircuitos en sí vive en la ejecución de invocaciones
+> (§11 del TRD v2). **Cerrado en AV5**: lo abre y lo cierra el paso común de invocación, y hay prueba de que un
+> proveedor que falla sin parar deja de intentarse.
 
-> **Sobre AQ6.** La regla vive en `core` con sus pruebas, y el punto por el que pasa toda invocación
-> —`AiTasksService.plan` y `assertFits`— está escrito y en uso desde el primer caso de uso. Como en H9 todavía
-> no hay ninguna ruta que invoque, lo que aquí queda demostrado es la regla; que se aplique de verdad se
-> comprueba en H10, con el asistente de escritura.
+> **Sobre AQ6.** La regla vive en `core` con sus pruebas, y el punto por el que pasa toda invocación está
+> escrito y en uso desde el primer caso de uso. En H9 no había ninguna ruta que invocara, así que lo demostrado
+> era la regla y no su aplicación. **Cerrado en AV4**: un documento que no cabe se rechaza antes de llamar a
+> nadie, diciendo cuántos tokens sobran. `assertFits` ha desaparecido por el camino —contar y comprobar son
+> ahora un mismo paso, el que elige entre variantes— para no dejar dos formas de hacer lo mismo.
 
 ---
 
@@ -685,13 +686,27 @@ Solo se desglosa el hito en curso. H9 está cerrada; H10 está desglosada abajo.
 
 | # | Tarea | Verificación | Traza | Estado |
 |---|---|---|---|---|
-| AV1 | Ruta de asistencia en streaming sobre la copia de trabajo | El texto llega por partes y muere con la petición | RF-1401, RNF-701 | ⬜ |
-| AV2 | Las cinco acciones fijas, con su prompt | Mejorar, concretar, resumir, expandir y corregir; sin instrucción libre | RF-1402 | ⬜ |
-| AV3 | El contexto que se envía: la selección y el documento si cabe | Si no cabe, solo su entorno, y se dice | RF-1409 | ⬜ |
-| AV4 | Rechazo por ventana de contexto, aplicado de verdad | Un documento que no cabe se rechaza explicando cuánto sobra | RF-1106, AQ6 | ⬜ |
-| AV5 | Reintentos y cortacircuitos por proveedor | Un `AUTH` no se reintenta; un proveedor que falla sin parar deja de intentarse | RNF-703, RNF-704 | ⬜ |
-| AV6 | Cancelar corta la llamada al proveedor | Cerrar la petición aborta de verdad, no solo deja de escuchar | RNF-702 | ⬜ |
-| AV7 | Permisos: edición, y solo sobre la copia de trabajo | Con lectura no aparece; sobre una versión anterior no se puede | RF-1406, RF-1410 | ⬜ |
+| AV1 | Ruta de asistencia en streaming sobre la copia de trabajo | El texto llega por partes y muere con la petición | RF-1401, RNF-701 | ✅ |
+| AV2 | Las cinco acciones fijas, con su prompt | Mejorar, concretar, resumir, expandir y corregir; sin instrucción libre | RF-1402 | ✅ |
+| AV3 | El contexto que se envía: la selección y el documento si cabe | Si no cabe, solo su entorno, y se dice | RF-1409 | ✅ |
+| AV4 | Rechazo por ventana de contexto, aplicado de verdad | Un documento que no cabe se rechaza explicando cuánto sobra | RF-1106, AQ6 | ✅ |
+| AV5 | Reintentos y cortacircuitos por proveedor | Un `AUTH` no se reintenta; un proveedor que falla sin parar deja de intentarse | RNF-703, RNF-704 | ✅ |
+| AV6 | Cancelar corta la llamada al proveedor | Cerrar la petición aborta de verdad, no solo deja de escuchar | RNF-702 | ✅ |
+| AV7 | Permisos: edición, y solo sobre la copia de trabajo | Con lectura no aparece; sobre una versión anterior no se puede | RF-1406, RF-1410 | ✅ |
+
+> **Sobre AV5 y AV6.** El reintento **solo ocurre antes de la primera palabra**. Después de haber enviado texto,
+> repetir la llamada volvería a escribir la propuesta desde el principio delante de quien la está leyendo: es la
+> diferencia entre reintentar una llamada y reintentar una conversación ya empezada, y no hay forma de reanudar
+> un flujo por la mitad.
+>
+> Y cancelar escucha el cierre de la **respuesta**, no el de la petición. Parecen lo mismo: la petición es un
+> POST con su cuerpo ya recibido, así que Node la da por terminada mucho antes y no vuelve a avisar de nada.
+> Escuchando el otro, cancelar no cancelaba: la generación seguía hasta el final gastando cuota para nadie. Se
+> vio porque el test lo comprobaba contra el registro y no contra la pantalla.
+>
+> Lo consumido al cancelar se **aproxima**: el proveedor no llega a decir cuánto gastó, así que se registra la
+> entrada contada más una estimación al alza de lo generado. Es mentira registrar cero, y quedarse corto es
+> regalar cupo ajeno.
 
 ### Bloque AW — El asistente en la interfaz
 

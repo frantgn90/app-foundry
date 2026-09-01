@@ -78,8 +78,10 @@ export class FakeProvider implements LlmProvider {
   readonly calls: FakeCall[] = [];
 
   private attempts = 0;
+  private script: FakeScript;
 
-  constructor(private readonly script: FakeScript = {}) {
+  constructor(script: FakeScript = {}) {
+    this.script = script;
     this.id = script.id ?? AiProvider.ANTHROPIC;
     this.capabilities = {
       streaming: true,
@@ -88,6 +90,32 @@ export class FakeProvider implements LlmProvider {
       exactTokenCount: true,
       ...script.capabilities,
     };
+  }
+
+  /**
+   * Cambia el guion sin volver a construirlo.
+   *
+   * Hace falta porque el registro se monta al arrancar la aplicación (T-36) y
+   * un test no puede sustituirlo: lo que necesita es que **este** proveedor
+   * falle ahora, o vaya despacio, para poder ejercitar reintentos y
+   * cancelación por el camino real en lugar de simularlos.
+   *
+   * **Sustituye el guion entero**, no lo completa. Mezclarlo dejaba a un test
+   * arrastrando lo que programó el anterior —un «falla la primera vez» que
+   * sobrevivía a un «falla siempre»— y el fallo aparecía en el test equivocado.
+   *
+   * Las capacidades no se tocan: se declaran al construir y de ellas depende qué
+   * funciones se ofrecen, así que cambiarlas a mitad dejaría a la aplicación
+   * respondiendo dos cosas distintas sobre sí misma.
+   */
+  program(script: Omit<FakeScript, 'id' | 'capabilities'>): void {
+    this.script = {
+      ...script,
+      ...(this.script.id !== undefined && { id: this.script.id }),
+      ...(this.script.capabilities !== undefined && { capabilities: this.script.capabilities }),
+    };
+    this.attempts = 0;
+    this.calls.length = 0;
   }
 
   verify(credential: Credential): Promise<void> {

@@ -1,7 +1,16 @@
-import { Inject, Injectable, Logger } from '@nestjs/common';
+import { BadRequestException, Inject, Injectable, Logger } from '@nestjs/common';
 import { type Span, SpanStatusCode, trace } from '@opentelemetry/api';
 
-import type { AiTask, Credential, TextRequest, TokenUsage } from '@app-foundry/core';
+import {
+  type AiTask,
+  type Credential,
+  explainContextFit,
+  fitsInContext,
+  ProviderError,
+  type ProviderErrorKind,
+  type TextRequest,
+  type TokenUsage,
+} from '@app-foundry/core';
 import type { Env } from '@app-foundry/env';
 import type { ProviderRegistry } from '@app-foundry/ai';
 import { aiInvocations, type Database } from '@app-foundry/db';
@@ -10,6 +19,7 @@ import { conIdentidad } from '../database/con-identidad.js';
 import { currentTx } from '../database/request-context.js';
 import { DATABASE, ENV } from '../infrastructure/tokens.js';
 import { AI_REGISTRY } from './ai.tokens.js';
+import { AiCircuitService } from './circuit.service.js';
 import { MetricsService } from '../observability/metrics.service.js';
 import { NotificationsService } from '../notifications/notifications.service.js';
 import { AiProvidersService } from './providers.service.js';
@@ -20,6 +30,20 @@ import {
   type Reservation,
 } from './quota.service.js';
 import { AiTasksService, type TaskPlan } from './tasks.service.js';
+
+/**
+ * Una forma de plantear la misma petición.
+ *
+ * Se pasan varias, de la más completa a la más corta, y se usa la primera que
+ * quepa (RF-1409). Es lo que permite mandar el documento entero como contexto
+ * cuando cabe y solo el entorno del fragmento cuando no, **sin recortar nunca en
+ * silencio**: la que se ha usado viaja de vuelta y se dice en pantalla.
+ */
+export interface InvocationCandidate {
+  /** Cómo se llama esta variante, para poder decir cuál se acabó usando. */
+  readonly label: string;
+  readonly request: Omit<TextRequest, 'model' | 'maxOutputTokens'> & { maxOutputTokens?: number };
+}
 
 export interface InvocationContext {
   readonly workspaceId: string;
@@ -32,6 +56,10 @@ export interface InvocationContext {
 export interface StartedInvocation {
   readonly plan: TaskPlan;
   readonly credential: Credential;
+  /** La petición ya cerrada: con modelo, con techo de salida y la que cabe. */
+  readonly request: TextRequest;
+  /** Cuál de las variantes se ha usado, para poder decirlo (RF-1409). */
+  readonly variant: string;
   /** El techo de salida, ya acotado por el modelo y por lo que cabe. */
   readonly maxOutputTokens: number;
   readonly estimatedTokens: number;
@@ -66,6 +94,7 @@ export class AiInvocationService {
   constructor(
     private readonly tasks: AiTasksService,
     private readonly providers: AiProvidersService,
+    private readonly circuit: AiCircuitService,
     private readonly quota: AiQuotaService,
     private readonly notifications: NotificationsService,
     private readonly metrics: MetricsService,
@@ -84,7 +113,7 @@ export class AiInvocationService {
    */
   async begin(
     context: InvocationContext,
-    request: Omit<TextRequest, 'model' | 'maxOutputTokens'> & { maxOutputTokens?: number },
+    candidatos: readonly InvocationCandidate[],
     now = Date.now(),
   ): Promise<StartedInvocation> {
     /*
@@ -104,6 +133,15 @@ export class AiInvocationService {
     }
 
     const plan = await this.tasks.plan(context.workspaceId, context.task);
+
+    /*
+     * El cortacircuitos, antes de nada más (RNF-704). Si el proveedor lleva un
+     * rato sin responder, lo barato y lo honesto es decirlo ya: seguir adelante
+     * sería descifrar una credencial, contar tokens y apartar cupo para una
+     * llamada que se sabe que va a fallar.
+     */
+    await this.circuit.assertClosed(plan.provider);
+
     const credential = await this.providers.readCredential(context.workspaceId, plan.provider);
 
     /*
@@ -119,20 +157,13 @@ export class AiInvocationService {
       },
     });
 
-    const peticion: TextRequest = {
-      ...request,
-      model: plan.modelId,
-      maxOutputTokens: request.maxOutputTokens ?? plan.maxOutputTokens,
-    };
-
-    const cuenta = await this.registry.get(plan.provider).countTokens(peticion, credential);
-
-    const maxOutputTokens = this.tasks.assertFits(
-      plan,
-      cuenta.inputTokens,
-      peticion.maxOutputTokens,
-    );
-    const estimatedTokens = cuenta.inputTokens + maxOutputTokens;
+    /*
+     * Se prueban las variantes de la más completa a la más corta y se usa la
+     * primera que quepa. Contar cuesta una llamada por variante, y son dos como
+     * mucho: sale más barato que enviar algo que el proveedor va a rechazar.
+     */
+    const elegida = await this.pickThatFits(plan, credential, candidatos, span);
+    const { peticion, variant, maxOutputTokens, estimatedTokens } = elegida;
 
     const cupo = await this.providers.quotaOf(context.workspaceId, plan.provider);
 
@@ -149,6 +180,8 @@ export class AiInvocationService {
       return {
         plan,
         credential,
+        request: peticion,
+        variant,
         maxOutputTokens,
         estimatedTokens,
         reservation,
@@ -210,6 +243,73 @@ export class AiInvocationService {
   }
 
   /**
+   * La primera variante que cabe, ya contada de verdad (RF-1106, RF-1409).
+   *
+   * Si no cabe ninguna se rechaza con el motivo y el número de tokens que
+   * sobran, en lugar de acortar el texto por nuestra cuenta: un recorte
+   * silencioso hace que el modelo responda, que la respuesta parezca razonable y
+   * que nadie sepa que opinó sobre la mitad (D-31).
+   */
+  private async pickThatFits(
+    plan: TaskPlan,
+    credential: Credential,
+    candidatos: readonly InvocationCandidate[],
+    span: Span,
+  ): Promise<{
+    peticion: TextRequest;
+    variant: string;
+    maxOutputTokens: number;
+    estimatedTokens: number;
+  }> {
+    const proveedor = this.registry.get(plan.provider);
+    let ultima: { peticion: TextRequest; inputTokens: number } | null = null;
+
+    for (const candidato of candidatos) {
+      const peticion: TextRequest = {
+        ...candidato.request,
+        model: plan.modelId,
+        maxOutputTokens: candidato.request.maxOutputTokens ?? plan.maxOutputTokens,
+      };
+      /*
+       * Contar ya es hablar con el proveedor, así que un fallo aquí también
+       * cuenta para el cortacircuitos: si no, una caída durante el recuento
+       * nunca llegaría a abrirlo porque no hay liquidación que lo apunte.
+       */
+      const cuenta = await proveedor
+        .countTokens(peticion, credential)
+        .catch(async (error: unknown) => {
+          if (error instanceof ProviderError)
+            await this.circuit.recordFailure(plan.provider, error.kind);
+          throw error;
+        });
+      ultima = { peticion, inputTokens: cuenta.inputTokens };
+
+      const fit = fitsInContext(cuenta.inputTokens, peticion.maxOutputTokens, plan);
+      if (!fit.allowed) continue;
+
+      span.setAttribute('ai.context_variant', candidato.label);
+      return {
+        peticion,
+        variant: candidato.label,
+        maxOutputTokens: fit.outputTokens,
+        estimatedTokens: cuenta.inputTokens + fit.outputTokens,
+      };
+    }
+
+    span.setStatus({ code: SpanStatusCode.ERROR });
+    span.end();
+
+    if (!ultima) throw new Error('Se ha pedido invocar sin ninguna petición');
+
+    /*
+     * Ninguna cabe: se rechaza con la más corta, que es la que da el número
+     * honesto de cuánto hay que acortar.
+     */
+    const fit = fitsInContext(ultima.inputTokens, ultima.peticion.maxOutputTokens, plan);
+    throw new BadRequestException(explainContextFit(fit, plan.modelId));
+  }
+
+  /**
    * Cierra la invocación: liquida el cupo y la registra.
    *
    * Se llama **siempre**, con lo que se haya consumido. Lo gastado antes de
@@ -222,12 +322,23 @@ export class AiInvocationService {
     usage: TokenUsage,
     resultado: {
       outcome: 'COMPLETED' | 'FAILED' | 'CANCELLED';
-      errorKind?: string;
+      errorKind?: ProviderErrorKind;
       ttftMs?: number;
       now?: number;
     },
   ): Promise<void> {
     const ahora = resultado.now ?? Date.now();
+
+    /*
+     * El desenlace alimenta el cortacircuitos. Una cancelación no cuenta ni a
+     * favor ni en contra: no dice nada del proveedor, solo de quien se cansó de
+     * esperar.
+     */
+    if (resultado.outcome === 'COMPLETED') {
+      await this.circuit.recordSuccess(started.plan.provider);
+    } else if (resultado.outcome === 'FAILED' && resultado.errorKind !== undefined) {
+      await this.circuit.recordFailure(started.plan.provider, resultado.errorKind);
+    }
 
     await this.quota.settle(
       { workspaceId: context.workspaceId, provider: started.plan.provider },
