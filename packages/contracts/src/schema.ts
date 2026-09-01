@@ -559,6 +559,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/workspaces/{id}/ai/availability": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Qué funciones de IA se pueden ofrecer ahora. Para cualquier miembro */
+        get: operations["WorkspaceAiController_availability"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/workspaces/{id}/ai/tasks": {
         parameters: {
             query?: never;
@@ -1305,6 +1322,16 @@ export interface components {
             byTask: components["schemas"]["AiUsageBreakdownDto"][];
             byModel: components["schemas"]["AiUsageBreakdownDto"][];
             byMember: components["schemas"]["AiUsageBreakdownDto"][];
+        };
+        AiTaskAvailabilityDto: {
+            /** @enum {string} */
+            task: "IDEA_GENERATION" | "TEXT_ASSIST" | "AGENT_REVIEW" | "AGENT_REPLY";
+            available: boolean;
+        };
+        AiAvailabilityDto: {
+            /** @description El interruptor general del workspace */
+            enabled: boolean;
+            tasks: components["schemas"]["AiTaskAvailabilityDto"][];
         };
         AiTaskAssignmentDto: {
             /** @enum {string} */
@@ -2420,6 +2447,27 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["AiUsageDto"];
+                };
+            };
+        };
+    };
+    WorkspaceAiController_availability: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AiAvailabilityDto"];
                 };
             };
         };

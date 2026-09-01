@@ -16,6 +16,7 @@ import { ApiOkResponse, ApiOperation, ApiTags } from '@nestjs/swagger';
 
 import { CurrentUserId } from '../auth/current-user.decorator.js';
 import {
+  AiAvailabilityDto,
   AiEgressConsentDto,
   AiModelDto,
   AiSettingsDto,
@@ -73,6 +74,15 @@ export class WorkspaceAiController {
     @CurrentUserId() userId: string,
   ): Promise<AiUsageDto> {
     return this.usage.ofMonth(workspaceId, userId);
+  }
+
+  @Get('availability')
+  @ApiOperation({
+    summary: 'Qué funciones de IA se pueden ofrecer ahora. Para cualquier miembro',
+  })
+  @ApiOkResponse({ type: AiAvailabilityDto })
+  availability(@Param('id', ParseUUIDPipe) workspaceId: string): Promise<AiAvailabilityDto> {
+    return this.tasks.availability(workspaceId);
   }
 
   @Get('tasks')

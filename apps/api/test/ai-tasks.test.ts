@@ -156,6 +156,61 @@ describe('asignar', () => {
   });
 });
 
+describe('qué se puede ofrecer ahora mismo', () => {
+  interface Availability {
+    enabled: boolean;
+    tasks: { task: string; available: boolean }[];
+  }
+
+  const disponibilidad = (quien: TestUser) =>
+    h.as(quien).get(`/api/v1/workspaces/${ana.workspaceId}/ai/availability`);
+
+  /*
+   * La consulta un miembro, no el dueño: es quien va a ver —o no— el botón, y
+   * saber si merece la pena enseñarlo no puede exigir permisos de configuración
+   * (RF-1010).
+   */
+  it('la puede consultar cualquier miembro', async () => {
+    const response = await disponibilidad(bruno);
+    const body = (await response.json()) as Availability;
+
+    expect(response.status).toBe(200);
+    expect(body.tasks).toHaveLength(4);
+    expect(body.tasks.every((t) => t.available)).toBe(true);
+  });
+
+  /*
+   * Con la IA apagada no se ofrece nada, aunque las asignaciones sigan intactas.
+   * Sin esto, un miembro vería botones que el servidor rechaza (RF-1012).
+   */
+  it('con la IA apagada, nada está disponible', async () => {
+    await h.as(ana).patch(`/api/v1/workspaces/${ana.workspaceId}/ai`, { enabled: false });
+
+    const body = (await (await disponibilidad(bruno)).json()) as Availability;
+
+    expect(body.enabled).toBe(false);
+    expect(body.tasks.some((t) => t.available)).toBe(false);
+
+    await h.as(ana).patch(`/api/v1/workspaces/${ana.workspaceId}/ai`, { enabled: true });
+  });
+
+  it('con el proveedor apagado, tampoco', async () => {
+    await h.as(ana).patch(`/api/v1/workspaces/${ana.workspaceId}/ai/providers/ANTHROPIC`, {
+      status: 'DISABLED',
+    });
+
+    const body = (await (await disponibilidad(bruno)).json()) as Availability;
+
+    /* La IA sigue encendida: lo que falla es el proveedor, y son cosas distintas. */
+    expect(body.enabled).toBe(true);
+    expect(body.tasks.some((t) => t.available)).toBe(false);
+
+    await h
+      .as(ana)
+      .patch(`/api/v1/workspaces/${ana.workspaceId}/ai/providers/ANTHROPIC`, { status: 'ACTIVE' });
+  });
+});
+
 describe('cuando un modelo se retira', () => {
   /*
    * El proveedor retira modelos cuando quiere. Lo que no puede pasar es que nos

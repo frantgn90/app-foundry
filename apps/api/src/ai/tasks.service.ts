@@ -9,12 +9,12 @@ import {
   type AiProvider,
 } from '@app-foundry/core';
 import type { ProviderRegistry } from '@app-foundry/ai';
-import { aiModels, workspaceAiProviders, workspaceTaskModels } from '@app-foundry/db';
+import { aiModels, workspaceAiProviders, workspaceTaskModels, workspaces } from '@app-foundry/db';
 
 import { AuditAction, AuditService } from '../audit/audit.service.js';
 import { currentTx } from '../database/request-context.js';
 import { AI_REGISTRY } from './ai.tokens.js';
-import type { AiTaskAssignmentDto, AssignTaskModelDto } from './ai.dto.js';
+import type { AiAvailabilityDto, AiTaskAssignmentDto, AssignTaskModelDto } from './ai.dto.js';
 import { AiProvidersService } from './providers.service.js';
 
 const TAREAS = Object.values(AiTask);
@@ -106,6 +106,49 @@ export class AiTasksService {
         degraded: [...support.degraded],
       };
     });
+  }
+
+  /**
+   * Qué se puede ofrecer ahora mismo, para cualquier miembro (RF-1010).
+   *
+   * Una tarea está disponible cuando **todo** encaja: la IA del workspace
+   * encendida, su proveedor activo, el modelo todavía en el catálogo y el
+   * proveedor capaz de lo que la tarea exige. Basta que falle una para que la
+   * respuesta sea no, y entonces la interfaz no enseña el botón en lugar de
+   * enseñarlo deshabilitado: un control apagado invita a preguntarse qué hay que
+   * hacer para encenderlo, y aquí la respuesta no está en manos de quien mira.
+   */
+  async availability(workspaceId: string): Promise<AiAvailabilityDto> {
+    const [ws] = await currentTx()
+      .select({ enabled: workspaces.aiEnabled })
+      .from(workspaces)
+      .where(eq(workspaces.id, workspaceId));
+
+    const enabled = ws?.enabled ?? false;
+    const asignaciones = await this.list(workspaceId);
+
+    const activos = await currentTx()
+      .select({ provider: workspaceAiProviders.provider })
+      .from(workspaceAiProviders)
+      .where(
+        and(
+          eq(workspaceAiProviders.workspaceId, workspaceId),
+          eq(workspaceAiProviders.status, 'ACTIVE'),
+        ),
+      );
+    const disponibles = new Set(activos.map((fila) => fila.provider));
+
+    return {
+      enabled,
+      tasks: asignaciones.map((asignacion) => ({
+        task: asignacion.task,
+        available:
+          enabled &&
+          asignacion.supported &&
+          asignacion.provider !== null &&
+          disponibles.has(asignacion.provider),
+      })),
+    };
   }
 
   /**

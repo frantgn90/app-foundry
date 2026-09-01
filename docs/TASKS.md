@@ -629,7 +629,7 @@ empezar cada hito, con el mismo método que la v1.
 | AS2 | Asignación de modelo por tarea desde la interfaz | Se dibuja a partir de las capacidades declaradas, no de una lista fija | RF-1008, RF-1102 | ✅ |
 | AS3 | Cupos y umbral de aviso | Un cupo por proveedor configurado | RF-1204, RF-1205 | ✅ |
 | AS4 | Página de consumo del mes | Desglose por proveedor, tarea, modelo y miembro, con entrada y salida separadas | RF-1208 | ✅ |
-| AS5 | Sin proveedor activo, ninguna función de IA aparece | Ni botones deshabilitados, ni código de IA descargado | RF-1010 | ⬜ |
+| AS5 | Sin proveedor activo, ninguna función de IA aparece | Ni botones deshabilitados, ni código de IA descargado | RF-1010 | ✅ |
 
 ### Bloque AT — Observabilidad
 

@@ -1359,6 +1359,37 @@
         ]
       }
     },
+    "/api/v1/workspaces/{id}/ai/availability": {
+      "get": {
+        "operationId": "WorkspaceAiController_availability",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AiAvailabilityDto"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Qué funciones de IA se pueden ofrecer ahora. Para cualquier miembro",
+        "tags": [
+          "ai"
+        ]
+      }
+    },
     "/api/v1/workspaces/{id}/ai/tasks": {
       "get": {
         "operationId": "WorkspaceAiController_tasks_",
@@ -3475,6 +3506,46 @@
           "byTask",
           "byModel",
           "byMember"
+        ]
+      },
+      "AiTaskAvailabilityDto": {
+        "type": "object",
+        "properties": {
+          "task": {
+            "type": "string",
+            "enum": [
+              "IDEA_GENERATION",
+              "TEXT_ASSIST",
+              "AGENT_REVIEW",
+              "AGENT_REPLY"
+            ]
+          },
+          "available": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "task",
+          "available"
+        ]
+      },
+      "AiAvailabilityDto": {
+        "type": "object",
+        "properties": {
+          "enabled": {
+            "type": "boolean",
+            "description": "El interruptor general del workspace"
+          },
+          "tasks": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/AiTaskAvailabilityDto"
+            }
+          }
+        },
+        "required": [
+          "enabled",
+          "tasks"
         ]
       },
       "AiTaskAssignmentDto": {

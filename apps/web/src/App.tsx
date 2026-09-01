@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { lazy, Suspense, useEffect, useState } from 'react';
 
 import { Layout, type Pantalla } from './components/layout.js';
 import { AppDetailPage } from './pages/app-detail.js';
@@ -6,7 +6,6 @@ import { AppsListPage } from './pages/apps-list.js';
 import { LoginPage } from './pages/login.js';
 import { WorkspaceActivityPage } from './pages/workspace-activity.js';
 import { WorkspacePage } from './pages/workspace.js';
-import { WorkspaceAiPage } from './pages/workspace-ai.js';
 import { WorkspaceSettingsPage } from './pages/workspace-settings.js';
 import { type AppFilters, useApps, useSession, useWorkspaces } from './lib/api.js';
 import { AccountSettingsPage } from './pages/account.js';
@@ -14,6 +13,18 @@ import { AdminPage } from './pages/admin.js';
 import { SearchDialog } from './components/search-dialog.js';
 import { ShortcutsHelp } from './components/shortcuts-help.js';
 import { useShortcuts } from './lib/shortcuts.js';
+
+/**
+ * Los ajustes de IA se descargan solo si se abren (RF-1010).
+ *
+ * Es el primer trozo de la aplicación que se parte, y tiene sentido que sea
+ * este: quien no configura IA no debería pagar su peso, y la pantalla arrastra
+ * consigo el catálogo de modelos, el desglose de consumo y sus tablas.
+ */
+const WorkspaceAiPage = lazy(async () => {
+  const modulo = await import('./pages/workspace-ai.js');
+  return { default: modulo.WorkspaceAiPage };
+});
 
 const WORKSPACE_KEY = 'app-foundry:workspace';
 const FILTROS_KEY = 'app-foundry:filtros';
@@ -241,7 +252,11 @@ export function App() {
           )}
           {view === 'settings' && <WorkspaceSettingsPage workspace={current} />}
           {view === 'people' && <WorkspacePage workspace={current} />}
-          {view === 'ai' && <WorkspaceAiPage workspace={current} />}
+          {view === 'ai' && (
+            <Suspense fallback={<Screen text="Loading…" />}>
+              <WorkspaceAiPage workspace={current} />
+            </Suspense>
+          )}
           {view === 'activity' && <WorkspaceActivityPage workspace={current} />}
         </div>
       )}

@@ -1270,3 +1270,42 @@ function mensajeDeError(error: unknown, porDefecto: string): string {
       return porDefecto;
   }
 }
+
+export interface AiAvailability {
+  enabled: boolean;
+  tasks: { task: AiTaskId; available: boolean }[];
+}
+
+/**
+ * Qué funciones de IA se pueden ofrecer en este workspace (RF-1010).
+ *
+ * Es lo que consultan los puntos de uso antes de enseñar nada. Deliberadamente
+ * separada de la asignación de tareas: aquella es del dueño y dice qué modelo
+ * atiende cada cosa; esta la puede leer cualquiera y solo dice si merece la pena
+ * enseñar el botón.
+ */
+export function useAiAvailability(workspaceId: string | undefined) {
+  return useQuery({
+    queryKey: ['ia-disponible', workspaceId],
+    enabled: Boolean(workspaceId),
+    queryFn: async (): Promise<AiAvailability> => {
+      const { data, error } = await api.GET('/api/v1/workspaces/{id}/ai/availability', {
+        params: { path: { id: workspaceId! } },
+      });
+      if (error || !data) throw new Error('Could not check what AI can do here');
+      return data;
+    },
+  });
+}
+
+/**
+ * Si una función concreta se puede ofrecer.
+ *
+ * Devuelve `false` mientras se comprueba, a propósito: es preferible que un
+ * control aparezca un instante tarde a que aparezca y se desvanezca, o a que
+ * alguien llegue a pulsarlo y se lleve un error.
+ */
+export function useAiTaskAvailable(workspaceId: string | undefined, task: AiTaskId): boolean {
+  const disponibilidad = useAiAvailability(workspaceId);
+  return disponibilidad.data?.tasks.find((t) => t.task === task)?.available ?? false;
+}

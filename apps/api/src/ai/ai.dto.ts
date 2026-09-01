@@ -234,3 +234,27 @@ export class AiUsageDto {
   @ApiProperty({ type: [AiUsageBreakdownDto] }) byModel!: AiUsageBreakdownDto[];
   @ApiProperty({ type: [AiUsageBreakdownDto] }) byMember!: AiUsageBreakdownDto[];
 }
+
+/**
+ * Qué funciones de IA se pueden ofrecer ahora mismo (RF-1010).
+ *
+ * Existe aparte de la asignación de tareas porque responde a otra pregunta y la
+ * hace otra gente: la asignación es del dueño y dice **qué modelo** atiende cada
+ * cosa; esto lo consulta cualquier miembro y dice si merece la pena enseñar el
+ * botón. Un botón que lleva a un error no es una funcionalidad, es una trampa.
+ */
+export class AiTaskAvailabilityDto {
+  @ApiProperty({ enum: TAREAS })
+  task!: AiTask;
+
+  @ApiProperty()
+  available!: boolean;
+}
+
+export class AiAvailabilityDto {
+  @ApiProperty({ description: 'El interruptor general del workspace' })
+  enabled!: boolean;
+
+  @ApiProperty({ type: [AiTaskAvailabilityDto] })
+  tasks!: AiTaskAvailabilityDto[];
+}
