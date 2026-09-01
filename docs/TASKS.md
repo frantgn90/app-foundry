@@ -513,8 +513,8 @@ que alguien lo decida, las apps siguen ahí y el plazo solo está apuntado.
 | U23 | Guardar dejó de crear versión; commitear la crea y le pone nombre | El historial acumulaba una entrada por cada coma | ✅ |
 | U24 | El resaltado también se pinta al mirar una versión anterior | La caja de la versión no llevaba el `ref` y el pintado limpiaba en vez de dibujar | ✅ |
 | U25 | Entrar aterriza en el workspace propio | `isPersonal` marca el de su dueño, no el tuyo: una invitada podía entrar en casa ajena. Lo cazó el recorrido con dos identidades | ✅ |
-| U26 | El menú flotante, bajo la selección y a su derecha, no donde quedó el puntero | Se posiciona con el ratón: arrastrar deprisa lo deja lejos, y arrastrar hacia la izquierda lo deja al principio | ⬜ |
-| U27 | Detectar la selección por el cambio de selección, y resolver también los bloques enteros | Doble clic, triple clic, teclado y títulos no ofrecían menú: el disparador era `mouseup` y el rastro de posición se buscaba desde el contenedor común | ⬜ |
+| U26 | El menú flotante, bajo la selección y a su derecha, no donde quedó el puntero | Se posiciona con el ratón: arrastrar deprisa lo deja lejos, y arrastrar hacia la izquierda lo deja al principio | ✅ |
+| U27 | Detectar la selección por el cambio de selección, y resolver también los bloques enteros | Doble clic, triple clic, teclado y títulos no ofrecían menú: el disparador era `mouseup` y el rastro de posición se buscaba desde el contenedor común | ✅ |
 
 > U26 y U27 son requisito de la v2 (RF-1414..1416): el asistente de escritura cuelga de ese mismo menú, así
 > que dejan de ser una molestia al comentar y pasan a inutilizar media función nueva. Se arreglan en **H10**.
@@ -662,9 +662,9 @@ Solo se desglosa el hito en curso. H9 está cerrada; H10 está desglosada abajo.
 
 | # | Tarea | Verificación | Traza | Estado |
 |---|---|---|---|---|
-| AU1 | Posicionar el menú con la geometría de la selección, no con el puntero | Bajo su última línea y a su derecha, arrastrando en cualquier dirección | RF-1414, U26 | ⬜ |
-| AU2 | Detectar la selección por su cambio, no por soltar el ratón | Doble clic, triple clic y teclado abren el menú | RF-1415, U27 | ⬜ |
-| AU3 | Resolver también los bloques enteros, y bajar el mínimo a dos caracteres | Un título seleccionado entero ofrece menú | RF-1416, U27 | ⬜ |
+| AU1 | Posicionar el menú con la geometría de la selección, no con el puntero | Bajo su última línea y a su derecha, arrastrando en cualquier dirección | RF-1414, U26 | ✅ |
+| AU2 | Detectar la selección por su cambio, no por soltar el ratón | Doble clic, triple clic y teclado abren el menú | RF-1415, U27 | ✅ |
+| AU3 | Resolver también los bloques enteros, y bajar el mínimo a dos caracteres | Un título seleccionado entero ofrece menú | RF-1416, U27 | ✅ |
 | AU4 | Recorrido del menú de extremo a extremo | Los tres gestos que fallaban, comprobados en un navegador de verdad | RNF-905 | ⬜ |
 
 ### Bloque AV — El asistente por dentro

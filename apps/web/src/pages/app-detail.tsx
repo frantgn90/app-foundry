@@ -22,7 +22,7 @@ import {
 import { CommentsPanel } from '../components/comments-panel.js';
 import { type AnchorRange, paintAnchors, paintPending, sourceOffsetAt } from '../lib/highlight.js';
 import { SelectionMenu } from '../components/selection-menu.js';
-import { resolveSelection, type SourceSelection } from '../lib/selection.js';
+import { resolveSelection, selectionRect, type SourceSelection } from '../lib/selection.js';
 import { MentionInput } from '../components/mention-input.js';
 import { AppSettingsPage } from './app-settings.js';
 import { DiffView } from '../components/diff-view.js';
@@ -110,7 +110,7 @@ export function AppDetailPage({
   // se abre hasta que se pulsa el botón del menú: seleccionar texto no es
   // decidir comentarlo.
   const [pendingSelection, setPendingSelection] = useState<SourceSelection | null>(null);
-  const [menuAt, setMenuAt] = useState<{ top: number; left: number } | null>(null);
+  const [menuRect, setMenuRect] = useState<DOMRect | null>(null);
   const [composing, setComposing] = useState(false);
   const [selectionDraft, setSelectionDraft] = useState('');
   const readingRef = useRef<HTMLDivElement>(null);
@@ -195,6 +195,52 @@ export function AppDetailPage({
    * y se repinta. Resaltar no modifica el DOM (de eso trata precisamente esta
    * API), así que el observador no puede dispararse a sí mismo.
    */
+  /**
+   * El menú de selección se abre al **cambiar la selección**, no al soltar el
+   * ratón (RF-1415).
+   *
+   * Con `mouseup` como disparador se quedaban fuera el doble clic sobre una
+   * palabra, el triple clic sobre un párrafo, la selección con teclado y los
+   * arrastres que terminan fuera del texto. Ninguno es un gesto raro, y los
+   * cuatro producían una selección perfectamente válida que el menú ignoraba.
+   *
+   * Se espera un fotograma para no recalcular en cada píxel del arrastre: el
+   * navegador dispara este evento continuamente mientras se marca.
+   */
+  useEffect(() => {
+    const contenedor = readingRef.current;
+    /*
+     * Mientras se escribe el comentario no se toca la selección pendiente:
+     * pulsar en la caja de texto la colapsa, y perderla ahí dejaría el
+     * comentario sin ancla justo al ir a escribirlo.
+     */
+    if (!contenedor || editando || versionElegida !== null || composing) return;
+
+    let programado = 0;
+    const alCambiar = () => {
+      cancelAnimationFrame(programado);
+      programado = requestAnimationFrame(() => {
+        const contenido = document.data?.content;
+        if (!contenido) return;
+
+        const seleccion = resolveSelection(contenido, contenedor);
+        if (!seleccion) {
+          setPendingSelection(null);
+          setMenuRect(null);
+          return;
+        }
+        setPendingSelection(seleccion);
+        setMenuRect(selectionRect(contenedor));
+      });
+    };
+
+    window.document.addEventListener('selectionchange', alCambiar);
+    return () => {
+      cancelAnimationFrame(programado);
+      window.document.removeEventListener('selectionchange', alCambiar);
+    };
+  }, [editando, versionElegida, composing, document.data?.content]);
+
   useEffect(() => {
     const contenedor = readingRef.current;
 
@@ -522,22 +568,15 @@ export function AppDetailPage({
                   className="p-6"
                   ref={readingRef}
                   onMouseUp={(event) => {
-                    if (!document.data || !readingRef.current) return;
-                    // Mientras se escribe, lo que se ve es el borrador: comentar ahí
-                    // anclaría el hilo a posiciones de un texto que no está guardado.
-                    if (editando) return;
+                    /*
+                     * Aquí solo queda el camino inverso al del resaltado: un clic
+                     * sobre un fragmento comentado lleva a su hilo. De abrir el
+                     * menú se encarga el cambio de selección, que también cubre
+                     * el doble clic, el teclado y el táctil (RF-1415).
+                     */
+                    if (!readingRef.current || editando) return;
+                    if (!window.getSelection()?.isCollapsed) return;
 
-                    const selection = resolveSelection(document.data.content, readingRef.current);
-                    if (selection) {
-                      setPendingSelection(selection);
-                      setMenuAt({ top: event.clientY, left: event.clientX });
-                      return;
-                    }
-
-                    // Sin selección, un clic sobre un fragmento comentado lleva a su
-                    // hilo: es el camino inverso al del resaltado.
-                    setPendingSelection(null);
-                    setMenuAt(null);
                     const offset = sourceOffsetAt(readingRef.current, event.clientX, event.clientY);
                     const hit =
                       offset === null
@@ -549,12 +588,12 @@ export function AppDetailPage({
                   <Markdown content={document.data.content} />
                 </Card>
 
-                {menuAt && pendingSelection && !composing && (
+                {menuRect && pendingSelection && !composing && (
                   <SelectionMenu
-                    position={menuAt}
+                    rect={menuRect}
                     onComment={() => {
                       setComposing(true);
-                      setMenuAt(null);
+                      setMenuRect(null);
                     }}
                   />
                 )}

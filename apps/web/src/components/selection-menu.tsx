@@ -1,29 +1,57 @@
+import { useLayoutEffect, useRef, useState } from 'react';
+
 import { Button } from './ui/button.js';
+
+/** Margen entre el texto marcado y el menú, y respiro contra el borde. */
+const SEPARACION = 8;
+const MARGEN = 8;
 
 /**
  * Menú que aparece junto a una selección de texto.
  *
- * Se muestra al soltar el ratón, pero **no** abre el formulario: comentar es
- * una decisión, y seleccionar texto no lo es —se selecciona para leer, para
- * copiar o sin querer—. Un formulario que se abre solo interrumpe la lectura
- * cada vez.
+ * Se muestra al seleccionar, pero **no** abre el formulario: comentar es una
+ * decisión, y seleccionar texto no lo es —se selecciona para leer, para copiar o
+ * sin querer—. Un formulario que se abre solo interrumpe la lectura cada vez.
+ *
+ * Se coloca a partir de la **geometría de la selección** y no del puntero
+ * (RF-1414): debajo de su última línea y alineado a su derecha. Con el ratón
+ * como referencia, arrastrar deprisa lo dejaba lejos del texto y arrastrar hacia
+ * la izquierda lo dejaba al principio, porque es donde termina el gesto. Y con
+ * teclado no hay puntero que consultar.
  */
-export function SelectionMenu({
-  position,
-  onComment,
-}: {
-  position: { top: number; left: number };
-  onComment: () => void;
-}) {
+export function SelectionMenu({ rect, onComment }: { rect: DOMRect; onComment: () => void }) {
+  const ref = useRef<HTMLDivElement>(null);
+  const [posicion, setPosicion] = useState<{ top: number; left: number } | null>(null);
+
+  /*
+   * Hace falta medir el menú para alinearlo por su derecha y para saber si cabe
+   * debajo, así que se coloca después de pintarlo. `useLayoutEffect` y no
+   * `useEffect` porque si no se vería un fotograma en la esquina antes de saltar
+   * a su sitio.
+   */
+  useLayoutEffect(() => {
+    const caja = ref.current?.getBoundingClientRect();
+    if (!caja) return;
+
+    const cabeDebajo = rect.bottom + SEPARACION + caja.height < window.innerHeight;
+    const top = cabeDebajo ? rect.bottom + SEPARACION : rect.top - caja.height - SEPARACION;
+
+    const derecha = rect.right - caja.width;
+    const left = Math.min(Math.max(MARGEN, derecha), window.innerWidth - caja.width - MARGEN);
+
+    setPosicion({ top: Math.max(MARGEN, top), left });
+  }, [rect]);
+
   return (
     <div
-      /*
-       * Debajo del punto donde se soltó el ratón, no encima: ahí es donde
-       * acaba el gesto de seleccionar, y colocarlo arriba taparía justo el
-       * texto que se acaba de marcar.
-       */
-      className="fixed z-20 -translate-x-1/2"
-      style={{ top: position.top + 10, left: position.left }}
+      ref={ref}
+      className="fixed z-20"
+      style={{
+        top: posicion?.top ?? rect.bottom + SEPARACION,
+        left: posicion?.left ?? rect.right,
+        /* Invisible hasta estar colocado: aparecer y saltar se ve peor que tardar un fotograma. */
+        visibility: posicion ? 'visible' : 'hidden',
+      }}
       // Evita que al pulsar se pierda la selección antes de leerla.
       onMouseDown={(event) => {
         event.preventDefault();
