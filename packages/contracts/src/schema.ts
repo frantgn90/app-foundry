@@ -645,6 +645,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/apps/{appId}/document/assist/estimate": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Techo de tokens de una acción del asistente
+         * @description Lo que costaría como mucho, sin invocar a nadie. Se cuenta de verdad contra el proveedor y se comprueba que cabe, así que lo que aquí se rechaza también se habría rechazado al pedirlo.
+         */
+        post: operations["AiAssistController_estimate"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/apps/{appId}/document": {
         parameters: {
             query?: never;
@@ -1364,6 +1384,30 @@ export interface components {
             maxOutputTokens: number;
             /** @description Si el proveedor lo sigue ofreciendo */
             available: boolean;
+        };
+        AssistDto: {
+            /** @enum {string} */
+            action: "IMPROVE" | "TIGHTEN" | "SUMMARISE" | "EXPAND" | "PROOFREAD";
+            /** @enum {string} */
+            scope: "SELECTION" | "DOCUMENT";
+            /** @description Inicio de la selección en el fuente */
+            start?: number;
+            /** @description Fin de la selección en el fuente */
+            end?: number;
+            /** @description La revisión de la copia de trabajo que se está mirando */
+            revision: number;
+        };
+        AssistEstimateDto: {
+            /** @enum {string} */
+            provider: "ANTHROPIC" | "GROQ";
+            modelId: string;
+            /** @description Qué contexto cabe: el documento entero o solo el entorno */
+            variant: string;
+            /** @description Verdadero cuando el documento no cabe y va solo el entorno */
+            contextTrimmed: boolean;
+            maxOutputTokens: number;
+            /** @description Techo: entrada contada más salida al máximo */
+            estimatedTokens: number;
         };
         WorkingAuthorDto: {
             handle: string;
@@ -2578,6 +2622,31 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["AiEgressConsentDto"];
+                };
+            };
+        };
+    };
+    AiAssistController_estimate: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                appId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AssistDto"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AssistEstimateDto"];
                 };
             };
         };

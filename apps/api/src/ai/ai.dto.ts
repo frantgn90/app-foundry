@@ -302,3 +302,29 @@ export class AssistDto {
   @Min(0)
   revision!: number;
 }
+
+/**
+ * El techo de una acción del asistente, antes de pedirla (RF-1412).
+ *
+ * «Como mucho N tokens», no «unos N»: es entrada contada más salida al máximo.
+ * Una media que luego se pasa sería peor que no enseñar nada.
+ */
+export class AssistEstimateDto {
+  @ApiProperty({ enum: PROVEEDORES })
+  provider!: AiProvider;
+
+  @ApiProperty()
+  modelId!: string;
+
+  @ApiProperty({ description: 'Qué contexto cabe: el documento entero o solo el entorno' })
+  variant!: string;
+
+  @ApiProperty({ description: 'Verdadero cuando el documento no cabe y va solo el entorno' })
+  contextTrimmed!: boolean;
+
+  @ApiProperty()
+  maxOutputTokens!: number;
+
+  @ApiProperty({ description: 'Techo: entrada contada más salida al máximo' })
+  estimatedTokens!: number;
+}

@@ -712,15 +712,34 @@ Solo se desglosa el hito en curso. H9 está cerrada; H10 está desglosada abajo.
 
 | # | Tarea | Verificación | Traza | Estado |
 |---|---|---|---|---|
-| AW1 | Las acciones de IA en el menú de selección, junto a comentar | Un solo menú para dos cosas que se hacen sobre lo mismo | RF-1401 | ⬜ |
-| AW2 | El resultado llega en streaming y se pinta como diff | Se puede descartar sin esperar al final | RF-1403, RF-1407 | ⬜ |
-| AW3 | Aceptar aplica a la copia de trabajo; descartar no deja rastro | Con la misma comprobación de concurrencia que un guardado | RF-1404, RF-1408 | ⬜ |
-| AW4 | Acciones sobre el documento entero, con su techo de tokens a la vista | Mismo diff, mismas reglas; solo cambia el alcance | RF-1411, RF-1412 | ⬜ |
-| AW5 | Sin disponibilidad, ninguna acción aparece | Ni con la IA apagada, ni sin modelo asignado | RF-1010 | ⬜ |
+| AW1 | Las acciones de IA en el menú de selección, junto a comentar | Un solo menú para dos cosas que se hacen sobre lo mismo | RF-1401 | ✅ |
+| AW2 | El resultado llega en streaming y se pinta como diff | Se puede descartar sin esperar al final | RF-1403, RF-1407 | ✅ |
+| AW3 | Aceptar aplica a la copia de trabajo; descartar no deja rastro | Con la misma comprobación de concurrencia que un guardado | RF-1404, RF-1408 | ✅ |
+| AW4 | Acciones sobre el documento entero, con su techo de tokens a la vista | Mismo diff, mismas reglas; solo cambia el alcance | RF-1411, RF-1412 | ✅ |
+| AW5 | Sin disponibilidad, ninguna acción aparece | Ni con la IA apagada, ni sin modelo asignado | RF-1010 | ✅ |
+
+> **Sobre AW4.** El techo se pide a una ruta propia —`POST /apps/:id/document/assist/estimate`—, que cuenta de
+> verdad contra el proveedor y comprueba que cabe, y ahí se para: ni traza, ni reserva de cupo, ni llamada a
+> ningún modelo. Cuesta un recuento; es el precio de que la cifra sea un techo y no una aproximación de la que
+> luego haya que disculparse. Lo que esa ruta rechaza es exactamente lo que habría rechazado la petición.
+>
+> **Sobre AW3, y un fallo que encontró el recorrido.** Aceptar guarda con la revisión **desde la que se pidió**,
+> no con la de ahora: es lo que hace que un guardado ajeno a mitad de generación se rechace en vez de pisarlo.
+> Escribiendo esa prueba salió otro fallo que no era del test: al aceptar se retiraba «la propuesta actual», y
+> como guardar tarda, entre aceptar y la respuesta del servidor da tiempo a pedir otra —que desaparecía sola de
+> la pantalla—. Ahora se retira **esa** propuesta y no la que haya. Y mientras se guarda no se ofrecen acciones
+> de IA: la revisión que se enviaría es la de antes, así que la petición se rechazaría por concurrencia consigo
+> misma.
 
 ### Bloque AX — Cerrar H10
 
 | # | Tarea | Verificación | Traza | Estado |
 |---|---|---|---|---|
-| AX1 | Recorrido completo con el proveedor de mentira | Seleccionar, pedir, ver el diff, descartar y aceptar | RNF-905 | ⬜ |
+| AX1 | Recorrido completo con el proveedor de mentira | Seleccionar, pedir, ver el diff, descartar y aceptar | RNF-905 | ✅ |
 | AX2 | Comprobar la observabilidad con tráfico de verdad | Las trazas cuelgan de su petición y el panel deja de estar plano | RNF-801, AT4 | ⬜ |
+
+> **Sobre AX1.** El recorrido va contra el proveedor de mentira, que se activa desde la propia configuración de
+> Playwright: sin eso, el asistente llamaría a un modelo de verdad y gastaría la cuota —y el dinero— de quien
+> ejecute los tests. Una salvedad honesta: el paso de «descartar a media respuesta» descarta cuando la respuesta
+> ya ha llegado entera, porque el proveedor de mentira escribe al instante. Que cancelar corte de verdad la
+> llamada al proveedor se comprueba en el test de API, contra el registro de invocaciones.

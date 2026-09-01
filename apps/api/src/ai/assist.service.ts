@@ -27,6 +27,7 @@ import type { ProviderRegistry } from '@app-foundry/ai';
 import { apps, type Database } from '@app-foundry/db';
 
 import { conIdentidad } from '../database/con-identidad.js';
+import type { AssistEstimateDto } from './ai.dto.js';
 import { currentTx } from '../database/request-context.js';
 import { DocumentsService } from '../documents/documents.service.js';
 import { DATABASE } from '../infrastructure/tokens.js';
@@ -127,6 +128,39 @@ export class AiAssistService {
     };
 
     yield* this.run(context, empezada, signal, userId);
+  }
+
+  /**
+   * El techo de tokens de una acción que todavía no se ha pedido (RF-1412).
+   *
+   * Es la operación interactiva más cara del producto cuando el alcance es el
+   * documento entero, y conviene que no sea una sorpresa: se enseña antes de
+   * empezar, con las mismas comprobaciones —permiso, revisión, que quepa— que
+   * haría la petición de verdad. Así, si va a rechazarse, se rechaza aquí y no
+   * después de haber dicho que sí.
+   */
+  async estimate(
+    appId: string,
+    command: AssistCommand,
+    userId: string,
+  ): Promise<AssistEstimateDto> {
+    const { workspaceId, candidatos } = await this.prepare(appId, command, userId);
+
+    const techo = await conIdentidad(this.db, userId, () =>
+      this.invocations.estimate(
+        { workspaceId, appId, task: AiTask.TEXT_ASSIST, userId },
+        candidatos,
+      ),
+    );
+
+    return {
+      provider: techo.plan.provider,
+      modelId: techo.plan.modelId,
+      variant: techo.variant,
+      contextTrimmed: techo.variant !== 'documento',
+      maxOutputTokens: techo.maxOutputTokens,
+      estimatedTokens: techo.estimatedTokens,
+    };
   }
 
   /**

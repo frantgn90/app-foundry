@@ -45,6 +45,22 @@ export interface InvocationCandidate {
   readonly request: Omit<TextRequest, 'model' | 'maxOutputTokens'> & { maxOutputTokens?: number };
 }
 
+interface ChosenRequest {
+  readonly peticion: TextRequest;
+  readonly variant: string;
+  readonly maxOutputTokens: number;
+  readonly estimatedTokens: number;
+}
+
+/** El techo de una invocación que todavía no se ha hecho (RF-1207, §10). */
+export interface InvocationEstimate {
+  readonly plan: TaskPlan;
+  readonly variant: string;
+  readonly maxOutputTokens: number;
+  /** Entrada contada más salida al máximo: un techo, no una media. */
+  readonly estimatedTokens: number;
+}
+
 export interface InvocationContext {
   readonly workspaceId: string;
   readonly appId?: string;
@@ -162,7 +178,15 @@ export class AiInvocationService {
      * primera que quepa. Contar cuesta una llamada por variante, y son dos como
      * mucho: sale más barato que enviar algo que el proveedor va a rechazar.
      */
-    const elegida = await this.pickThatFits(plan, credential, candidatos, span);
+    let elegida;
+    try {
+      elegida = await this.pickThatFits(plan, credential, candidatos);
+    } catch (error) {
+      span.setStatus({ code: SpanStatusCode.ERROR });
+      span.end();
+      throw error;
+    }
+    span.setAttribute('ai.context_variant', elegida.variant);
     const { peticion, variant, maxOutputTokens, estimatedTokens } = elegida;
 
     const cupo = await this.providers.quotaOf(context.workspaceId, plan.provider);
@@ -254,13 +278,7 @@ export class AiInvocationService {
     plan: TaskPlan,
     credential: Credential,
     candidatos: readonly InvocationCandidate[],
-    span: Span,
-  ): Promise<{
-    peticion: TextRequest;
-    variant: string;
-    maxOutputTokens: number;
-    estimatedTokens: number;
-  }> {
+  ): Promise<ChosenRequest> {
     const proveedor = this.registry.get(plan.provider);
     let ultima: { peticion: TextRequest; inputTokens: number } | null = null;
 
@@ -287,7 +305,6 @@ export class AiInvocationService {
       const fit = fitsInContext(cuenta.inputTokens, peticion.maxOutputTokens, plan);
       if (!fit.allowed) continue;
 
-      span.setAttribute('ai.context_variant', candidato.label);
       return {
         peticion,
         variant: candidato.label,
@@ -296,9 +313,6 @@ export class AiInvocationService {
       };
     }
 
-    span.setStatus({ code: SpanStatusCode.ERROR });
-    span.end();
-
     if (!ultima) throw new Error('Se ha pedido invocar sin ninguna petición');
 
     /*
@@ -306,7 +320,48 @@ export class AiInvocationService {
      * honesto de cuánto hay que acortar.
      */
     const fit = fitsInContext(ultima.inputTokens, ultima.peticion.maxOutputTokens, plan);
-    throw new BadRequestException(explainContextFit(fit, plan.modelId));
+
+    /*
+     * Con cuerpo y no solo con mensaje: el texto lo escribe el servidor, que
+     * razona en español, y la interfaz está en inglés (RNF-502). Lo que la
+     * interfaz no puede inventarse es **cuánto** sobra, así que ese número viaja
+     * aparte y allí se redacta la frase.
+     */
+    throw new BadRequestException({
+      statusCode: 400,
+      reason: 'CONTEXT_OVERFLOW',
+      message: explainContextFit(fit, plan.modelId),
+      overflowTokens: fit.overflowTokens,
+      modelId: plan.modelId,
+    });
+  }
+
+  /**
+   * Lo que costaría como mucho, sin invocar ni apartar nada (RF-1207, RF-1412).
+   *
+   * Cuenta de verdad y comprueba que cabe, igual que `begin`, y ahí se para: no
+   * abre traza, no reserva cupo y no llama a ningún modelo. Es lo que permite
+   * enseñar «como mucho N tokens» **antes** de que alguien se comprometa, que es
+   * justo cuando sirve de algo.
+   *
+   * Cuesta una llamada de recuento al proveedor. Es el precio de que la cifra
+   * sea un techo de verdad y no una aproximación de la que luego haya que
+   * disculparse.
+   */
+  async estimate(
+    context: InvocationContext,
+    candidatos: readonly InvocationCandidate[],
+  ): Promise<InvocationEstimate> {
+    const plan = await this.tasks.plan(context.workspaceId, context.task);
+    const credential = await this.providers.readCredential(context.workspaceId, plan.provider);
+    const elegida = await this.pickThatFits(plan, credential, candidatos);
+
+    return {
+      plan,
+      variant: elegida.variant,
+      maxOutputTokens: elegida.maxOutputTokens,
+      estimatedTokens: elegida.estimatedTokens,
+    };
   }
 
   /**

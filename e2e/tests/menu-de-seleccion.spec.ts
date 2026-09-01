@@ -113,6 +113,18 @@ test('el menú aparece con los cuatro gestos, y siempre bajo la selección', asy
     expect(caja!.x + caja!.width).toBeGreaterThan(marcado!.right - caja!.width);
   }
 
+  /*
+   * Sin IA configurada en el workspace, el menú es solo el de comentar
+   * (RF-1010, AW5). Un botón apagado invitaría a preguntarse qué hay que hacer
+   * para encenderlo, y aquí la respuesta no está en manos de quien mira.
+   */
+  await test.step('sin IA configurada, el menú no ofrece reescribir', async () => {
+    await primerParrafo.dblclick();
+    await expect(menu).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Rewrite' })).toHaveCount(0);
+    await limpiar();
+  });
+
   await test.step('doble clic sobre una palabra', async () => {
     await primerParrafo.dblclick();
     await menuBajoLaSeleccion();

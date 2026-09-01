@@ -1,16 +1,33 @@
 import { Body, Controller, HttpException, Param, ParseUUIDPipe, Post, Res } from '@nestjs/common';
-import { ApiExcludeEndpoint, ApiTags } from '@nestjs/swagger';
+import { ApiExcludeEndpoint, ApiOkResponse, ApiOperation, ApiTags } from '@nestjs/swagger';
 import type { Response } from 'express';
 
 import { CurrentUserId } from '../auth/current-user.decorator.js';
 import { SinTransaccion } from '../database/sin-transaccion.decorator.js';
-import { AssistDto } from './ai.dto.js';
+import { AssistDto, AssistEstimateDto } from './ai.dto.js';
 import { AiAssistService, type AssistEvent } from './assist.service.js';
 
 @ApiTags('ai')
 @Controller('apps/:appId/document')
 export class AiAssistController {
   constructor(private readonly assist: AiAssistService) {}
+
+  @Post('assist/estimate')
+  @ApiOperation({
+    summary: 'Techo de tokens de una acción del asistente',
+    description:
+      'Lo que costaría como mucho, sin invocar a nadie. Se cuenta de verdad contra el ' +
+      'proveedor y se comprueba que cabe, así que lo que aquí se rechaza también se ' +
+      'habría rechazado al pedirlo.',
+  })
+  @ApiOkResponse({ type: AssistEstimateDto })
+  estimate(
+    @Param('appId', ParseUUIDPipe) appId: string,
+    @Body() body: AssistDto,
+    @CurrentUserId() userId: string,
+  ): Promise<AssistEstimateDto> {
+    return this.assist.estimate(appId, body, userId);
+  }
 
   /**
    * Propuesta de reescritura, en streaming (RF-1401, RF-1407, TRD §11.1).
@@ -66,11 +83,25 @@ export class AiAssistController {
     try {
       primero = await flujo.next();
     } catch (error) {
-      const http = error instanceof HttpException ? error.getStatus() : 500;
-      response.status(http).json({
-        statusCode: http,
-        message: error instanceof Error ? error.message : 'Assist failed',
-      });
+      /*
+       * El cuerpo del rechazo se reenvía **entero**, no solo su mensaje: hay
+       * rechazos que llevan datos —cuántos tokens sobran, qué modelo— y es con
+       * ellos con lo que la interfaz redacta su propia frase en inglés. Quedarse
+       * con el texto dejaría al cliente eligiendo entre repetir el español del
+       * servidor o perder el número.
+       */
+      if (error instanceof HttpException) {
+        const cuerpo = error.getResponse();
+        response
+          .status(error.getStatus())
+          .json(
+            typeof cuerpo === 'string'
+              ? { statusCode: error.getStatus(), message: cuerpo }
+              : cuerpo,
+          );
+        return;
+      }
+      response.status(500).json({ statusCode: 500, message: 'Assist failed' });
       return;
     }
 

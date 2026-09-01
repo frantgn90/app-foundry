@@ -15,10 +15,23 @@ import {
   useResolveThread,
   useRestoreVersion,
   useSaveDocument,
+  useAiTaskAvailable,
   useThreads,
   useVersionContent,
   useVersions,
 } from '../lib/api.js';
+import {
+  type AssistAction,
+  ASSIST_ACTIONS,
+  ASSIST_LABELS,
+  estimateAssist,
+  streamAssist,
+} from '../lib/assist.js';
+import {
+  AssistEstimatePrompt,
+  AssistProposal,
+  type AssistState,
+} from '../components/assist-proposal.js';
 import { CommentsPanel } from '../components/comments-panel.js';
 import { type AnchorRange, paintAnchors, paintPending, sourceOffsetAt } from '../lib/highlight.js';
 import { SelectionMenu } from '../components/selection-menu.js';
@@ -111,7 +124,24 @@ export function AppDetailPage({
   // decidir comentarlo.
   const [pendingSelection, setPendingSelection] = useState<SourceSelection | null>(null);
   const [menuRect, setMenuRect] = useState<DOMRect | null>(null);
+  /*
+   * La propuesta del asistente, mientras la haya. Nunca se aplica sola: se lee
+   * como diff y se acepta o se descarta (RF-1403, RF-1404).
+   */
+  const [assist, setAssist] = useState<AssistState | null>(null);
+  /* El techo de tokens de una acción sobre el documento entero (RF-1412). */
+  const [estimacion, setEstimacion] = useState<{
+    action: AssistAction;
+    tokens: number | null;
+  } | null>(null);
+  /*
+   * Con qué cortar la generación. Descartar no es dejar de mirar: aborta la
+   * petición, y el servidor aborta con ella la llamada al proveedor.
+   */
+  const abortRef = useRef<AbortController | null>(null);
   const [composing, setComposing] = useState(false);
+  /* Si la IA se puede ofrecer aquí y ahora; si no, no aparece nada (RF-1010). */
+  const iaDisponible = useAiTaskAvailable(workspaceId, 'TEXT_ASSIST');
   const [selectionDraft, setSelectionDraft] = useState('');
   const readingRef = useRef<HTMLDivElement>(null);
 
@@ -142,6 +172,13 @@ export function AppDetailPage({
       [],
     ),
   );
+
+  /*
+   * Booleana y no el objeto: `assist` cambia con cada trozo que llega, y un
+   * efecto que dependiera de él se desengancharía y volvería a engancharse
+   * decenas de veces por respuesta.
+   */
+  const asistiendo = assist !== null;
 
   const elegida = useVersionContent(appId, versionElegida);
   /*
@@ -217,7 +254,7 @@ export function AppDetailPage({
      * pulsar en la caja de texto la colapsa, y perderla ahí dejaría el
      * comentario sin ancla justo al ir a escribirlo.
      */
-    if (!contenedor || editando || versionElegida !== null || composing) return;
+    if (!contenedor || editando || versionElegida !== null || composing || asistiendo) return;
 
     const mirar = () => {
       const contenido = document.data?.content;
@@ -259,7 +296,7 @@ export function AppDetailPage({
       window.document.removeEventListener('pointerup', alTerminar);
       window.document.removeEventListener('keyup', alTerminar);
     };
-  }, [editando, versionElegida, composing, document.data?.content]);
+  }, [editando, versionElegida, composing, asistiendo, document.data?.content]);
 
   useEffect(() => {
     const contenedor = readingRef.current;
@@ -351,6 +388,175 @@ export function AppDetailPage({
           setPendingSelection(null);
           setSelectionDraft('');
           setComposing(false);
+        },
+      },
+    );
+  }
+
+  /**
+   * Pide una reescritura y va recogiendo lo que llega (RF-1401, RF-1407).
+   *
+   * Lo que se manda son **posiciones del fuente** y la revisión desde la que se
+   * miran. Con eso, si alguien guarda mientras el modelo escribe, aceptar la
+   * propuesta se rechaza en vez de aplicarla sobre otro texto (RF-1408).
+   */
+  function pedirAsistencia(action: AssistAction, scope: 'SELECTION' | 'DOCUMENT') {
+    if (!document.data) return;
+
+    const base = document.data.content;
+    const start = scope === 'DOCUMENT' ? 0 : (pendingSelection?.start ?? 0);
+    const end = scope === 'DOCUMENT' ? base.length : (pendingSelection?.end ?? 0);
+    const revision = document.data.revision;
+
+    abortRef.current?.abort();
+    const abort = new AbortController();
+    abortRef.current = abort;
+
+    setMenuRect(null);
+    setEstimacion(null);
+    setAssist({
+      action,
+      scope,
+      base,
+      start,
+      end,
+      revision,
+      original: base.slice(start, end),
+      propuesta: '',
+      meta: null,
+      generando: true,
+      error: null,
+    });
+
+    /*
+     * Cada respuesta solo escribe en el estado mientras siga siendo la suya: al
+     * pedir otra, la anterior se aborta, pero puede tener trozos ya en camino y
+     * mezclarlos dejaría dos propuestas escritas una encima de otra.
+     */
+    const vigente = () => abortRef.current === abort;
+
+    void streamAssist(
+      appId,
+      {
+        action,
+        scope,
+        ...(scope === 'SELECTION' ? { start, end } : {}),
+        revision,
+      },
+      {
+        onMeta: (meta) => {
+          setAssist((previo) => (previo && vigente() ? { ...previo, meta } : previo));
+        },
+        onDelta: (text) => {
+          setAssist((previo) =>
+            previo && vigente() ? { ...previo, propuesta: previo.propuesta + text } : previo,
+          );
+        },
+        onDone: () => {
+          setAssist((previo) => (previo && vigente() ? { ...previo, generando: false } : previo));
+        },
+        onError: (message) => {
+          setAssist((previo) =>
+            previo && vigente() ? { ...previo, generando: false, error: message } : previo,
+          );
+        },
+      },
+      abort.signal,
+    );
+  }
+
+  /**
+   * Lo que costaría rehacer el documento entero, antes de pedirlo (RF-1412).
+   *
+   * Es la operación más cara del producto y la única cuyo tamaño no se ve de un
+   * vistazo: sobre una selección, lo que se va a mandar está delante y
+   * subrayado.
+   */
+  function pedirTecho(action: AssistAction) {
+    if (!document.data) return;
+    setAssist(null);
+    setEstimacion({ action, tokens: null });
+
+    estimateAssist(appId, { action, scope: 'DOCUMENT', revision: document.data.revision })
+      .then((techo) => {
+        setEstimacion((previo) =>
+          previo?.action === action ? { action, tokens: techo.estimatedTokens } : previo,
+        );
+      })
+      .catch((error: unknown) => {
+        /*
+         * Un techo que no se puede calcular casi siempre es un texto que no cabe,
+         * y eso se cuenta con el mismo panel que una propuesta fallida: es la
+         * misma respuesta —«esto no se puede hacer, y por esto»— en el mismo
+         * sitio donde se iba a leer.
+         */
+        setEstimacion(null);
+        setAssist({
+          action,
+          scope: 'DOCUMENT',
+          base: '',
+          start: 0,
+          end: 0,
+          revision: 0,
+          original: '',
+          propuesta: '',
+          meta: null,
+          generando: false,
+          error: error instanceof Error ? error.message : 'The assistant could not answer.',
+        });
+      });
+  }
+
+  /** Descartar no deja rastro, y corta de verdad lo que se estaba generando (RF-1404). */
+  function descartarAsistencia() {
+    abortRef.current?.abort();
+    abortRef.current = null;
+    setAssist(null);
+    setEstimacion(null);
+    setPendingSelection(null);
+  }
+
+  /**
+   * Aplica la propuesta a la copia de trabajo (RF-1404, RF-1405).
+   *
+   * Es un guardado normal: no crea versión, y va con la revisión **desde la que
+   * se pidió**, no con la de ahora. Si alguien guardó mientras el modelo
+   * escribía, se rechaza y se ofrece ver qué cambió, igual que dos personas
+   * editando a la vez (RF-511, RF-1408).
+   */
+  function aceptarAsistencia() {
+    if (!assist || !document.data) return;
+
+    const propuesta = assist.propuesta.trim();
+    if (propuesta === '') return;
+
+    /*
+     * Se apunta **cuál** se está aceptando, y al terminar solo se retira esa.
+     *
+     * Guardar tarda —escribe, recoloca anclas y recarga—, y entre que se acepta y
+     * el servidor contesta da tiempo de sobra a pedir otra propuesta. Retirando
+     * «la que haya» se borraba de la pantalla una recién pedida, y quien la
+     * estaba esperando la veía desaparecer sola.
+     */
+    const aplicada = assist;
+    const marcado = pendingSelection;
+    const nuevo =
+      aplicada.base.slice(0, aplicada.start) + propuesta + aplicada.base.slice(aplicada.end);
+
+    setConflict(null);
+    save.mutate(
+      { content: nuevo, revision: aplicada.revision },
+      {
+        onSuccess: (actualizado) => {
+          localStorage.removeItem(draftKey(appId));
+          setDraft(actualizado.content);
+          setAssist((previo) => (previo === aplicada ? null : previo));
+          /* El resaltado del fragmento se va con su propuesta, y solo con ella:
+             sus posiciones ya no señalan el mismo texto. */
+          setPendingSelection((previo) => (previo === marcado ? null : previo));
+        },
+        onError: (error) => {
+          if (error instanceof ConflictError) setConflict(error.detail);
         },
       },
     );
@@ -490,6 +696,42 @@ export function AppDetailPage({
                   conversación fuera quien empujara, estos dos saltarían de sitio
                   al plegarla y volverían al desplegarla. */}
               <span className="ml-auto flex items-center gap-2">
+                {/*
+                  Las mismas acciones, sobre todo el documento (RF-1411). Van
+                  aquí y no en el menú de selección por lo evidente: no hay nada
+                  seleccionado. Un desplegable y no cinco botones, porque esta
+                  fila es de controles y no de acciones destacadas.
+                */}
+                {iaDisponible && !editando && document.data.canEdit && mirandoCopiaDeTrabajo && (
+                  <select
+                    aria-label="Rewrite the whole document"
+                    value=""
+                    /*
+                      Mientras se está guardando, no. La revisión que se enviaría
+                      es la de antes del guardado, así que la petición se
+                      rechazaría por concurrencia consigo misma y el mensaje
+                      —«alguien guardó mientras leías»— sería verdad y absurdo a
+                      la vez.
+                    */
+                    disabled={save.isPending}
+                    onChange={(e) => {
+                      if (e.target.value) pedirTecho(e.target.value as AssistAction);
+                    }}
+                    className={cn(
+                      'h-8 w-36 shrink-0 rounded-lg border px-2 text-xs',
+                      'border-[var(--color-borde)] bg-[var(--color-superficie)]',
+                      'text-[var(--color-texto-suave)]',
+                    )}
+                  >
+                    <option value="">Rewrite all…</option>
+                    {ASSIST_ACTIONS.map((action) => (
+                      <option key={action} value={action}>
+                        {ASSIST_LABELS[action].label}
+                      </option>
+                    ))}
+                  </select>
+                )}
+
                 <EditToggle
                   editando={editando}
                   /* Una versión pasada se mira, no se escribe: para cambiarla
@@ -608,13 +850,46 @@ export function AppDetailPage({
                   <Markdown content={document.data.content} />
                 </Card>
 
-                {menuRect && pendingSelection && !composing && (
+                {menuRect && pendingSelection && !composing && !assist && (
                   <SelectionMenu
                     rect={menuRect}
+                    puedeAsistir={iaDisponible && document.data.canEdit && !save.isPending}
                     onComment={() => {
                       setComposing(true);
                       setMenuRect(null);
                     }}
+                    onAssist={(action) => {
+                      pedirAsistencia(action, 'SELECTION');
+                    }}
+                  />
+                )}
+
+                {/*
+                  El techo primero, la propuesta después, y nunca los dos: son
+                  dos momentos del mismo gesto —cuánto va a costar, y qué
+                  propone— y verlos a la vez solo dejaría en pantalla una
+                  pregunta ya contestada.
+                */}
+                {estimacion && (
+                  <AssistEstimatePrompt
+                    action={estimacion.action}
+                    tokens={estimacion.tokens}
+                    pidiendo={false}
+                    onConfirmar={() => {
+                      pedirAsistencia(estimacion.action, 'DOCUMENT');
+                    }}
+                    onCancelar={() => {
+                      setEstimacion(null);
+                    }}
+                  />
+                )}
+
+                {assist && (
+                  <AssistProposal
+                    estado={assist}
+                    aplicando={save.isPending}
+                    onAceptar={aceptarAsistencia}
+                    onDescartar={descartarAsistencia}
                   />
                 )}
 

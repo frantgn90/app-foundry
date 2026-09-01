@@ -1570,6 +1570,48 @@
         ]
       }
     },
+    "/api/v1/apps/{appId}/document/assist/estimate": {
+      "post": {
+        "description": "Lo que costaría como mucho, sin invocar a nadie. Se cuenta de verdad contra el proveedor y se comprueba que cabe, así que lo que aquí se rechaza también se habría rechazado al pedirlo.",
+        "operationId": "AiAssistController_estimate",
+        "parameters": [
+          {
+            "name": "appId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AssistDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AssistEstimateDto"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Techo de tokens de una acción del asistente",
+        "tags": [
+          "ai"
+        ]
+      }
+    },
     "/api/v1/apps/{appId}/document": {
       "get": {
         "operationId": "DocumentsController_get",
@@ -3660,6 +3702,83 @@
           "contextWindow",
           "maxOutputTokens",
           "available"
+        ]
+      },
+      "AssistDto": {
+        "type": "object",
+        "properties": {
+          "action": {
+            "type": "string",
+            "enum": [
+              "IMPROVE",
+              "TIGHTEN",
+              "SUMMARISE",
+              "EXPAND",
+              "PROOFREAD"
+            ]
+          },
+          "scope": {
+            "type": "string",
+            "enum": [
+              "SELECTION",
+              "DOCUMENT"
+            ]
+          },
+          "start": {
+            "type": "number",
+            "description": "Inicio de la selección en el fuente"
+          },
+          "end": {
+            "type": "number",
+            "description": "Fin de la selección en el fuente"
+          },
+          "revision": {
+            "type": "number",
+            "description": "La revisión de la copia de trabajo que se está mirando"
+          }
+        },
+        "required": [
+          "action",
+          "scope",
+          "revision"
+        ]
+      },
+      "AssistEstimateDto": {
+        "type": "object",
+        "properties": {
+          "provider": {
+            "type": "string",
+            "enum": [
+              "ANTHROPIC",
+              "GROQ"
+            ]
+          },
+          "modelId": {
+            "type": "string"
+          },
+          "variant": {
+            "type": "string",
+            "description": "Qué contexto cabe: el documento entero o solo el entorno"
+          },
+          "contextTrimmed": {
+            "type": "boolean",
+            "description": "Verdadero cuando el documento no cabe y va solo el entorno"
+          },
+          "maxOutputTokens": {
+            "type": "number"
+          },
+          "estimatedTokens": {
+            "type": "number",
+            "description": "Techo: entrada contada más salida al máximo"
+          }
+        },
+        "required": [
+          "provider",
+          "modelId",
+          "variant",
+          "contextTrimmed",
+          "maxOutputTokens",
+          "estimatedTokens"
         ]
       },
       "WorkingAuthorDto": {

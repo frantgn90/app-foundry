@@ -39,7 +39,19 @@ export default defineConfig({
       // Sin esto, un fallo al arrancar se ve como un tiempo agotado sin más.
       stdout: 'pipe',
       stderr: 'pipe',
-      env: { OTEL_ENABLED: 'false' },
+      /*
+       * Con el proveedor de mentira (T-36). El recorrido del asistente llama a
+       * un modelo de verdad si no está puesto, y eso significaría gastar la
+       * cuota —y el dinero— de quien ejecute los tests.
+       *
+       * El llavero es de juguete y solo sirve para poder guardar una credencial
+       * que nadie va a usar: la clave que escribe el recorrido no sale de aquí.
+       */
+      env: {
+        OTEL_ENABLED: 'false',
+        AI_USE_FAKE_PROVIDER: 'true',
+        AI_CREDENTIAL_KEYS: `1:${Buffer.alloc(32, 7).toString('base64')}`,
+      },
     },
     {
       command: 'pnpm --filter @app-foundry/web exec vite preview --port 4173 --strictPort',

@@ -248,8 +248,14 @@ describe('el contexto que se envía', () => {
     });
 
     expect(status).toBe(400);
-    expect(cuerpo).toMatch(/no cabe/i);
-    expect(cuerpo).toMatch(/sobran/i);
+    /*
+     * Con el número aparte, no solo dentro de la frase: el texto lo escribe el
+     * servidor en español y la interfaz está en inglés, así que allí se redacta
+     * de nuevo y lo único que no puede inventarse es cuánto sobra.
+     */
+    const detalle = JSON.parse(cuerpo) as { reason: string; overflowTokens: number };
+    expect(detalle.reason).toBe('CONTEXT_OVERFLOW');
+    expect(detalle.overflowTokens).toBeGreaterThan(0);
   });
 
   it('vuelta a un documento normal, el entero sí cabe', async () => {
@@ -264,6 +270,48 @@ describe('el contexto que se envía', () => {
 
     expect(status).toBe(200);
     expect(meta(eventos)?.['variant']).toBe('documento');
+  });
+});
+
+describe('el techo, antes de pedirlo', () => {
+  /*
+   * Sobre el documento entero es la operación interactiva más cara del producto,
+   * y conviene que no sea una sorpresa (RF-1412). Se enseña antes de empezar y
+   * es un **techo**: entrada contada más salida al máximo, no una media que
+   * luego se pase.
+   */
+  it('dice cuánto como mucho, sin invocar a nadie', async () => {
+    proveedor.program({ text: 'da igual: no debería llegar a pedirse' });
+    const doc = await documento();
+    const response = await h.as(ana).post(`/api/v1/apps/${appId}/document/assist/estimate`, {
+      action: 'SUMMARISE',
+      scope: 'DOCUMENT',
+      revision: doc.revision,
+    });
+    const techo = (await response.json()) as {
+      estimatedTokens: number;
+      maxOutputTokens: number;
+      variant: string;
+    };
+
+    expect(response.status).toBe(201);
+    expect(techo.estimatedTokens).toBeGreaterThan(techo.maxOutputTokens);
+    expect(techo.variant).toBe('documento');
+    /* Ni una llamada de generación: contar sí, invocar no. */
+    expect(proveedor.calls.some((llamada) => llamada.operation === 'streamText')).toBe(false);
+  });
+
+  it('lo que aquí se rechaza también se habría rechazado al pedirlo', async () => {
+    const doc = await documento();
+    const response = await h.as(ana).post(`/api/v1/apps/${appId}/document/assist/estimate`, {
+      action: 'IMPROVE',
+      scope: 'SELECTION',
+      start: 0,
+      end: doc.content.length + 50,
+      revision: doc.revision,
+    });
+
+    expect(response.status).toBe(400);
   });
 });
 
