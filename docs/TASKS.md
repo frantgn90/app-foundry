@@ -600,6 +600,11 @@ empezar cada hito, con el mismo método que la v1.
 | AQ5 | Aviso cuando el modelo asignado desaparece del catálogo | Se avisa al dueño, no se falla cuando alguien usa la función | RF-1009 | ✅ |
 | AQ6 | Rechazo por ventana de contexto insuficiente | Se explica qué pasa y qué hacer; nunca se recorta el documento en silencio | RF-1106 | ✅ |
 
+> **Sobre AT4.** El corte por cupo se emite como métrica y se ve en el panel. El cortacircuitos tiene su
+> métrica puesta y su sitio en el panel, pero **todavía no lo abre nadie**: el cortacircuitos en sí vive en la
+> ejecución de invocaciones (§11 del TRD v2), que llega con el asistente en H10. Hasta entonces esa gráfica
+> estará plana, y conviene saber por qué.
+
 > **Sobre AQ6.** La regla vive en `core` con sus pruebas, y el punto por el que pasa toda invocación
 > —`AiTasksService.plan` y `assertFits`— está escrito y en uso desde el primer caso de uso. Como en H9 todavía
 > no hay ninguna ruta que invoque, lo que aquí queda demostrado es la regla; que se aplique de verdad se
@@ -635,7 +640,7 @@ empezar cada hito, con el mismo método que la v1.
 
 | # | Tarea | Verificación | Traza | Estado |
 |---|---|---|---|---|
-| AT1 | Traza por invocación, hija de quien la originó | Con proveedor, modelo, tarea, tokens y latencias; nunca contenido | RNF-801 | ⬜ |
-| AT2 | Métricas de invocaciones, tokens, consumo frente al cupo y errores | Visibles en Prometheus con las etiquetas acordadas | RNF-802 | ⬜ |
-| AT3 | Panel de Grafana de la IA | Junto a los que ya existen, sin tocarlos | RNF-803 | ⬜ |
-| AT4 | Cupo agotado y cortacircuitos, como eventos observables | No solo un mensaje en la interfaz | RNF-804 | ⬜ |
+| AT1 | Traza por invocación, hija de quien la originó | Con proveedor, modelo, tarea, tokens y latencias; nunca contenido | RNF-801 | ✅ |
+| AT2 | Métricas de invocaciones, tokens, consumo frente al cupo y errores | Visibles en Prometheus con las etiquetas acordadas | RNF-802 | ✅ |
+| AT3 | Panel de Grafana de la IA | Junto a los que ya existen, sin tocarlos | RNF-803 | ✅ |
+| AT4 | Cupo agotado y cortacircuitos, como eventos observables | No solo un mensaje en la interfaz | RNF-804 | ✅ |

@@ -1,5 +1,5 @@
-import { Injectable, Logger } from '@nestjs/common';
-import { Inject } from '@nestjs/common';
+import { Inject, Injectable, Logger } from '@nestjs/common';
+import { type Span, SpanStatusCode, trace } from '@opentelemetry/api';
 
 import type { AiTask, Credential, TextRequest, TokenUsage } from '@app-foundry/core';
 import type { Env } from '@app-foundry/env';
@@ -10,6 +10,7 @@ import { conIdentidad } from '../database/con-identidad.js';
 import { currentTx } from '../database/request-context.js';
 import { DATABASE, ENV } from '../infrastructure/tokens.js';
 import { AI_REGISTRY } from './ai.tokens.js';
+import { MetricsService } from '../observability/metrics.service.js';
 import { NotificationsService } from '../notifications/notifications.service.js';
 import { AiProvidersService } from './providers.service.js';
 import {
@@ -36,6 +37,14 @@ export interface StartedInvocation {
   readonly estimatedTokens: number;
   readonly reservation: Reservation;
   readonly startedAt: number;
+  /**
+   * La traza de esta invocación, abierta en `begin` y cerrada en `finish`.
+   *
+   * Es hija de la petición que la originó, así que en el visor se ve colgando de
+   * ella: cuánto de lo que tardó una petición fue esperar al modelo se lee de un
+   * vistazo, sin correlacionar nada a mano (RNF-801).
+   */
+  readonly span: Span;
 }
 
 /**
@@ -59,6 +68,7 @@ export class AiInvocationService {
     private readonly providers: AiProvidersService,
     private readonly quota: AiQuotaService,
     private readonly notifications: NotificationsService,
+    private readonly metrics: MetricsService,
     @Inject(AI_REGISTRY) private readonly registry: ProviderRegistry,
     @Inject(DATABASE) private readonly db: Database,
     @Inject(ENV) private readonly env: Env,
@@ -96,6 +106,19 @@ export class AiInvocationService {
     const plan = await this.tasks.plan(context.workspaceId, context.task);
     const credential = await this.providers.readCredential(context.workspaceId, plan.provider);
 
+    /*
+     * La traza se abre aquí y se cierra al terminar. Lleva proveedor, modelo,
+     * tarea y, después, tokens y desenlace. **Nunca contenido**: ni el prompt,
+     * ni el documento, ni la respuesta (RNF-801, T-17).
+     */
+    const span = trace.getTracer('app-foundry').startSpan('ai.invocation', {
+      attributes: {
+        'ai.provider': plan.provider,
+        'ai.model': plan.modelId,
+        'ai.task': context.task,
+      },
+    });
+
     const peticion: TextRequest = {
       ...request,
       model: plan.modelId,
@@ -121,6 +144,8 @@ export class AiInvocationService {
         now,
       );
 
+      span.setAttribute('ai.estimated_tokens', estimatedTokens);
+
       return {
         plan,
         credential,
@@ -128,8 +153,11 @@ export class AiInvocationService {
         estimatedTokens,
         reservation,
         startedAt: now,
+        span,
       };
     } catch (error) {
+      span.setStatus({ code: SpanStatusCode.ERROR });
+      span.end();
       if (error instanceof QuotaExceededError) {
         /*
          * Un corte por cupo se registra aunque no haya habido llamada: sin él
@@ -153,6 +181,21 @@ export class AiInvocationService {
           ),
         ).catch((fallo: unknown) => {
           this.logger.error({ err: fallo }, 'No se pudo registrar el corte por cupo');
+        });
+
+        /*
+         * Y como métrica, además de como fila: un cupo agotado no es un error
+         * del sistema, pero si sube quiere decir que alguien se ha quedado sin
+         * IA a mitad de mes y probablemente no entiende por qué (RNF-804).
+         */
+        this.metrics.invocacionIa({
+          provider: plan.provider,
+          model: plan.modelId,
+          task: context.task,
+          outcome: 'QUOTA_BLOCKED',
+          inputTokens: 0,
+          outputTokens: 0,
+          latencyMs: 0,
         });
         throw error;
       }
@@ -193,12 +236,40 @@ export class AiInvocationService {
       started.startedAt,
     );
 
+    const latencyMs = ahora - started.startedAt;
+
     await this.record(context, started.plan, usage, {
       outcome: resultado.outcome,
       ...(resultado.errorKind !== undefined && { errorKind: resultado.errorKind }),
       ...(resultado.ttftMs !== undefined && { ttftMs: resultado.ttftMs }),
-      latencyMs: ahora - started.startedAt,
+      latencyMs,
     });
+
+    this.metrics.invocacionIa({
+      provider: started.plan.provider,
+      model: started.plan.modelId,
+      task: context.task,
+      outcome: resultado.outcome,
+      ...(resultado.errorKind !== undefined && { errorKind: resultado.errorKind }),
+      inputTokens: usage.inputTokens,
+      outputTokens: usage.outputTokens,
+      latencyMs,
+      ...(resultado.ttftMs !== undefined && { ttftMs: resultado.ttftMs }),
+    });
+
+    started.span.setAttributes({
+      'ai.input_tokens': usage.inputTokens,
+      'ai.output_tokens': usage.outputTokens,
+      'ai.outcome': resultado.outcome,
+      ...(resultado.ttftMs !== undefined && { 'ai.ttft_ms': resultado.ttftMs }),
+    });
+    if (resultado.outcome === 'FAILED') {
+      started.span.setStatus({
+        code: SpanStatusCode.ERROR,
+        message: resultado.errorKind ?? 'failed',
+      });
+    }
+    started.span.end();
 
     await this.warnIfNearQuota(context, started);
   }
