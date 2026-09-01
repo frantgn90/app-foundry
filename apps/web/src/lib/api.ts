@@ -1241,17 +1241,32 @@ export function useAiUsage(workspaceId: string, enabled: boolean) {
 }
 
 /**
- * El motivo que da el servidor, cuando lo da.
+ * De un fallo del servidor al texto que se le enseña a alguien.
  *
- * Importa más de lo que parece: «el proveedor ha rechazado la credencial» y «el
- * proveedor no responde» piden cosas distintas de quien lo lee, y un mensaje
- * genérico llevaría a regenerar una clave que estaba bien.
+ * La redacción es del cliente y no del servidor, porque la interfaz va en inglés
+ * (RNF-502) mientras que los mensajes de la API están en castellano como el
+ * resto del código. Lo que sí viene del servidor es **cuál** de los problemas
+ * es, y esa distinción importa: rechazada, no responde, o esta instancia no sabe
+ * guardar claves llevan a tres acciones distintas —generar otra clave, esperar,
+ * o hablar con quien opera el servidor—, y un mensaje único daría dos consejos
+ * equivocados de cada tres.
  */
 function mensajeDeError(error: unknown, porDefecto: string): string {
-  if (typeof error === 'object' && error !== null && 'message' in error) {
-    const mensaje = error.message;
-    if (typeof mensaje === 'string') return mensaje;
-    if (Array.isArray(mensaje) && typeof mensaje[0] === 'string') return mensaje[0];
+  const estado =
+    typeof error === 'object' && error !== null && 'statusCode' in error
+      ? error.statusCode
+      : undefined;
+
+  switch (estado) {
+    case 400:
+      return 'The provider rejected that key. Check it and paste it again.';
+    case 501:
+      return 'This instance cannot store provider keys yet. Ask whoever runs it to set up the encryption keyring.';
+    case 503:
+      return 'The provider did not answer. Your key may be fine — try again in a moment.';
+    case 409:
+      return 'You need to accept sending content to a third party first.';
+    default:
+      return porDefecto;
   }
-  return porDefecto;
 }

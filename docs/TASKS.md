@@ -626,9 +626,9 @@ empezar cada hito, con el mismo método que la v1.
 | # | Tarea | Verificación | Traza | Estado |
 |---|---|---|---|---|
 | AS1 | Página de proveedores: alta, verificación, estado y credencial enmascarada | La clave no viaja al cliente ni entera ni descifrable | RF-1002, RF-1004 | ✅ |
-| AS2 | Asignación de modelo por tarea desde la interfaz | Se dibuja a partir de las capacidades declaradas, no de una lista fija | RF-1008, RF-1102 | ⬜ |
+| AS2 | Asignación de modelo por tarea desde la interfaz | Se dibuja a partir de las capacidades declaradas, no de una lista fija | RF-1008, RF-1102 | ✅ |
 | AS3 | Cupos y umbral de aviso | Un cupo por proveedor configurado | RF-1204, RF-1205 | ✅ |
-| AS4 | Página de consumo del mes | Desglose por proveedor, tarea, modelo y miembro, con entrada y salida separadas | RF-1208 | ⬜ |
+| AS4 | Página de consumo del mes | Desglose por proveedor, tarea, modelo y miembro, con entrada y salida separadas | RF-1208 | ✅ |
 | AS5 | Sin proveedor activo, ninguna función de IA aparece | Ni botones deshabilitados, ni código de IA descargado | RF-1010 | ⬜ |
 
 ### Bloque AT — Observabilidad

@@ -2,6 +2,7 @@ import {
   BadRequestException,
   ConflictException,
   ForbiddenException,
+  NotImplementedException,
   Inject,
   Injectable,
   NotFoundException,
@@ -539,9 +540,16 @@ export class AiProvidersService {
     }
   }
 
+  /**
+   * Sin llavero no se puede guardar ninguna credencial.
+   *
+   * Lleva un código distinto del «el proveedor no responde» a propósito: esto no
+   * se arregla esperando ni reintentando, sino configurando la instancia. Dos
+   * problemas con el mismo código serían dos consejos equivocados.
+   */
   private requireCipher(): CredentialCipher {
     if (!this.cipher) {
-      throw new ServiceUnavailableException(
+      throw new NotImplementedException(
         'Esta instancia no tiene llavero de cifrado configurado (AI_CREDENTIAL_KEYS), así que no puede guardar credenciales',
       );
     }

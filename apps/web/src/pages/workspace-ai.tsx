@@ -1,5 +1,7 @@
 import { type FormEvent, useState } from 'react';
 
+import { AiTaskAssignments } from '../components/ai-task-assignment.js';
+import { AiUsagePanel } from '../components/ai-usage.js';
 import { Badge } from '../components/ui/badge.js';
 import { Button } from '../components/ui/button.js';
 import {
@@ -53,14 +55,30 @@ export function WorkspaceAiPage({ workspace }: { workspace: Workspace }) {
     );
   }
 
-  const consentimiento = ajustes.data?.consent;
+  /*
+   * Mientras no se sepa si se aceptó, no se enseña nada configurable.
+   *
+   * No es cosmética: sin esta espera, el formulario de la clave aparecía durante
+   * la carga y desaparecía después, o sea que la advertencia se saltaba sola en
+   * la conexión más lenta. El servidor lo rechazaría igual (409), pero la
+   * pantalla estaría diciendo algo que no es.
+   */
+  if (!ajustes.data) {
+    return (
+      <Card className="p-6">
+        <p className="text-sm text-[var(--color-texto-suave)]">Loading…</p>
+      </Card>
+    );
+  }
+
+  const consentimiento = ajustes.data.consent;
 
   /*
    * Antes que nada, la advertencia (RF-1011). No es letra pequeña: configurar un
    * proveedor es empezar a mandar el texto de las apps fuera de aquí, y eso se
    * acepta a sabiendas o no se hace.
    */
-  if (ajustes.data && consentimiento && !consentimiento.accepted) {
+  if (!consentimiento.accepted) {
     return (
       <Card>
         <CardHeader>
@@ -92,18 +110,18 @@ export function WorkspaceAiPage({ workspace }: { workspace: Workspace }) {
           <CardTitle>AI in this workspace</CardTitle>
           <CardDescription>
             Turning it off keeps everything as it is — providers, keys and agents — and stops every
-            call. {consentimiento?.acceptedBy ? `Accepted by @${consentimiento.acceptedBy}.` : ''}
+            call. {consentimiento.acceptedBy ? `Accepted by @${consentimiento.acceptedBy}.` : ''}
           </CardDescription>
         </CardHeader>
         <CardContent>
           <Button
-            variant={ajustes.data?.enabled ? 'secondary' : 'primary'}
+            variant={ajustes.data.enabled ? 'secondary' : 'primary'}
             onClick={() => {
-              interruptor.mutate(!(ajustes.data?.enabled ?? true));
+              interruptor.mutate(!ajustes.data.enabled);
             }}
             disabled={interruptor.isPending}
           >
-            {ajustes.data?.enabled ? 'Turn AI off' : 'Turn AI back on'}
+            {ajustes.data.enabled ? 'Turn AI off' : 'Turn AI back on'}
           </Button>
         </CardContent>
       </Card>
@@ -116,6 +134,9 @@ export function WorkspaceAiPage({ workspace }: { workspace: Workspace }) {
           configurado={proveedores.data?.find((p) => p.provider === definicion.id)}
         />
       ))}
+
+      <AiTaskAssignments workspaceId={workspace.id} />
+      <AiUsagePanel workspaceId={workspace.id} />
     </div>
   );
 }
