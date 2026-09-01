@@ -12,7 +12,12 @@ import { DATABASE, ENV } from '../infrastructure/tokens.js';
 import { AI_REGISTRY } from './ai.tokens.js';
 import { NotificationsService } from '../notifications/notifications.service.js';
 import { AiProvidersService } from './providers.service.js';
-import { AiQuotaService, QuotaExceededError, type Reservation } from './quota.service.js';
+import {
+  AiQuotaService,
+  QuotaExceededError,
+  RateLimitedError,
+  type Reservation,
+} from './quota.service.js';
 import { AiTasksService, type TaskPlan } from './tasks.service.js';
 
 export interface InvocationContext {
@@ -76,12 +81,17 @@ export class AiInvocationService {
      * El ritmo se comprueba lo primero: si alguien está en un bucle, lo barato
      * es pararlo antes de contar tokens y antes de tocar la base de datos.
      */
-    await this.quota.consumeRate(
-      context.workspaceId,
-      context.userId,
-      this.env.AI_MAX_INVOCATIONS_PER_MEMBER_HOUR,
-      now,
-    );
+    try {
+      await this.quota.consumeRate(
+        context.workspaceId,
+        context.userId,
+        this.env.AI_MAX_INVOCATIONS_PER_MEMBER_HOUR,
+        now,
+      );
+    } catch (error) {
+      if (error instanceof RateLimitedError) throw error;
+      AiQuotaService.failClosed(error);
+    }
 
     const plan = await this.tasks.plan(context.workspaceId, context.task);
     const credential = await this.providers.readCredential(context.workspaceId, plan.provider);
@@ -144,8 +154,15 @@ export class AiInvocationService {
         ).catch((fallo: unknown) => {
           this.logger.error({ err: fallo }, 'No se pudo registrar el corte por cupo');
         });
+        throw error;
       }
-      throw error;
+
+      /*
+       * Si el contador no se pudo consultar, no se invoca (T-31). Con la cuota
+       * de un tercero de por medio, la duda se resuelve a favor del dueño de la
+       * clave: seguir adelante sería gastar dinero ajeno sin saber si quedaba.
+       */
+      AiQuotaService.failClosed(error);
     }
   }
 

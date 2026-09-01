@@ -283,6 +283,43 @@ describe('el ritmo', () => {
   });
 });
 
+describe('cuando Redis no responde', () => {
+  /*
+   * El riesgo que tiene guardar el techo de gasto en un almacén volátil. La
+   * respuesta correcta es no invocar: con la cuota de un tercero de por medio,
+   * la duda se resuelve a favor del dueño de la clave (T-31). Seguir adelante
+   * sería gastar dinero ajeno sin saber si quedaba.
+   */
+  it('reservar no concede nada: falla', async () => {
+    const muerto = new Redis({
+      port: 1,
+      lazyConnect: true,
+      maxRetriesPerRequest: 0,
+      enableOfflineQueue: false,
+      retryStrategy: () => null,
+    });
+    const sinRedis = new AiQuotaService(muerto, usage);
+
+    await expect(sinRedis.reserve(clave(), 10, 1_000, AHORA)).rejects.toBeTruthy();
+
+    muerto.disconnect();
+  });
+
+  it('y el fallo se traduce a «no se ha invocado nada», no a un permiso', () => {
+    expect(() => {
+      AiQuotaService.failClosed(new Error('Redis se ha ido'));
+    }).toThrow(/no se ha invocado/i);
+  });
+
+  it('pero un cupo agotado sigue siendo un cupo agotado, no una caída', () => {
+    const agotado = new QuotaExceededError({ spent: 10, reserved: 0, quota: 10 });
+
+    expect(() => {
+      AiQuotaService.failClosed(agotado);
+    }).toThrow(QuotaExceededError);
+  });
+});
+
 describe('el mes', () => {
   it('se cuenta en UTC', () => {
     expect(AiQuotaService.month(Date.UTC(2026, 8, 1, 0, 0, 0))).toBe('2026-09');

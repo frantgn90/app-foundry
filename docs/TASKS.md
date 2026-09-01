@@ -619,7 +619,7 @@ empezar cada hito, con el mismo método que la v1.
 | AR8 | Límite de invocaciones por miembro y ventana | Acota el ritmo, no el volumen: son cosas distintas | RF-1206 | ✅ |
 | AR9 | Estimación previa como techo: entrada contada y salida al máximo | La cifra enseñada nunca se queda por debajo del consumo real | RF-1207, §10 | ✅ |
 | AR10 | API de consumo del workspace | Cada miembro ve el suyo; el dueño, todo | RF-1208 | ✅ |
-| AR11 | Suite de cupos | Concurrencia, reconstrucción, corte y fallo cerrado, con casos negativos | RNF-903 | ⬜ |
+| AR11 | Suite de cupos | Concurrencia, reconstrucción, corte y fallo cerrado, con casos negativos | RNF-903 | ✅ |
 
 ### Bloque AS — Ajustes del workspace
 
