@@ -1249,7 +1249,7 @@ export interface components {
             /** @description Porcentaje del cupo al que se avisa. Solo para el dueño */
             quotaAlertPct?: number;
             /** @description Solo para el dueño */
-            verifiedAt?: Record<string, never> | null;
+            verifiedAt?: string | null;
         };
         ConfigureProviderDto: {
             /** @description La clave del proveedor. Se cifra al guardarla y no vuelve a salir de aquí */
@@ -1261,15 +1261,15 @@ export interface components {
         };
         SetQuotaDto: {
             /** @description Cupo mensual de tokens. Nulo o ausente lo deja sin techo */
-            monthlyTokenQuota?: Record<string, never> | null;
+            monthlyTokenQuota?: number | null;
             /** @description A qué porcentaje se avisa */
             quotaAlertPct?: number;
         };
         AiEgressConsentDto: {
             accepted: boolean;
-            acceptedAt: Record<string, never> | null;
+            acceptedAt: string | null;
             /** @description Handle de quien lo aceptó */
-            acceptedBy: Record<string, never> | null;
+            acceptedBy: string | null;
         };
         AiSettingsDto: {
             /** @description Interruptor general (RF-1012) */
@@ -1284,7 +1284,7 @@ export interface components {
             /** @enum {string} */
             provider: "ANTHROPIC" | "GROQ";
             /** @description Cupo mensual, o nulo si no tiene */
-            quota: Record<string, never> | null;
+            quota: number | null;
             /** @description Tokens ya consumidos según el contador */
             spentTokens: number;
             /** @description Tokens apartados por invocaciones en curso */
@@ -1311,7 +1311,7 @@ export interface components {
             task: "IDEA_GENERATION" | "TEXT_ASSIST" | "AGENT_REVIEW" | "AGENT_REPLY";
             /** @enum {string|null} */
             provider: "ANTHROPIC" | "GROQ" | null;
-            modelId: Record<string, never> | null;
+            modelId: string | null;
             /** @description Si con lo asignado la tarea se puede ofrecer */
             supported: boolean;
             /** @description Si el modelo asignado sigue en el catálogo del proveedor */

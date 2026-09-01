@@ -6,6 +6,7 @@ import { AppsListPage } from './pages/apps-list.js';
 import { LoginPage } from './pages/login.js';
 import { WorkspaceActivityPage } from './pages/workspace-activity.js';
 import { WorkspacePage } from './pages/workspace.js';
+import { WorkspaceAiPage } from './pages/workspace-ai.js';
 import { WorkspaceSettingsPage } from './pages/workspace-settings.js';
 import { type AppFilters, useApps, useSession, useWorkspaces } from './lib/api.js';
 import { AccountSettingsPage } from './pages/account.js';
@@ -40,7 +41,7 @@ export function App() {
     localStorage.getItem(WORKSPACE_KEY),
   );
   const [openApp, setOpenApp] = useState<string | null>(null);
-  const [view, setView] = useState<'apps' | 'settings' | 'people' | 'activity'>('apps');
+  const [view, setView] = useState<'apps' | 'settings' | 'people' | 'ai' | 'activity'>('apps');
   /*
    * Qué se está mirando. La administración de la instancia y los ajustes de la
    * cuenta no pertenecen a ningún workspace, así que no son una pestaña más:
@@ -194,7 +195,12 @@ export function App() {
                 'apps',
                 'settings',
                 'people',
-                ...(current.role === 'OWNER' ? (['activity'] as const) : []),
+                /*
+                 * La IA solo la configura el dueño, así que a un invitado ni
+                 * siquiera se le enseña la pestaña: no es un permiso oculto,
+                 * es que ahí no tiene nada que hacer.
+                 */
+                ...(current.role === 'OWNER' ? (['ai', 'activity'] as const) : []),
               ] as const
             ).map((v) => (
               <button
@@ -214,7 +220,9 @@ export function App() {
                     ? 'Settings'
                     : v === 'people'
                       ? 'People & invitations'
-                      : 'Activity'}
+                      : v === 'ai'
+                        ? 'AI'
+                        : 'Activity'}
               </button>
             ))}
           </nav>
@@ -233,6 +241,7 @@ export function App() {
           )}
           {view === 'settings' && <WorkspaceSettingsPage workspace={current} />}
           {view === 'people' && <WorkspacePage workspace={current} />}
+          {view === 'ai' && <WorkspaceAiPage workspace={current} />}
           {view === 'activity' && <WorkspaceActivityPage workspace={current} />}
         </div>
       )}

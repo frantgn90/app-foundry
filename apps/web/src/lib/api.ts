@@ -959,3 +959,299 @@ export function useDeactivateAccount() {
     },
   });
 }
+
+/* -------------------------------------------------------------------------- */
+/* Inteligencia artificial (v2)                                               */
+/* -------------------------------------------------------------------------- */
+
+export type AiProviderId = 'ANTHROPIC' | 'GROQ';
+
+export interface AiProvider {
+  provider: AiProviderId;
+  status: 'ACTIVE' | 'DISABLED' | 'INVALID';
+  capabilities: {
+    streaming: boolean;
+    schemaOutput: boolean;
+    webSearch: boolean;
+    exactTokenCount: boolean;
+  };
+  credentialHint?: string;
+  monthlyTokenQuota?: number | null;
+  quotaAlertPct?: number;
+  verifiedAt?: string | null;
+}
+
+export interface AiSettings {
+  enabled: boolean;
+  consent: { accepted: boolean; acceptedAt: string | null; acceptedBy: string | null };
+}
+
+export interface AiModel {
+  provider: AiProviderId;
+  id: string;
+  displayName: string;
+  contextWindow: number;
+  maxOutputTokens: number;
+  available: boolean;
+}
+
+export type AiTaskId = 'IDEA_GENERATION' | 'TEXT_ASSIST' | 'AGENT_REVIEW' | 'AGENT_REPLY';
+
+export interface AiTaskAssignment {
+  task: AiTaskId;
+  provider: AiProviderId | null;
+  modelId: string | null;
+  supported: boolean;
+  modelAvailable: boolean;
+  missing: string[];
+  degraded: string[];
+}
+
+export interface AiUsage {
+  month: string;
+  providers: {
+    provider: AiProviderId;
+    quota: number | null;
+    spentTokens: number;
+    reservedTokens: number;
+  }[];
+  byTask: { key: string; inputTokens: number; outputTokens: number; invocations: number }[];
+  byModel: { key: string; inputTokens: number; outputTokens: number; invocations: number }[];
+  byMember: { key: string; inputTokens: number; outputTokens: number; invocations: number }[];
+}
+
+/** Todo lo de IA de un workspace se invalida junto: son cuatro vistas del mismo estado. */
+function invalidarIa(client: ReturnType<typeof useQueryClient>, workspaceId: string) {
+  return Promise.all([
+    client.invalidateQueries({ queryKey: ['ia-proveedores', workspaceId] }),
+    client.invalidateQueries({ queryKey: ['ia-ajustes', workspaceId] }),
+    client.invalidateQueries({ queryKey: ['ia-modelos', workspaceId] }),
+    client.invalidateQueries({ queryKey: ['ia-tareas', workspaceId] }),
+    client.invalidateQueries({ queryKey: ['ia-consumo', workspaceId] }),
+  ]);
+}
+
+export function useAiSettings(workspaceId: string, enabled: boolean) {
+  return useQuery({
+    queryKey: ['ia-ajustes', workspaceId],
+    enabled,
+    queryFn: async (): Promise<AiSettings> => {
+      const { data, error } = await api.GET('/api/v1/workspaces/{id}/ai', {
+        params: { path: { id: workspaceId } },
+      });
+      if (error || !data) throw new Error('Could not load the AI settings');
+      return data;
+    },
+  });
+}
+
+export function useAiProviders(workspaceId: string) {
+  return useQuery({
+    queryKey: ['ia-proveedores', workspaceId],
+    queryFn: async (): Promise<AiProvider[]> => {
+      const { data, error } = await api.GET('/api/v1/workspaces/{id}/ai/providers', {
+        params: { path: { id: workspaceId } },
+      });
+      if (error || !data) throw new Error('Could not load the AI providers');
+      return data as AiProvider[];
+    },
+  });
+}
+
+export function useAcceptAiConsent(workspaceId: string) {
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: async () => {
+      const { error } = await api.POST('/api/v1/workspaces/{id}/ai/consent', {
+        params: { path: { id: workspaceId } },
+      });
+      if (error) throw new Error('Could not record the acceptance');
+    },
+    onSuccess: () => invalidarIa(client, workspaceId),
+  });
+}
+
+export function useSetAiEnabled(workspaceId: string) {
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: async (enabled: boolean) => {
+      const { error } = await api.PATCH('/api/v1/workspaces/{id}/ai', {
+        params: { path: { id: workspaceId } },
+        body: { enabled },
+      });
+      if (error) throw new Error('Could not change the switch');
+    },
+    onSuccess: () => invalidarIa(client, workspaceId),
+  });
+}
+
+/**
+ * Guarda la credencial de un proveedor.
+ *
+ * El mensaje del servidor se propaga tal cual: distingue «el proveedor ha
+ * rechazado la clave» de «el proveedor no responde», y esa diferencia decide si
+ * hay que generar otra clave o simplemente esperar.
+ */
+export function useConfigureProvider(workspaceId: string) {
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ provider, apiKey }: { provider: AiProviderId; apiKey: string }) => {
+      const { error } = await api.PUT('/api/v1/workspaces/{id}/ai/providers/{provider}', {
+        params: { path: { id: workspaceId, provider } },
+        body: { apiKey },
+      });
+      if (error) throw new Error(mensajeDeError(error, 'Could not save the credential'));
+    },
+    onSuccess: () => invalidarIa(client, workspaceId),
+  });
+}
+
+export function useVerifyProvider(workspaceId: string) {
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: async (provider: AiProviderId) => {
+      const { error } = await api.POST('/api/v1/workspaces/{id}/ai/providers/{provider}/verify', {
+        params: { path: { id: workspaceId, provider } },
+      });
+      if (error) throw new Error(mensajeDeError(error, 'Could not verify the credential'));
+    },
+    onSuccess: () => invalidarIa(client, workspaceId),
+  });
+}
+
+export function useSetProviderStatus(workspaceId: string) {
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: async ({
+      provider,
+      status,
+    }: {
+      provider: AiProviderId;
+      status: 'ACTIVE' | 'DISABLED';
+    }) => {
+      const { error } = await api.PATCH('/api/v1/workspaces/{id}/ai/providers/{provider}', {
+        params: { path: { id: workspaceId, provider } },
+        body: { status },
+      });
+      if (error) throw new Error(mensajeDeError(error, 'Could not change the provider'));
+    },
+    onSuccess: () => invalidarIa(client, workspaceId),
+  });
+}
+
+export function useRemoveProvider(workspaceId: string) {
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: async (provider: AiProviderId) => {
+      const { error } = await api.DELETE('/api/v1/workspaces/{id}/ai/providers/{provider}', {
+        params: { path: { id: workspaceId, provider } },
+      });
+      if (error) throw new Error('Could not remove the provider');
+    },
+    onSuccess: () => invalidarIa(client, workspaceId),
+  });
+}
+
+export function useSetProviderQuota(workspaceId: string) {
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: async ({
+      provider,
+      monthlyTokenQuota,
+      quotaAlertPct,
+    }: {
+      provider: AiProviderId;
+      monthlyTokenQuota: number | null;
+      quotaAlertPct?: number;
+    }) => {
+      const { error } = await api.PUT('/api/v1/workspaces/{id}/ai/providers/{provider}/quota', {
+        params: { path: { id: workspaceId, provider } },
+        body: {
+          ...(monthlyTokenQuota !== null && { monthlyTokenQuota }),
+          ...(quotaAlertPct !== undefined && { quotaAlertPct }),
+        },
+      });
+      if (error) throw new Error('Could not save the quota');
+    },
+    onSuccess: () => invalidarIa(client, workspaceId),
+  });
+}
+
+export function useAiModels(workspaceId: string, enabled: boolean) {
+  return useQuery({
+    queryKey: ['ia-modelos', workspaceId],
+    enabled,
+    queryFn: async (): Promise<AiModel[]> => {
+      const { data, error } = await api.GET('/api/v1/workspaces/{id}/ai/models', {
+        params: { path: { id: workspaceId } },
+      });
+      if (error || !data) throw new Error('Could not load the model catalogue');
+      return data;
+    },
+  });
+}
+
+export function useAiTasks(workspaceId: string) {
+  return useQuery({
+    queryKey: ['ia-tareas', workspaceId],
+    queryFn: async (): Promise<AiTaskAssignment[]> => {
+      const { data, error } = await api.GET('/api/v1/workspaces/{id}/ai/tasks', {
+        params: { path: { id: workspaceId } },
+      });
+      if (error || !data) throw new Error('Could not load the task assignments');
+      return data;
+    },
+  });
+}
+
+export function useAssignTaskModel(workspaceId: string) {
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: async ({
+      task,
+      provider,
+      modelId,
+    }: {
+      task: AiTaskId;
+      provider: AiProviderId;
+      modelId: string;
+    }) => {
+      const { error } = await api.PUT('/api/v1/workspaces/{id}/ai/tasks/{task}', {
+        params: { path: { id: workspaceId, task } },
+        body: { provider, modelId },
+      });
+      if (error) throw new Error(mensajeDeError(error, 'Could not assign the model'));
+    },
+    onSuccess: () => invalidarIa(client, workspaceId),
+  });
+}
+
+export function useAiUsage(workspaceId: string, enabled: boolean) {
+  return useQuery({
+    queryKey: ['ia-consumo', workspaceId],
+    enabled,
+    queryFn: async (): Promise<AiUsage> => {
+      const { data, error } = await api.GET('/api/v1/workspaces/{id}/ai/usage', {
+        params: { path: { id: workspaceId } },
+      });
+      if (error || !data) throw new Error('Could not load this month usage');
+      return data;
+    },
+  });
+}
+
+/**
+ * El motivo que da el servidor, cuando lo da.
+ *
+ * Importa más de lo que parece: «el proveedor ha rechazado la credencial» y «el
+ * proveedor no responde» piden cosas distintas de quien lo lee, y un mensaje
+ * genérico llevaría a regenerar una clave que estaba bien.
+ */
+function mensajeDeError(error: unknown, porDefecto: string): string {
+  if (typeof error === 'object' && error !== null && 'message' in error) {
+    const mensaje = error.message;
+    if (typeof mensaje === 'string') return mensaje;
+    if (Array.isArray(mensaje) && typeof mensaje[0] === 'string') return mensaje[0];
+  }
+  return porDefecto;
+}

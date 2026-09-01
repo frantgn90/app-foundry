@@ -3275,7 +3275,7 @@
             "description": "Porcentaje del cupo al que se avisa. Solo para el dueño"
           },
           "verifiedAt": {
-            "type": "object",
+            "type": "string",
             "nullable": true,
             "description": "Solo para el dueño"
           }
@@ -3319,7 +3319,7 @@
         "type": "object",
         "properties": {
           "monthlyTokenQuota": {
-            "type": "object",
+            "type": "number",
             "nullable": true,
             "description": "Cupo mensual de tokens. Nulo o ausente lo deja sin techo"
           },
@@ -3338,11 +3338,11 @@
             "type": "boolean"
           },
           "acceptedAt": {
-            "type": "object",
+            "type": "string",
             "nullable": true
           },
           "acceptedBy": {
-            "type": "object",
+            "type": "string",
             "nullable": true,
             "description": "Handle de quien lo aceptó"
           }
@@ -3392,7 +3392,7 @@
             ]
           },
           "quota": {
-            "type": "object",
+            "type": "number",
             "nullable": true,
             "description": "Cupo mensual, o nulo si no tiene"
           },
@@ -3498,7 +3498,7 @@
             "nullable": true
           },
           "modelId": {
-            "type": "object",
+            "type": "string",
             "nullable": true
           },
           "supported": {

@@ -57,7 +57,7 @@ export class AiProviderDto {
   @ApiPropertyOptional({ description: 'Porcentaje del cupo al que se avisa. Solo para el dueño' })
   quotaAlertPct?: number;
 
-  @ApiPropertyOptional({ nullable: true, description: 'Solo para el dueño' })
+  @ApiPropertyOptional({ type: String, nullable: true, description: 'Solo para el dueño' })
   verifiedAt?: string | null;
 }
 
@@ -89,10 +89,10 @@ export class AiEgressConsentDto {
   @ApiProperty()
   accepted!: boolean;
 
-  @ApiProperty({ nullable: true })
+  @ApiProperty({ type: String, nullable: true })
   acceptedAt!: string | null;
 
-  @ApiProperty({ nullable: true, description: 'Handle de quien lo aceptó' })
+  @ApiProperty({ type: String, nullable: true, description: 'Handle de quien lo aceptó' })
   acceptedBy!: string | null;
 }
 
@@ -146,7 +146,7 @@ export class AiTaskAssignmentDto {
   @ApiProperty({ enum: PROVEEDORES, nullable: true })
   provider!: AiProvider | null;
 
-  @ApiProperty({ nullable: true })
+  @ApiProperty({ type: String, nullable: true })
   modelId!: string | null;
 
   @ApiProperty({ description: 'Si con lo asignado la tarea se puede ofrecer' })
@@ -175,6 +175,7 @@ export class AssignTaskModelDto {
 
 export class SetQuotaDto {
   @ApiPropertyOptional({
+    type: Number,
     nullable: true,
     description: 'Cupo mensual de tokens. Nulo o ausente lo deja sin techo',
   })
@@ -206,7 +207,7 @@ export class AiProviderUsageDto {
   @ApiProperty({ enum: PROVEEDORES })
   provider!: AiProvider;
 
-  @ApiProperty({ nullable: true, description: 'Cupo mensual, o nulo si no tiene' })
+  @ApiProperty({ type: Number, nullable: true, description: 'Cupo mensual, o nulo si no tiene' })
   quota!: number | null;
 
   @ApiProperty({ description: 'Tokens ya consumidos según el contador' })
