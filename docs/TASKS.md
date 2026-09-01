@@ -546,6 +546,8 @@ empezar cada hito, con el mismo método que la v1.
 | ------- | --------------------------------------------------------------------------------------------- | ---------------------------------- |
 | **H9**  | Puerto y adaptadores, cifrado de credenciales, catálogo por API, modelo por tarea, cupos       | La IA ya tiene grifo y contador    |
 | **H10** | Arreglo del menú de selección (U26, U27) y asistente de escritura, con diff que se acepta      | **Primer valor real**              |
+
+Solo se desglosa el hito en curso. H9 está cerrada; H10 está desglosada abajo.
 | **H11** | Generación de ideas, con y sin búsqueda web, y la app creada con su visión sembrada            | Cierra «no tengo ideas»            |
 | **H12** | Agentes: modelo, plantillas, instancias, autoría polimórfica, menciones y respuestas           | Un interlocutor con perfil         |
 | **H13** | Revisión en abanico: cola, estimación, confirmación, cancelación y cortafuegos                 | **Pensar acompañado, completo**    |
@@ -600,16 +602,6 @@ empezar cada hito, con el mismo método que la v1.
 | AQ5 | Aviso cuando el modelo asignado desaparece del catálogo | Se avisa al dueño, no se falla cuando alguien usa la función | RF-1009 | ✅ |
 | AQ6 | Rechazo por ventana de contexto insuficiente | Se explica qué pasa y qué hacer; nunca se recorta el documento en silencio | RF-1106 | ✅ |
 
-> **Sobre AT4.** El corte por cupo se emite como métrica y se ve en el panel. El cortacircuitos tiene su
-> métrica puesta y su sitio en el panel, pero **todavía no lo abre nadie**: el cortacircuitos en sí vive en la
-> ejecución de invocaciones (§11 del TRD v2), que llega con el asistente en H10. Hasta entonces esa gráfica
-> estará plana, y conviene saber por qué.
-
-> **Sobre AQ6.** La regla vive en `core` con sus pruebas, y el punto por el que pasa toda invocación
-> —`AiTasksService.plan` y `assertFits`— está escrito y en uso desde el primer caso de uso. Como en H9 todavía
-> no hay ninguna ruta que invoque, lo que aquí queda demostrado es la regla; que se aplique de verdad se
-> comprueba en H10, con el asistente de escritura.
-
 ### Bloque AR — Consumo y cupos
 
 | # | Tarea | Verificación | Traza | Estado |
@@ -644,3 +636,62 @@ empezar cada hito, con el mismo método que la v1.
 | AT2 | Métricas de invocaciones, tokens, consumo frente al cupo y errores | Visibles en Prometheus con las etiquetas acordadas | RNF-802 | ✅ |
 | AT3 | Panel de Grafana de la IA | Junto a los que ya existen, sin tocarlos | RNF-803 | ✅ |
 | AT4 | Cupo agotado y cortacircuitos, como eventos observables | No solo un mensaje en la interfaz | RNF-804 | ✅ |
+
+> **Sobre AT4.** El corte por cupo se emite como métrica y se ve en el panel. El cortacircuitos tiene su
+> métrica puesta y su sitio en el panel, pero **todavía no lo abre nadie**: el cortacircuitos en sí vive en la
+> ejecución de invocaciones (§11 del TRD v2), que llega con el asistente en H10. Hasta entonces esa gráfica
+> estará plana, y conviene saber por qué.
+
+> **Sobre AQ6.** La regla vive en `core` con sus pruebas, y el punto por el que pasa toda invocación
+> —`AiTasksService.plan` y `assertFits`— está escrito y en uso desde el primer caso de uso. Como en H9 todavía
+> no hay ninguna ruta que invoque, lo que aquí queda demostrado es la regla; que se aplique de verdad se
+> comprueba en H10, con el asistente de escritura.
+
+---
+
+## H10 — Primer valor real: ayudar a escribir
+
+> Objetivo: que seleccionar un párrafo flojo y pedir concretarlo devuelva algo que se puede aceptar o
+> descartar. Es la primera función de la v2 que se toca, la más usada a diario y la más barata de construir
+> sobre H9; y valida el contrato con tráfico real antes de que lleguen los agentes.
+>
+> Alcance: solo el asistente. Generar ideas es H11 y los agentes, H12 y H13. Aquí también se saldan los cuatro
+> arreglos del menú de selección, porque el asistente cuelga de ese mismo menú.
+
+### Bloque AU — El menú de selección
+
+| # | Tarea | Verificación | Traza | Estado |
+|---|---|---|---|---|
+| AU1 | Posicionar el menú con la geometría de la selección, no con el puntero | Bajo su última línea y a su derecha, arrastrando en cualquier dirección | RF-1414, U26 | ⬜ |
+| AU2 | Detectar la selección por su cambio, no por soltar el ratón | Doble clic, triple clic y teclado abren el menú | RF-1415, U27 | ⬜ |
+| AU3 | Resolver también los bloques enteros, y bajar el mínimo a dos caracteres | Un título seleccionado entero ofrece menú | RF-1416, U27 | ⬜ |
+| AU4 | Recorrido del menú de extremo a extremo | Los tres gestos que fallaban, comprobados en un navegador de verdad | RNF-905 | ⬜ |
+
+### Bloque AV — El asistente por dentro
+
+| # | Tarea | Verificación | Traza | Estado |
+|---|---|---|---|---|
+| AV1 | Ruta de asistencia en streaming sobre la copia de trabajo | El texto llega por partes y muere con la petición | RF-1401, RNF-701 | ⬜ |
+| AV2 | Las cinco acciones fijas, con su prompt | Mejorar, concretar, resumir, expandir y corregir; sin instrucción libre | RF-1402 | ⬜ |
+| AV3 | El contexto que se envía: la selección y el documento si cabe | Si no cabe, solo su entorno, y se dice | RF-1409 | ⬜ |
+| AV4 | Rechazo por ventana de contexto, aplicado de verdad | Un documento que no cabe se rechaza explicando cuánto sobra | RF-1106, AQ6 | ⬜ |
+| AV5 | Reintentos y cortacircuitos por proveedor | Un `AUTH` no se reintenta; un proveedor que falla sin parar deja de intentarse | RNF-703, RNF-704 | ⬜ |
+| AV6 | Cancelar corta la llamada al proveedor | Cerrar la petición aborta de verdad, no solo deja de escuchar | RNF-702 | ⬜ |
+| AV7 | Permisos: edición, y solo sobre la copia de trabajo | Con lectura no aparece; sobre una versión anterior no se puede | RF-1406, RF-1410 | ⬜ |
+
+### Bloque AW — El asistente en la interfaz
+
+| # | Tarea | Verificación | Traza | Estado |
+|---|---|---|---|---|
+| AW1 | Las acciones de IA en el menú de selección, junto a comentar | Un solo menú para dos cosas que se hacen sobre lo mismo | RF-1401 | ⬜ |
+| AW2 | El resultado llega en streaming y se pinta como diff | Se puede descartar sin esperar al final | RF-1403, RF-1407 | ⬜ |
+| AW3 | Aceptar aplica a la copia de trabajo; descartar no deja rastro | Con la misma comprobación de concurrencia que un guardado | RF-1404, RF-1408 | ⬜ |
+| AW4 | Acciones sobre el documento entero, con su techo de tokens a la vista | Mismo diff, mismas reglas; solo cambia el alcance | RF-1411, RF-1412 | ⬜ |
+| AW5 | Sin disponibilidad, ninguna acción aparece | Ni con la IA apagada, ni sin modelo asignado | RF-1010 | ⬜ |
+
+### Bloque AX — Cerrar H10
+
+| # | Tarea | Verificación | Traza | Estado |
+|---|---|---|---|---|
+| AX1 | Recorrido completo con el proveedor de mentira | Seleccionar, pedir, ver el diff, descartar y aceptar | RNF-905 | ⬜ |
+| AX2 | Comprobar la observabilidad con tráfico de verdad | Las trazas cuelgan de su petición y el panel deja de estar plano | RNF-801, AT4 | ⬜ |
