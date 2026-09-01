@@ -542,6 +542,23 @@ export interface paths {
         patch: operations["WorkspaceAiController_setEnabled"];
         trace?: never;
     };
+    "/api/v1/workspaces/{id}/ai/usage": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Consumo del mes en tokens. Cada uno ve el suyo; el dueño, todo */
+        get: operations["WorkspaceAiController_usage_"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/workspaces/{id}/ai/tasks": {
         parameters: {
             query?: never;
@@ -1262,6 +1279,32 @@ export interface components {
         SetAiEnabledDto: {
             /** @description Apagar o encender toda la IA del workspace */
             enabled: boolean;
+        };
+        AiProviderUsageDto: {
+            /** @enum {string} */
+            provider: "ANTHROPIC" | "GROQ";
+            /** @description Cupo mensual, o nulo si no tiene */
+            quota: Record<string, never> | null;
+            /** @description Tokens ya consumidos según el contador */
+            spentTokens: number;
+            /** @description Tokens apartados por invocaciones en curso */
+            reservedTokens: number;
+        };
+        AiUsageBreakdownDto: {
+            /** @description Tarea, modelo, proveedor o handle, según el desglose */
+            key: string;
+            inputTokens: number;
+            outputTokens: number;
+            invocations: number;
+        };
+        AiUsageDto: {
+            /** @description Mes en curso, contado en UTC */
+            month: string;
+            /** @description Solo para el dueño */
+            providers: components["schemas"]["AiProviderUsageDto"][];
+            byTask: components["schemas"]["AiUsageBreakdownDto"][];
+            byModel: components["schemas"]["AiUsageBreakdownDto"][];
+            byMember: components["schemas"]["AiUsageBreakdownDto"][];
         };
         AiTaskAssignmentDto: {
             /** @enum {string} */
@@ -2356,6 +2399,27 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["AiSettingsDto"];
+                };
+            };
+        };
+    };
+    WorkspaceAiController_usage_: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AiUsageDto"];
                 };
             };
         };

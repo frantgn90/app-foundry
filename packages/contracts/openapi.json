@@ -1328,6 +1328,37 @@
         ]
       }
     },
+    "/api/v1/workspaces/{id}/ai/usage": {
+      "get": {
+        "operationId": "WorkspaceAiController_usage_",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AiUsageDto"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Consumo del mes en tokens. Cada uno ve el suyo; el dueño, todo",
+        "tags": [
+          "ai"
+        ]
+      }
+    },
     "/api/v1/workspaces/{id}/ai/tasks": {
       "get": {
         "operationId": "WorkspaceAiController_tasks_",
@@ -3348,6 +3379,102 @@
         },
         "required": [
           "enabled"
+        ]
+      },
+      "AiProviderUsageDto": {
+        "type": "object",
+        "properties": {
+          "provider": {
+            "type": "string",
+            "enum": [
+              "ANTHROPIC",
+              "GROQ"
+            ]
+          },
+          "quota": {
+            "type": "object",
+            "nullable": true,
+            "description": "Cupo mensual, o nulo si no tiene"
+          },
+          "spentTokens": {
+            "type": "number",
+            "description": "Tokens ya consumidos según el contador"
+          },
+          "reservedTokens": {
+            "type": "number",
+            "description": "Tokens apartados por invocaciones en curso"
+          }
+        },
+        "required": [
+          "provider",
+          "quota",
+          "spentTokens",
+          "reservedTokens"
+        ]
+      },
+      "AiUsageBreakdownDto": {
+        "type": "object",
+        "properties": {
+          "key": {
+            "type": "string",
+            "description": "Tarea, modelo, proveedor o handle, según el desglose"
+          },
+          "inputTokens": {
+            "type": "number"
+          },
+          "outputTokens": {
+            "type": "number"
+          },
+          "invocations": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "key",
+          "inputTokens",
+          "outputTokens",
+          "invocations"
+        ]
+      },
+      "AiUsageDto": {
+        "type": "object",
+        "properties": {
+          "month": {
+            "type": "string",
+            "description": "Mes en curso, contado en UTC"
+          },
+          "providers": {
+            "description": "Solo para el dueño",
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/AiProviderUsageDto"
+            }
+          },
+          "byTask": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/AiUsageBreakdownDto"
+            }
+          },
+          "byModel": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/AiUsageBreakdownDto"
+            }
+          },
+          "byMember": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/AiUsageBreakdownDto"
+            }
+          }
+        },
+        "required": [
+          "month",
+          "providers",
+          "byTask",
+          "byModel",
+          "byMember"
         ]
       },
       "AiTaskAssignmentDto": {

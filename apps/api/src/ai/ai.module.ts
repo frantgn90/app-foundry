@@ -23,6 +23,7 @@ import { AiInvocationService } from './invocation.service.js';
 import { AiQuotaReconcile } from './quota.reconcile.js';
 import { AiQuotaService } from './quota.service.js';
 import { AiUsageRepository } from './usage.repository.js';
+import { AiUsageService } from './usage.service.js';
 import { AiTasksService } from './tasks.service.js';
 import { WorkspaceAiController } from './workspace-ai.controller.js';
 
@@ -38,6 +39,7 @@ import { WorkspaceAiController } from './workspace-ai.controller.js';
     AiQuotaReconcile,
     AiInvocationService,
     AiUsageRepository,
+    AiUsageService,
     {
       provide: AI_REGISTRY,
       inject: [ENV],
@@ -85,6 +87,7 @@ import { WorkspaceAiController } from './workspace-ai.controller.js';
     AiQuotaReconcile,
     AiInvocationService,
     AiUsageRepository,
+    AiUsageService,
     AI_REGISTRY,
     AI_CIPHER,
   ],

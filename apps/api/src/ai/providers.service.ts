@@ -46,7 +46,7 @@ export class AiProvidersService {
    * pista de la clave y cuándo se verificó por última vez.
    */
   async list(workspaceId: string, userId: string): Promise<AiProviderDto[]> {
-    const esDueño = await this.isOwner(workspaceId, userId);
+    const esDueño = await this.isOwnerOf(workspaceId, userId);
 
     const filas = await currentTx()
       .select()
@@ -548,7 +548,7 @@ export class AiProvidersService {
     return this.cipher;
   }
 
-  private async isOwner(workspaceId: string, userId: string): Promise<boolean> {
+  async isOwnerOf(workspaceId: string, userId: string): Promise<boolean> {
     const [fila] = await currentTx()
       .select({ ownerId: workspaces.ownerId })
       .from(workspaces)
@@ -566,7 +566,7 @@ export class AiProvidersService {
    * (RNF-102).
    */
   async assertOwner(workspaceId: string, userId: string): Promise<void> {
-    if (!(await this.isOwner(workspaceId, userId))) {
+    if (!(await this.isOwnerOf(workspaceId, userId))) {
       throw new ForbiddenException('Solo el dueño del workspace configura sus proveedores de IA');
     }
   }

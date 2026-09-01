@@ -20,12 +20,14 @@ import {
   AiModelDto,
   AiSettingsDto,
   AiTaskAssignmentDto,
+  AiUsageDto,
   AssignTaskModelDto,
   SetAiEnabledDto,
 } from './ai.dto.js';
 import { AiCatalogService } from './catalog.service.js';
 import { AiProvidersService } from './providers.service.js';
 import { AiTasksService } from './tasks.service.js';
+import { AiUsageService } from './usage.service.js';
 
 /**
  * Lo que es del workspace y no de un proveedor concreto.
@@ -37,6 +39,7 @@ export class WorkspaceAiController {
     private readonly providers: AiProvidersService,
     private readonly catalog: AiCatalogService,
     private readonly tasks: AiTasksService,
+    private readonly usage: AiUsageService,
   ) {}
 
   @Get()
@@ -58,6 +61,18 @@ export class WorkspaceAiController {
     @CurrentUserId() userId: string,
   ): Promise<AiSettingsDto> {
     return this.providers.setEnabled(workspaceId, body.enabled, userId);
+  }
+
+  @Get('usage')
+  @ApiOperation({
+    summary: 'Consumo del mes en tokens. Cada uno ve el suyo; el dueño, todo',
+  })
+  @ApiOkResponse({ type: AiUsageDto })
+  usage_(
+    @Param('id', ParseUUIDPipe) workspaceId: string,
+    @CurrentUserId() userId: string,
+  ): Promise<AiUsageDto> {
+    return this.usage.ofMonth(workspaceId, userId);
   }
 
   @Get('tasks')

@@ -190,3 +190,46 @@ export class SetQuotaDto {
   @Max(100)
   quotaAlertPct?: number;
 }
+
+/** Una línea del desglose de consumo. */
+export class AiUsageBreakdownDto {
+  @ApiProperty({ description: 'Tarea, modelo, proveedor o handle, según el desglose' })
+  key!: string;
+
+  @ApiProperty() inputTokens!: number;
+  @ApiProperty() outputTokens!: number;
+  @ApiProperty() invocations!: number;
+}
+
+/** Lo consumido de un proveedor este mes, frente a su cupo. */
+export class AiProviderUsageDto {
+  @ApiProperty({ enum: PROVEEDORES })
+  provider!: AiProvider;
+
+  @ApiProperty({ nullable: true, description: 'Cupo mensual, o nulo si no tiene' })
+  quota!: number | null;
+
+  @ApiProperty({ description: 'Tokens ya consumidos según el contador' })
+  spentTokens!: number;
+
+  @ApiProperty({ description: 'Tokens apartados por invocaciones en curso' })
+  reservedTokens!: number;
+}
+
+/**
+ * El consumo del mes (RF-1208).
+ *
+ * Cada uno ve lo suyo y el dueño ve todo lo de su workspace, y eso no lo decide
+ * este DTO sino la política de la tabla: aquí no hay ningún filtro por usuario.
+ */
+export class AiUsageDto {
+  @ApiProperty({ description: 'Mes en curso, contado en UTC' })
+  month!: string;
+
+  @ApiProperty({ type: [AiProviderUsageDto], description: 'Solo para el dueño' })
+  providers!: AiProviderUsageDto[];
+
+  @ApiProperty({ type: [AiUsageBreakdownDto] }) byTask!: AiUsageBreakdownDto[];
+  @ApiProperty({ type: [AiUsageBreakdownDto] }) byModel!: AiUsageBreakdownDto[];
+  @ApiProperty({ type: [AiUsageBreakdownDto] }) byMember!: AiUsageBreakdownDto[];
+}

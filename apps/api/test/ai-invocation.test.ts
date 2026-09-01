@@ -181,6 +181,60 @@ describe('el aviso de umbral', () => {
   });
 });
 
+describe('la página de consumo', () => {
+  interface UsageBody {
+    month: string;
+    providers: { provider: string; quota: number | null; spentTokens: number }[];
+    byTask: { key: string; inputTokens: number; outputTokens: number; invocations: number }[];
+    byModel: { key: string }[];
+    byMember: { key: string; inputTokens: number }[];
+  }
+
+  const consumo = (quien: TestUser) =>
+    h.as(quien).get(`/api/v1/workspaces/${ana.workspaceId}/ai/usage`);
+
+  it('desglosa el mes por tarea, por modelo y por persona', async () => {
+    const body = (await (await consumo(ana)).json()) as UsageBody;
+
+    expect(body.month).toMatch(/^\d{4}-\d{2}$/);
+    expect(body.byTask.some((t) => t.key === 'TEXT_ASSIST')).toBe(true);
+    expect(body.byModel.length).toBeGreaterThan(0);
+    expect(body.byMember.some((m) => m.key === 'ana')).toBe(true);
+  });
+
+  it('entrada y salida van separadas, y no hay ningún importe', async () => {
+    const body = (await (await consumo(ana)).json()) as UsageBody;
+    const tarea = body.byTask.find((t) => t.key === 'TEXT_ASSIST');
+
+    expect(tarea?.inputTokens).toBeGreaterThan(0);
+    expect(tarea).toHaveProperty('outputTokens');
+    expect(JSON.stringify(body)).not.toMatch(/cost|price|usd|eur/i);
+  });
+
+  it('el dueño ve el cupo de cada proveedor frente a lo gastado', async () => {
+    const body = (await (await consumo(ana)).json()) as UsageBody;
+
+    expect(body.providers).toHaveLength(1);
+    expect(body.providers[0]).toMatchObject({ provider: 'ANTHROPIC' });
+  });
+
+  /*
+   * Un miembro ve lo suyo y nada más, y eso no lo decide el servicio: lo decide
+   * la política de la tabla, que no le devuelve las filas de los demás.
+   */
+  it('un miembro ve su consumo, no el de los demás ni el cupo', async () => {
+    const bruno = await h.createUser('bruno');
+    await h
+      .as(ana)
+      .post(`/api/v1/workspaces/${ana.workspaceId}/invitations`, { email: bruno.email });
+
+    const body = (await (await consumo(bruno)).json()) as UsageBody;
+
+    expect(body.providers).toEqual([]);
+    expect(body.byMember).toEqual([]);
+  });
+});
+
 describe('cerrar una invocación', () => {
   it('liquida lo consumido de verdad y lo registra', async () => {
     await ponerCupo(1_000_000);
