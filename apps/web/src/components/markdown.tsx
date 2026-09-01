@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { memo, useMemo } from 'react';
 import type { Element, Root } from 'hast';
 import { visit } from 'unist-util-visit';
 import rehypeSanitize, { defaultSchema } from 'rehype-sanitize';
@@ -67,7 +67,21 @@ const processor = unified()
   })
   .use(rehypeStringify);
 
-export function Markdown({ content }: { content: string }) {
+/**
+ * El documento renderizado.
+ *
+ * Va memoizado, y no es una optimización: es lo que impide que **la selección
+ * del usuario se rompa**. Este `div` se pinta con `dangerouslySetInnerHTML`, así
+ * que cada vez que React lo revisa puede reemplazar sus hijos; y reemplazar los
+ * nodos que contienen una selección la destruye. Como la página cambia de estado
+ * cada vez que alguien marca texto —aparece el menú, se apunta el fragmento
+ * pendiente—, sin esta barrera seleccionar y perder lo seleccionado eran la
+ * misma acción.
+ *
+ * Con `memo`, un render de la ficha no llega hasta aquí salvo que el texto haya
+ * cambiado de verdad, que es justo cuando sí hay que repintarlo.
+ */
+export const Markdown = memo(function Markdown({ content }: { content: string }) {
   const html = useMemo(() => String(processor.processSync(content)), [content]);
 
   return (
@@ -77,4 +91,4 @@ export function Markdown({ content }: { content: string }) {
       dangerouslySetInnerHTML={{ __html: html }}
     />
   );
-}
+});

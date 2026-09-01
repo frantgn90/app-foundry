@@ -88,10 +88,14 @@ test('de crear una app a encontrarla por su contenido', async ({ page, context }
       // El gesto se suelta aquí mismo, sin salir del navegador: entre poner la
       // selección y soltar el ratón desde fuera cabe un repintado que se la
       // lleva por delante, y el menú no llega a aparecer.
-      const caja = rango.getBoundingClientRect();
-      parrafo?.dispatchEvent(
-        new MouseEvent('mouseup', { bubbles: true, clientX: caja.right, clientY: caja.bottom }),
-      );
+      /*
+       * El menú aparece al terminar el gesto, y el gesto termina con
+       * `pointerup` sobre el documento —no con `mouseup` sobre el párrafo—.
+       * La selección se construye a mano porque aquí lo que se prueba es la
+       * conversación, no cómo se marca: los gestos tienen su propio recorrido
+       * en `menu-de-seleccion.spec.ts`.
+       */
+      document.dispatchEvent(new PointerEvent('pointerup', { bubbles: true }));
     });
 
     // El menú flotante, no el botón de enviar del formulario: ambos dicen

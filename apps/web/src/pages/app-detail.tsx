@@ -196,16 +196,19 @@ export function AppDetailPage({
    * API), así que el observador no puede dispararse a sí mismo.
    */
   /**
-   * El menú de selección se abre al **cambiar la selección**, no al soltar el
-   * ratón (RF-1415).
+   * El menú aparece cuando **termina** el gesto, no mientras se hace.
    *
-   * Con `mouseup` como disparador se quedaban fuera el doble clic sobre una
-   * palabra, el triple clic sobre un párrafo, la selección con teclado y los
-   * arrastres que terminan fuera del texto. Ninguno es un gesto raro, y los
-   * cuatro producían una selección perfectamente válida que el menú ignoraba.
+   * Esto empezó escuchando el cambio de selección, y era un error: ese evento se
+   * dispara continuamente mientras se arrastra, así que cada fotograma
+   * provocaba estado nuevo, un render y un repintado del resaltado **encima de
+   * una selección que el usuario todavía estaba haciendo**. El resultado era una
+   * selección errática, que es exactamente lo que no puede pasar: seleccionar
+   * texto tiene que comportarse como en cualquier página, sin que la aplicación
+   * se meta por medio.
    *
-   * Se espera un fotograma para no recalcular en cada píxel del arrastre: el
-   * navegador dispara este evento continuamente mientras se marca.
+   * Escuchando el final del gesto se cubren los cuatro casos que fallaban
+   * —doble clic, triple clic, teclado y arrastres que terminan fuera del
+   * texto— sin tocar nada mientras dura (RF-1415).
    */
   useEffect(() => {
     const contenedor = readingRef.current;
@@ -216,28 +219,30 @@ export function AppDetailPage({
      */
     if (!contenedor || editando || versionElegida !== null || composing) return;
 
-    let programado = 0;
-    const alCambiar = () => {
-      cancelAnimationFrame(programado);
-      programado = requestAnimationFrame(() => {
-        const contenido = document.data?.content;
-        if (!contenido) return;
+    const alTerminar = () => {
+      const contenido = document.data?.content;
+      if (!contenido) return;
 
-        const seleccion = resolveSelection(contenido, contenedor);
-        if (!seleccion) {
-          setPendingSelection(null);
-          setMenuRect(null);
-          return;
-        }
-        setPendingSelection(seleccion);
-        setMenuRect(selectionRect(contenedor));
-      });
+      const seleccion = resolveSelection(contenido, contenedor);
+      if (!seleccion) {
+        setPendingSelection(null);
+        setMenuRect(null);
+        return;
+      }
+      setPendingSelection(seleccion);
+      setMenuRect(selectionRect(contenedor));
     };
 
-    window.document.addEventListener('selectionchange', alCambiar);
+    /*
+     * `pointerup` cubre ratón y táctil, y va en el documento y no en el
+     * contenedor para no perderse los arrastres que terminan fuera del texto.
+     * `keyup` cubre la selección con teclado, que no tiene puntero ninguno.
+     */
+    window.document.addEventListener('pointerup', alTerminar);
+    window.document.addEventListener('keyup', alTerminar);
     return () => {
-      cancelAnimationFrame(programado);
-      window.document.removeEventListener('selectionchange', alCambiar);
+      window.document.removeEventListener('pointerup', alTerminar);
+      window.document.removeEventListener('keyup', alTerminar);
     };
   }, [editando, versionElegida, composing, document.data?.content]);
 

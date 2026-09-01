@@ -60,10 +60,14 @@ test('la conversación se queda en su versión, y sigue habiendo camino hasta el
       seleccion?.removeAllRanges();
       seleccion?.addRange(rango);
 
-      const caja = rango.getBoundingClientRect();
-      parrafo?.dispatchEvent(
-        new MouseEvent('mouseup', { bubbles: true, clientX: caja.right, clientY: caja.bottom }),
-      );
+      /*
+       * El menú aparece al terminar el gesto, y el gesto termina con
+       * `pointerup` sobre el documento —no con `mouseup` sobre el párrafo—.
+       * La selección se construye a mano porque aquí lo que se prueba es la
+       * conversación, no cómo se marca: los gestos tienen su propio recorrido
+       * en `menu-de-seleccion.spec.ts`.
+       */
+      document.dispatchEvent(new PointerEvent('pointerup', { bubbles: true }));
     });
 
     await page.locator('.fixed').getByRole('button', { name: 'Comment' }).click();
