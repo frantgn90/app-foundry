@@ -21,6 +21,15 @@ const DOCUMENTO = [
   'Primer parrafo con bastante texto para arrastrar de un lado a otro con calma.',
   '',
   'Segundo parrafo, para tener algo debajo del primero.',
+  '',
+  /*
+   * Un párrafo repartido en dos líneas del fuente, como está escrita la
+   * plantilla de la visión y como se escribe casi todo. La pantalla enseña el
+   * salto como un espacio, así que marcar de una línea a la siguiente producía
+   * un texto que no aparecía en su propio bloque.
+   */
+  'Tercer parrafo escrito en dos lineas del fuente,',
+  'que la pantalla enseña seguidas y termina aqui.',
 ].join('\n');
 
 test('el menú aparece con los cuatro gestos, y siempre bajo la selección', async ({
@@ -51,6 +60,8 @@ test('el menú aparece con los cuatro gestos, y siempre bajo la selección', asy
   const menu = page.getByRole('button', { name: 'Comment', exact: true });
   const titulo = page.getByRole('heading', { name: 'Un titulo entero para seleccionar' });
   const primerParrafo = page.getByText('Primer parrafo con bastante texto');
+  const segundoParrafo = page.getByText('Segundo parrafo, para tener algo');
+  const parrafoPartido = page.getByText('Tercer parrafo escrito en dos lineas');
 
   /** Deshace la selección sin dejar el menú abierto de la comprobación anterior. */
   async function limpiar(): Promise<void> {
@@ -70,8 +81,27 @@ test('el menú aparece con los cuatro gestos, y siempre bajo la selección', asy
     const caja = await menu.boundingBox();
     const marcado = await page.evaluate(() => {
       const s = window.getSelection();
-      if (!s || s.rangeCount === 0) return null;
-      const rects = [...s.getRangeAt(0).getClientRects()];
+      const documento = window.document.querySelector('.markdown');
+      if (!s || s.rangeCount === 0 || !documento) return null;
+
+      /*
+       * La referencia es lo marcado **dentro del documento**, no el rango en
+       * bruto: el navegador termina la selección fuera del texto más a menudo de
+       * lo que parece —el triple clic sobre el último párrafo la lleva hasta el
+       * botón de abajo—, y medir contra eso pediría el menú por debajo de algo
+       * que el usuario no ha marcado.
+       */
+      const limites = window.document.createRange();
+      limites.selectNodeContents(documento);
+      const rango = s.getRangeAt(0).cloneRange();
+      if (rango.compareBoundaryPoints(Range.START_TO_START, limites) < 0) {
+        rango.setStart(limites.startContainer, limites.startOffset);
+      }
+      if (rango.compareBoundaryPoints(Range.END_TO_END, limites) > 0) {
+        rango.setEnd(limites.endContainer, limites.endOffset);
+      }
+
+      const rects = [...rango.getClientRects()].filter((r) => r.width > 0 || r.height > 0);
       const ultimo = rects[rects.length - 1];
       return ultimo ? { bottom: ultimo.bottom, right: ultimo.right } : null;
     });
@@ -125,6 +155,52 @@ test('el menú aparece con los cuatro gestos, y siempre bajo la selección', asy
     expect(despues.length).toBeGreaterThan(antes.length);
     await expect(menu).toBeVisible();
     await limpiar();
+  });
+
+  /*
+   * Seleccionar más de una línea, que es lo que se hace todo el rato y lo que
+   * seguía sin funcionar: dentro de un párrafo escrito en dos líneas del fuente,
+   * y cruzando de un párrafo al siguiente.
+   */
+  await test.step('un parrafo escrito en dos lineas del fuente', async () => {
+    await parrafoPartido.click({ clickCount: 3 });
+
+    const marcado = await page.evaluate(() => window.getSelection()?.toString() ?? '');
+    /* Se ha marcado el párrafo entero, las dos líneas del fuente. */
+    expect(marcado).toContain('Tercer parrafo');
+    expect(marcado).toContain('termina aqui');
+
+    await menuBajoLaSeleccion();
+    await limpiar();
+  });
+
+  await test.step('una seleccion que pasa de un parrafo al siguiente', async () => {
+    const desde = (await primerParrafo.boundingBox())!;
+    const hasta = (await segundoParrafo.boundingBox())!;
+
+    await page.mouse.move(desde.x + desde.width * 0.3, desde.y + desde.height / 2);
+    await page.mouse.down();
+    await page.mouse.move(hasta.x + hasta.width * 0.5, hasta.y + hasta.height / 2, { steps: 15 });
+    await page.mouse.up();
+
+    await menuBajoLaSeleccion();
+    await limpiar();
+  });
+
+  /*
+   * Y que el comentario llegue a existir, no solo que salga el menú. El
+   * servidor comprueba que la cita coincide con lo que él tiene entre esas dos
+   * posiciones, así que un anclaje que cuadre en pantalla pero no en el fuente
+   * se rechaza aquí y en ningún sitio antes.
+   */
+  await test.step('comentar sobre esa seleccion de dos lineas', async () => {
+    await parrafoPartido.click({ clickCount: 3 });
+    await page.locator('.fixed').getByRole('button', { name: 'Comment' }).click();
+
+    await page.getByRole('textbox', { name: /Write a comment/ }).fill('Cabe en dos lineas');
+    await page.getByRole('button', { name: 'Comment', exact: true }).click();
+
+    await expect(page.getByText('Cabe en dos lineas')).toBeVisible();
   });
 
   /*

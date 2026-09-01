@@ -219,7 +219,7 @@ export function AppDetailPage({
      */
     if (!contenedor || editando || versionElegida !== null || composing) return;
 
-    const alTerminar = () => {
+    const mirar = () => {
       const contenido = document.data?.content;
       if (!contenido) return;
 
@@ -234,6 +234,20 @@ export function AppDetailPage({
     };
 
     /*
+     * Se mira un instante **después** del evento, no dentro de él.
+     *
+     * Durante `pointerup` la selección todavía es la de antes: al pulsar fuera
+     * del texto para quitarla, el navegador no la ha deshecho aún, así que
+     * preguntarle ahí devuelve lo que ya no está marcado y el menú se quedaba
+     * puesto. Un turno del bucle de eventos basta; ni se ve.
+     */
+    let pendiente: number | undefined;
+    const alTerminar = () => {
+      window.clearTimeout(pendiente);
+      pendiente = window.setTimeout(mirar, 0);
+    };
+
+    /*
      * `pointerup` cubre ratón y táctil, y va en el documento y no en el
      * contenedor para no perderse los arrastres que terminan fuera del texto.
      * `keyup` cubre la selección con teclado, que no tiene puntero ninguno.
@@ -241,6 +255,7 @@ export function AppDetailPage({
     window.document.addEventListener('pointerup', alTerminar);
     window.document.addEventListener('keyup', alTerminar);
     return () => {
+      window.clearTimeout(pendiente);
       window.document.removeEventListener('pointerup', alTerminar);
       window.document.removeEventListener('keyup', alTerminar);
     };

@@ -45,7 +45,13 @@ export function SelectionMenu({ rect, onComment }: { rect: DOMRect; onComment: (
   return (
     <div
       ref={ref}
-      className="fixed z-20"
+      /*
+        `select-none` no es cosmético: el menú aparece justo detrás del
+        documento en el árbol, así que una selección que se pasa de largo —el
+        triple clic sobre el último párrafo lo hace— se lo lleva dentro y el
+        propio «Comment» pasaba a formar parte del texto marcado.
+      */
+      className="fixed z-20 select-none"
       style={{
         top: posicion?.top ?? rect.bottom + SEPARACION,
         left: posicion?.left ?? rect.right,

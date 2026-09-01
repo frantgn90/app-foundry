@@ -11,6 +11,15 @@
  * un sitio inventado.
  */
 export interface SourceSelection {
+  /**
+   * El fragmento **del fuente**, no el texto tal como se ve.
+   *
+   * Tiene que ser el fuente porque el servidor comprueba que coincide con
+   * `contenido.slice(start, end)` antes de crear el hilo: es su forma de saber
+   * que cliente y servidor miran el mismo texto. Y no coinciden por casualidad
+   * —un párrafo escrito en dos líneas lleva un salto donde la pantalla enseña un
+   * espacio—, así que se recorta del fuente en lugar de copiarlo de la pantalla.
+   */
   quote: string;
   start: number;
   end: number;
@@ -27,33 +36,47 @@ export interface SourceSelection {
 const MINIMO = 2;
 
 export function resolveSelection(content: string, root: HTMLElement): SourceSelection | null {
-  const selection = window.getSelection();
-  if (!selection || selection.isCollapsed || selection.rangeCount === 0) return null;
-
-  const text = selection.toString().trim();
-  if (text.length < MINIMO) return null;
-
-  const range = selection.getRangeAt(0);
-  if (!root.contains(range.commonAncestorContainer)) return null;
-
-  const block = bloqueDe(range, root);
-  if (!block) return null;
-
-  const blockStart = Number(block.dataset['srcStart']);
-  const blockEnd = Number(block.dataset['srcEnd']);
-  if (Number.isNaN(blockStart) || Number.isNaN(blockEnd)) return null;
+  const rango = seleccionEnElDocumento(root);
+  if (!rango || rango.toString().trim().length < MINIMO) return null;
 
   /*
-   * Se busca el texto seleccionado dentro del fragmento de markdown que
-   * corresponde a ese bloque. Coincide siempre que la selección no cruce
-   * marcado —negritas, enlaces—, que es el caso corriente al comentar sobre una
-   * frase. Cuando no coincide, se prefiere no anclar antes que aproximar.
+   * Bloque a bloque, y no de una vez: cada bloque tiene su propio tramo de
+   * markdown, y solo dentro de él se puede buscar lo que se marcó. Buscar el
+   * texto entero dentro del fuente de un único bloque era lo que dejaba sin menú
+   * cualquier selección que pasara de un párrafo al siguiente.
    */
-  const source = content.slice(blockStart, blockEnd);
-  const offset = source.indexOf(text);
-  if (offset === -1) return null;
+  let start: number | null = null;
+  let end: number | null = null;
 
-  return { quote: text, start: blockStart + offset, end: blockStart + offset + text.length };
+  for (const bloque of bloquesDe(rango, root)) {
+    /*
+     * Un bloque rozado sin llegar a marcar nada no invalida la selección: el
+     * triple clic termina el rango en el arranque del bloque siguiente, con
+     * desplazamiento cero, así que ese bloque siempre aparece y siempre está
+     * vacío.
+     */
+    const marcado = recortarA(rango, bloque)?.toString().trim();
+    if (marcado === undefined || marcado === '') continue;
+
+    const blockStart = Number(bloque.dataset['srcStart']);
+    const blockEnd = Number(bloque.dataset['srcEnd']);
+    if (Number.isNaN(blockStart) || Number.isNaN(blockEnd)) return null;
+
+    const tramo = buscar(content.slice(blockStart, blockEnd), marcado);
+    /*
+     * Si en algún bloque no se encuentra lo marcado —porque la selección parte
+     * el marcado por la mitad: media negrita, medio enlace— se renuncia entera.
+     * Anclar solo la parte que sí se encontró dejaría el comentario sobre un
+     * fragmento que no es el que se señaló.
+     */
+    if (!tramo) return null;
+
+    start ??= blockStart + tramo[0];
+    end = blockStart + tramo[1];
+  }
+
+  if (start === null || end === null) return null;
+  return { quote: content.slice(start, end), start, end };
 }
 
 /**
@@ -66,46 +89,125 @@ export function resolveSelection(content: string, root: HTMLElement): SourceSele
  * donde termina el gesto (RF-1414).
  */
 export function selectionRect(root: HTMLElement): DOMRect | null {
-  const selection = window.getSelection();
-  if (!selection || selection.isCollapsed || selection.rangeCount === 0) return null;
+  const rango = seleccionEnElDocumento(root);
+  if (!rango) return null;
 
-  const range = selection.getRangeAt(0);
-  if (!root.contains(range.commonAncestorContainer)) return null;
-
-  const rects = [...range.getClientRects()].filter((r) => r.width > 0 || r.height > 0);
+  const rects = [...rango.getClientRects()].filter((r) => r.width > 0 || r.height > 0);
   return rects[rects.length - 1] ?? null;
 }
 
 /**
- * El bloque renderizado al que pertenece la selección, con su rastro de posición.
+ * La selección, recortada a lo que cae dentro del documento.
  *
- * Se sube desde **el principio** de la selección, no desde su contenedor común.
- * La diferencia importa: cuando la selección cubre un bloque entero —un título,
- * un párrafo completo—, el contenedor común pasa a ser el elemento padre, que ya
- * no lleva el rastro, y subir desde ahí no encuentra nada. Por eso seleccionar
- * un título no ofrecía menú, y no por ser markdown (RF-1416).
+ * Recortar y no descartar es el arreglo de un fallo concreto: el navegador
+ * termina la selección **fuera** del texto más a menudo de lo que parece. Con el
+ * triple clic sobre el último párrafo, el rango acaba en el siguiente elemento
+ * de la página —un botón—, y lo mismo pasa al arrastrar y soltar por debajo del
+ * documento. Exigiendo que el rango entero cayera dentro, todas esas selecciones
+ * se rechazaban aunque lo marcado fuera perfectamente válido.
  *
- * Y **no** se exige que el final caiga en el mismo bloque, aunque suene
- * razonable: al seleccionar un bloque entero con triple clic, el navegador
- * termina el rango en el arranque del bloque siguiente, con desplazamiento cero.
- * Es decir, dice que llega hasta ahí sin haber seleccionado nada de él. Exigir
- * coincidencia rechazaba justo el gesto que se quería arreglar.
- *
- * Quien impide anclar una selección que cruza dos bloques no es esta función,
- * sino la búsqueda de la cita: el fuente de un bloque no contiene el texto de
- * dos, así que no se encuentra y se devuelve `null` unas líneas más abajo.
+ * Lo que sí se exige es que el gesto **empiece o acabe** dentro del documento.
+ * Sin eso, un «seleccionar todo» de la página entera —que también lo cruza—
+ * pasaría por una selección sobre el texto.
  */
-function bloqueDe(range: Range, root: HTMLElement): HTMLElement | null {
-  return subirHasta(range.startContainer, root) ?? subirHasta(range.endContainer, root);
+function seleccionEnElDocumento(root: HTMLElement): Range | null {
+  const selection = window.getSelection();
+  if (!selection || selection.isCollapsed || selection.rangeCount === 0) return null;
+
+  const range = selection.getRangeAt(0);
+  if (!root.contains(range.startContainer) && !root.contains(range.endContainer)) return null;
+
+  return recortarA(range, root);
 }
 
-function subirHasta(node: Node, root: HTMLElement): HTMLElement | null {
-  let current: Node | null = node;
-  while (current && current !== root) {
-    if (current instanceof HTMLElement && current.dataset['srcStart'] !== undefined) {
-      return current;
-    }
-    current = current.parentNode;
+/**
+ * Los bloques renderizados que toca la selección, de arriba abajo.
+ *
+ * Se quedan los **más internos**: un `blockquote` o un elemento de lista llevan
+ * el rastro de posición y además contienen párrafos que también lo llevan, así
+ * que contar los dos sería medir el mismo texto dos veces.
+ */
+function bloquesDe(rango: Range, root: HTMLElement): HTMLElement[] {
+  const tocados = [...root.querySelectorAll<HTMLElement>('[data-src-start]')].filter((bloque) =>
+    rango.intersectsNode(bloque),
+  );
+  return tocados.filter(
+    (bloque) => !tocados.some((otro) => otro !== bloque && bloque.contains(otro)),
+  );
+}
+
+/** La parte de un rango que cae dentro de un elemento, o `null` si no cae nada. */
+function recortarA(rango: Range, elemento: HTMLElement): Range | null {
+  const limites = window.document.createRange();
+  limites.selectNodeContents(elemento);
+
+  const trozo = rango.cloneRange();
+  if (trozo.compareBoundaryPoints(Range.START_TO_START, limites) < 0) {
+    trozo.setStart(limites.startContainer, limites.startOffset);
   }
-  return null;
+  if (trozo.compareBoundaryPoints(Range.END_TO_END, limites) > 0) {
+    trozo.setEnd(limites.endContainer, limites.endOffset);
+  }
+
+  /* Recortar puede dejarlo vacío: la selección pasaba de largo sin tocar esto. */
+  return trozo.collapsed ? null : trozo;
+}
+
+/**
+ * Busca lo marcado dentro del fuente de su bloque, sin exigir que los espacios
+ * coincidan.
+ *
+ * Es el otro arreglo de fondo. Un párrafo se escribe muchas veces repartido en
+ * varias líneas del fuente —la plantilla de la visión lo está— y el navegador
+ * enseña ese salto como un espacio. Comparando carácter a carácter, el texto
+ * marcado no aparecía en su propio bloque en cuanto la selección pasaba de una
+ * línea del fuente a la siguiente: quedarse sin menú era el caso corriente y no
+ * la excepción.
+ *
+ * Devuelve el tramo en posiciones del fuente, que es lo que se guarda.
+ */
+function buscar(fuente: string, marcado: string): [number, number] | null {
+  const { texto, indices } = sinEspaciosDeMas(fuente);
+  const aguja = sinEspaciosDeMas(marcado).texto;
+  if (aguja === '') return null;
+
+  const donde = texto.indexOf(aguja);
+  if (donde === -1) return null;
+
+  const primero = indices[donde];
+  const ultimo = indices[donde + aguja.length - 1];
+  if (primero === undefined || ultimo === undefined) return null;
+
+  return [primero, ultimo + 1];
+}
+
+/**
+ * El mismo texto con cada racha de espacios reducida a uno, y de dónde salió
+ * cada carácter.
+ *
+ * El rastro de posiciones es lo que permite volver del texto comparado al
+ * fuente: sin él se sabría que coincide, pero no dónde.
+ */
+function sinEspaciosDeMas(texto: string): { texto: string; indices: number[] } {
+  let salida = '';
+  const indices: number[] = [];
+  let veniaEnBlanco = false;
+
+  for (let i = 0; i < texto.length; i += 1) {
+    const caracter = texto[i]!;
+    if (/\s/.test(caracter)) {
+      /* Ni al principio ni repetido: un espacio suelto entre dos palabras. */
+      if (!veniaEnBlanco && salida !== '') {
+        salida += ' ';
+        indices.push(i);
+      }
+      veniaEnBlanco = true;
+      continue;
+    }
+    veniaEnBlanco = false;
+    salida += caracter;
+    indices.push(i);
+  }
+
+  return { texto: salida, indices };
 }

@@ -663,9 +663,23 @@ Solo se desglosa el hito en curso. H9 está cerrada; H10 está desglosada abajo.
 | # | Tarea | Verificación | Traza | Estado |
 |---|---|---|---|---|
 | AU1 | Posicionar el menú con la geometría de la selección, no con el puntero | Bajo su última línea y a su derecha, arrastrando en cualquier dirección | RF-1414, U26 | ✅ |
-| AU2 | Detectar la selección por su cambio, no por soltar el ratón | Doble clic, triple clic y teclado abren el menú | RF-1415, U27 | ✅ |
+| AU2 | Detectar la selección al terminar el gesto, no mientras se hace | Doble clic, triple clic y teclado abren el menú | RF-1415, U27 | ✅ |
 | AU3 | Resolver también los bloques enteros, y bajar el mínimo a dos caracteres | Un título seleccionado entero ofrece menú | RF-1416, U27 | ✅ |
 | AU4 | Recorrido del menú de extremo a extremo | Los cuatro gestos, y que arrastrar no descoloque la selección | RNF-905 | ✅ |
+| AU5 | Seleccionar más de una línea | Un párrafo escrito en dos líneas del fuente, y una selección que cruza de un párrafo al siguiente | RF-1416, U27 | ✅ |
+
+> **Sobre AU2 y AU5.** El enunciado original de AU2 decía «por su cambio»; escuchar `selectionchange` resultó ser
+> justo lo que volvía errática la selección —se dispara en cada fotograma del arrastre—, así que se escucha el final
+> del gesto y el enunciado se ha corregido para que diga lo que el código hace.
+>
+> AU5 salió de usarlo: seleccionar más de una línea seguía sin ofrecer menú. Eran tres cosas distintas y ninguna era
+> la que parecía. Un párrafo se escribe repartido en varias líneas del fuente —la plantilla de la visión lo está— y
+> el navegador enseña ese salto como un espacio, así que el texto marcado no aparecía en su propio bloque; la cita
+> se busca ahora sin exigir que los espacios coincidan, y bloque a bloque, que de paso permite cruzar de un párrafo
+> al siguiente. Además el navegador termina la selección **fuera** del documento más a menudo de lo que parece —el
+> triple clic sobre el último párrafo la lleva hasta el botón de abajo—, y exigir que el rango entero cayera dentro
+> rechazaba selecciones perfectamente válidas: ahora se recorta. Y se mira un turno después del evento, porque
+> durante `pointerup` la selección todavía es la de antes y el menú se quedaba puesto al pulsar fuera para quitarla.
 
 ### Bloque AV — El asistente por dentro
 
