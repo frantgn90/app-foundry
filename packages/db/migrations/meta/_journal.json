@@ -330,6 +330,13 @@
       "when": 1788560053059,
       "tag": "0046_agents",
       "breakpoints": true
+    },
+    {
+      "idx": 47,
+      "version": "7",
+      "when": 1788560186152,
+      "tag": "0047_agent_prompt_revisions",
+      "breakpoints": true
     }
   ]
 }

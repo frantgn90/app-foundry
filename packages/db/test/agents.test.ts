@@ -1,8 +1,8 @@
-import { and, eq, isNotNull, sql } from 'drizzle-orm';
+import { and, desc, eq, isNotNull, sql } from 'drizzle-orm';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
-import { agents, agentTemplates, apps } from '../src/index.js';
-import { startTestDb, type TestDb } from './helpers.js';
+import { agentPromptRevisions, agents, agentTemplates, apps } from '../src/index.js';
+import { asAppUser, startTestDb, type TestDb } from './helpers.js';
 import { type Scenario, seed } from './scenario.js';
 
 let db: TestDb;
@@ -245,6 +245,82 @@ describe('de qué plantilla desciende', () => {
       .where(and(eq(agents.appId, appAna), eq(agents.handle, 'huerfano')));
     expect(sobrevive).toBeDefined();
     expect(sobrevive!.templateId).toBeNull();
+  });
+});
+
+describe('el prompt, versión a versión', () => {
+  let elAgente: string;
+
+  beforeAll(async () => {
+    const [creado] = await db.db
+      .insert(agents)
+      .values(agente(appAna, 'con-prompt'))
+      .returning({ id: agents.id });
+    elAgente = creado!.id;
+
+    await db.db.insert(agentPromptRevisions).values([
+      { agentId: elAgente, revision: 1, prompt: 'Ask what problem this solves.', createdBy: e.ana },
+      { agentId: elAgente, revision: 2, prompt: 'And for whom, exactly.', createdBy: e.ana },
+    ]);
+  });
+
+  it('el vigente es el de número más alto', async () => {
+    const [vigente] = await db.db
+      .select()
+      .from(agentPromptRevisions)
+      .where(eq(agentPromptRevisions.agentId, elAgente))
+      .orderBy(desc(agentPromptRevisions.revision))
+      .limit(1);
+    expect(vigente!.revision).toBe(2);
+    expect(vigente!.prompt).toBe('And for whom, exactly.');
+  });
+
+  it('el anterior sigue legible: es de donde cuelga lo que ya se escribió', async () => {
+    const todas = await db.db
+      .select()
+      .from(agentPromptRevisions)
+      .where(eq(agentPromptRevisions.agentId, elAgente));
+    expect(todas).toHaveLength(2);
+  });
+
+  it('no se repite el número dentro del mismo agente', async () => {
+    const error = await fallo(() =>
+      db.db
+        .insert(agentPromptRevisions)
+        .values({ agentId: elAgente, revision: 2, prompt: 'Otra vez la dos.' }),
+    );
+    expect(error).not.toBeNull();
+  });
+
+  it('la numeración empieza en uno: no hay revisión cero ni negativa', async () => {
+    const error = await fallo(() =>
+      db.db
+        .insert(agentPromptRevisions)
+        .values({ agentId: elAgente, revision: 0, prompt: 'Antes del principio.' }),
+    );
+    expect(mensajeDe(error)).toContain('agent_prompt_revisions_positive_check');
+  });
+
+  it('la aplicación no puede reescribir una revisión, solo añadir otra', async () => {
+    const error = await fallo(() =>
+      asAppUser(db.db, e.ana, (tx) =>
+        tx
+          .update(agentPromptRevisions)
+          .set({ prompt: 'Reescrito a posteriori.' })
+          .where(eq(agentPromptRevisions.agentId, elAgente)),
+      ),
+    );
+    /* Falla por permiso, no por una política: el UPDATE no está concedido. */
+    expect(mensajeDe(error)).toContain('permission denied');
+  });
+
+  it('ni borrarla', async () => {
+    const error = await fallo(() =>
+      asAppUser(db.db, e.ana, (tx) =>
+        tx.delete(agentPromptRevisions).where(eq(agentPromptRevisions.agentId, elAgente)),
+      ),
+    );
+    expect(mensajeDe(error)).toContain('permission denied');
   });
 });
 

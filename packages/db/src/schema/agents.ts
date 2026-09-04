@@ -3,6 +3,7 @@ import {
   type AnyPgColumn,
   boolean,
   index,
+  integer,
   pgTable,
   text,
   timestamp,
@@ -155,3 +156,44 @@ export const agents = pgTable(
 );
 
 export type AgentRow = typeof agents.$inferSelect;
+
+/**
+ * El prompt de un agente, versión a versión (RF-1510).
+ *
+ * El vigente es el de número más alto. No está en `agents` porque cada
+ * comentario apunta a **la revisión concreta** con la que se escribió: ajustar
+ * la personalidad después no debe reescribir la historia de por qué el agente
+ * dijo lo que dijo.
+ *
+ * Se guarda el puntero y no una copia del texto en cada comentario. Duplicar
+ * kilobytes por línea escrita sería tirar el espacio, y la pregunta que hay que
+ * poder contestar —«¿con qué perfil escribió esto?»— se contesta igual de bien
+ * desde aquí.
+ */
+export const agentPromptRevisions = pgTable(
+  'agent_prompt_revisions',
+  {
+    id: uuid('id')
+      .primaryKey()
+      .default(sql`uuidv7()`),
+    agentId: uuid('agent_id')
+      .notNull()
+      .references(() => agents.id, { onDelete: 'cascade' }),
+    /**
+     * Correlativo dentro del agente, empezando en 1.
+     *
+     * Un número y no solo la fecha: «la revisión 2» se dice, se enseña y se
+     * compara, y dos revisiones creadas en el mismo milisegundo seguirían
+     * teniendo un orden.
+     */
+    revision: integer('revision').notNull(),
+    prompt: text('prompt').notNull(),
+    createdBy: uuid('created_by').references(() => users.id, { onDelete: 'set null' }),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    unique('agent_prompt_revisions_agent_revision_key').on(table.agentId, table.revision),
+  ],
+);
+
+export type AgentPromptRevisionRow = typeof agentPromptRevisions.$inferSelect;
