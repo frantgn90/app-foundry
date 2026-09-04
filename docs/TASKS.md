@@ -910,7 +910,7 @@ Solo se desglosa el hito en curso. H9, H10 y H11 están cerradas; **H12** está 
 | BC3 | El prompt como revisión numerada, no como texto suelto | Ajustarlo añade revisión; la anterior sigue legible | RF-1510 | ✅ |
 | BC4 | Desactivar y retirar sin borrar | `active` y `removed_at`; lo escrito se queda donde está | RF-1508, RF-1509 | ✅ |
 | BC5 | Autoría polimórfica con el invariante en el motor | Autor único en comentarios e hilos, y migración sin ventana sin autor | T-34, RF-1601 | ✅ |
-| BC6 | Las menciones a agentes, en su propia tabla | Una invoca y la otra notifica; ninguna finge ser la otra | T-34, RF-1602 | ⬜ |
+| BC6 | Las menciones a agentes, en su propia tabla | Una invoca y la otra notifica; ninguna finge ser la otra | T-34, RF-1602 | ✅ |
 | BC7 | La invocación sabe qué agente la provocó | `actor_agent_id` junto al `actor_user_id` que ya había | RD-10, RF-1201 | ⬜ |
 | BC8 | Las tablas nuevas entran en la suite de aislamiento | Con el rol de la aplicación, no como superusuario | RNF-603, RNF-904 | ⬜ |
 

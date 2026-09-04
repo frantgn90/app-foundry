@@ -163,5 +163,36 @@ export const commentMentions = pgTable(
   ],
 );
 
+/**
+ * A qué agente se invoca en un comentario (RF-1602, T-34).
+ *
+ * Tabla aparte de `comment_mentions` y no una columna más en ella, aunque las
+ * dos salgan de leer `@algo` en el mismo texto. Son dos comportamientos: una
+ * **avisa** a una persona y la otra **invoca** a un agente, que cuesta tokens y
+ * escribe en el documento. Separarlas mantiene además cada clave ajena
+ * obligatoria en vez de dejar dos columnas opcionales que se turnan.
+ *
+ * Aquí no entra lo que menciona un agente: una mención escrita por un agente no
+ * invoca a nadie (RF-1604). Quién dispara y cuándo se decide en el consumidor
+ * del evento (T-35), pero la mitad estructural está en el motor: un trigger
+ * impide que se escriba una fila cuyo comentario no lo firme una persona, y
+ * otra cuyo agente sea de otra app (RF-1512). Sin fila no hay invocación.
+ */
+export const commentAgentMentions = pgTable(
+  'comment_agent_mentions',
+  {
+    commentId: uuid('comment_id')
+      .notNull()
+      .references(() => comments.id, { onDelete: 'cascade' }),
+    agentId: uuid('agent_id')
+      .notNull()
+      .references(() => agents.id, { onDelete: 'cascade' }),
+  },
+  (table) => [
+    primaryKey({ columns: [table.commentId, table.agentId] }),
+    index('comment_agent_mentions_agent_idx').on(table.agentId),
+  ],
+);
+
 export type CommentThreadRow = typeof commentThreads.$inferSelect;
 export type CommentRow = typeof comments.$inferSelect;

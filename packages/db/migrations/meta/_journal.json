@@ -351,6 +351,13 @@
       "when": 1788560446401,
       "tag": "0049_comment_polymorphic_authorship",
       "breakpoints": true
+    },
+    {
+      "idx": 50,
+      "version": "7",
+      "when": 1788560760907,
+      "tag": "0050_comment_agent_mentions",
+      "breakpoints": true
     }
   ]
 }

@@ -6,6 +6,7 @@ import {
   agents,
   agentTemplates,
   apps,
+  commentAgentMentions,
   comments,
   commentThreads,
   documents,
@@ -518,6 +519,94 @@ describe('quién firma un comentario', () => {
      */
     expect(mensajeDe(error)).toContain('violates foreign key constraint');
     expect(mensajeDe(error)).toContain('agents');
+  });
+});
+
+describe('a quién se puede invocar con una mención', () => {
+  let documento: string;
+  let elAgente: string;
+  let suPerfil: string;
+  let hiloDeAna: string;
+
+  beforeAll(async () => {
+    const [doc] = await db.db
+      .select({ id: documents.id })
+      .from(documents)
+      .where(eq(documents.appId, appAna));
+    documento = doc!.id;
+
+    const [creado] = await db.db
+      .insert(agents)
+      .values(agente(appAna, 'invocable'))
+      .returning({ id: agents.id });
+    elAgente = creado!.id;
+
+    const [revision] = await db.db
+      .insert(agentPromptRevisions)
+      .values({ agentId: elAgente, revision: 1, prompt: 'Answer when called.' })
+      .returning({ id: agentPromptRevisions.id });
+    suPerfil = revision!.id;
+
+    const [hilo] = await db.db
+      .insert(commentThreads)
+      .values({ appId: appAna, documentId: documento, kind: 'GENERAL', createdBy: e.ana })
+      .returning({ id: commentThreads.id });
+    hiloDeAna = hilo!.id;
+  });
+
+  async function comentarioDe(quien: { persona?: string; agente?: string }): Promise<string> {
+    const [creado] = await db.db
+      .insert(comments)
+      .values({
+        threadId: hiloDeAna,
+        body: 'Hola @invocable',
+        authorId: quien.persona ?? null,
+        authorAgentId: quien.agente ?? null,
+        agentPromptRevisionId: quien.agente ? suPerfil : null,
+      })
+      .returning({ id: comments.id });
+    return creado!.id;
+  }
+
+  it('una persona invoca a un agente de su app', async () => {
+    const suyo = await comentarioDe({ persona: e.ana });
+    await expect(
+      db.db.insert(commentAgentMentions).values({ commentId: suyo, agentId: elAgente }),
+    ).resolves.not.toThrow();
+  });
+
+  it('un agente no invoca a nadie, aunque lo escriba en su texto', async () => {
+    const suyo = await comentarioDe({ agente: elAgente });
+    const error = await fallo(() =>
+      db.db.insert(commentAgentMentions).values({ commentId: suyo, agentId: elAgente }),
+    );
+    expect(mensajeDe(error)).toContain('Only a person can summon an agent');
+  });
+
+  it('ni a un agente de otra app, aunque se acierte su identificador', async () => {
+    const [ajeno] = await db.db
+      .insert(agents)
+      .values(agente(appBruno, 'de-otra-app'))
+      .returning({ id: agents.id });
+
+    const suyo = await comentarioDe({ persona: e.ana });
+    const error = await fallo(() =>
+      db.db.insert(commentAgentMentions).values({ commentId: suyo, agentId: ajeno!.id }),
+    );
+    expect(mensajeDe(error)).toContain('does not belong to this app');
+  });
+
+  it('la mención muere con su comentario, que es de donde salía', async () => {
+    const suyo = await comentarioDe({ persona: e.ana });
+    await db.db.insert(commentAgentMentions).values({ commentId: suyo, agentId: elAgente });
+
+    await db.db.execute(sql`DELETE FROM comments WHERE id = ${suyo}::uuid`);
+
+    const quedan = await db.db
+      .select()
+      .from(commentAgentMentions)
+      .where(eq(commentAgentMentions.commentId, suyo));
+    expect(quedan).toHaveLength(0);
   });
 });
 
