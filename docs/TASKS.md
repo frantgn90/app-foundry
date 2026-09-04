@@ -544,14 +544,14 @@ empezar cada hito, con el mismo método que la v1.
 
 | Hito    | Contenido                                                                                     | Deja usable                        |
 | ------- | --------------------------------------------------------------------------------------------- | ---------------------------------- |
-| **H9**  | Puerto y adaptadores, cifrado de credenciales, catálogo por API, modelo por tarea, cupos       | La IA ya tiene grifo y contador    |
-| **H10** | Arreglo del menú de selección (U26, U27) y asistente de escritura, con diff que se acepta      | **Primer valor real**              |
+| **H9** ✅  | Puerto y adaptadores, cifrado de credenciales, catálogo por API, modelo por tarea, cupos       | La IA ya tiene grifo y contador    |
+| **H10** ✅ | Arreglo del menú de selección (U26, U27) y asistente de escritura, con diff que se acepta      | **Primer valor real**              |
+| **H11** ✅ | Generación de ideas, con y sin búsqueda web, y la app creada con su visión sembrada            | Cierra «no tengo ideas»            |
+| **H12**    | Agentes: modelo, plantillas, instancias, autoría polimórfica, menciones y respuestas           | Un interlocutor con perfil         |
+| **H13**    | Revisión en abanico: cola, estimación, confirmación, cancelación y cortafuegos                 | **Pensar acompañado, completo**    |
+| **H14**    | Panel de Grafana, recorrido de extremo a extremo, conciliación de cupos y cierre               | v2 completa                        |
 
-Solo se desglosa el hito en curso. H9 y H10 están cerradas; H11 está desglosada abajo.
-| **H11** | Generación de ideas, con y sin búsqueda web, y la app creada con su visión sembrada            | Cierra «no tengo ideas»            |
-| **H12** | Agentes: modelo, plantillas, instancias, autoría polimórfica, menciones y respuestas           | Un interlocutor con perfil         |
-| **H13** | Revisión en abanico: cola, estimación, confirmación, cancelación y cortafuegos                 | **Pensar acompañado, completo**    |
-| **H14** | Panel de Grafana, recorrido de extremo a extremo, conciliación de cupos y cierre               | v2 completa                        |
+Solo se desglosa el hito en curso. H9, H10 y H11 están cerradas; **H12** está desglosada abajo.
 
 ---
 
@@ -879,3 +879,139 @@ Solo se desglosa el hito en curso. H9 y H10 están cerradas; H11 está desglosad
 > obligaba a cada recorrido a escribir a mano una respuesta con la forma exacta de su esquema, y esa copia
 > envejece mal: cambiar el esquema dejaría los guiones antiguos dando por buena una forma que ya no vale. Sirve
 > igual para los esquemas de H12 y H13 sin saber nada de ellos.
+
+---
+
+## H12 — Un interlocutor con perfil
+
+> Objetivo: que en un hilo de una app se pueda escribir `@arquitecta ¿esto se sostiene?` y conteste alguien con
+> criterio propio, que recuerda lo que ya dijo ahí y que sabe callarse. Es la primera vez que la IA **escribe en
+> el producto**: hasta ahora todo lo que generaba un modelo pasaba por un «aceptar» de una persona —un diff, una
+> propuesta de app—, y un comentario de agente se queda escrito sin que nadie lo firme.
+>
+> Lo que **no** entra: la revisión en abanico (H13). Aquí un agente habla cuando le hablan, de uno en uno.
+>
+> Dos cosas que la tabla de hitos coloca en H13 y que aquí no se pueden aplazar. La primera, los **cortafuegos**
+> de RF-1604 y RF-1605: son la condición de entrada del disparo, no un añadido posterior, y sin ellos H12
+> entregaría agentes capaces de contestarse entre sí. La segunda, la **cola y el worker**: el TRD manda las
+> respuestas de agente a `ai:agent-reply` (§11.2, T-32), así que `apps/worker` nace aquí. H13 hereda las dos y
+> añade lo suyo: abanico sobre la versión, estimación, confirmación, cancelación y la suite de RNF-902.
+
+### Bloque BC — El modelo de datos
+
+| # | Tarea | Verificación | Traza | Estado |
+|---|---|---|---|---|
+| BC1 | Plantillas de agente en el workspace | Nombre, handle único ahí, icono, prompt y modelo propio opcional | RF-1501, RF-1104 | ⬜ |
+| BC2 | El agente como instancia en una app, con handle único en ella | Dos apps pueden repetir handle; una app, no | RF-1503, RF-1506, RF-1512 | ⬜ |
+| BC3 | El prompt como revisión numerada, no como texto suelto | Ajustarlo añade revisión; la anterior sigue legible | RF-1510 | ⬜ |
+| BC4 | Desactivar y retirar sin borrar | `active` y `removed_at`; lo escrito se queda donde está | RF-1508, RF-1509 | ⬜ |
+| BC5 | Autoría polimórfica con el invariante en el motor | Autor único en comentarios e hilos, y migración sin ventana sin autor | T-34, RF-1601 | ⬜ |
+| BC6 | Las menciones a agentes, en su propia tabla | Una invoca y la otra notifica; ninguna finge ser la otra | T-34, RF-1602 | ⬜ |
+| BC7 | La invocación sabe qué agente la provocó | `actor_agent_id` junto al `actor_user_id` que ya había | RD-10, RF-1201 | ⬜ |
+| BC8 | Las tablas nuevas entran en la suite de aislamiento | Con el rol de la aplicación, no como superusuario | RNF-603, RNF-904 | ⬜ |
+
+> **Sobre BC5.** Es la única migración de H12 que toca datos que ya existen, y el orden importa: las columnas
+> pasan a admitir nulo **después** de que toda fila tenga autor, y las restricciones se añaden `NOT VALID` y se
+> validan a continuación, para no bloquear la tabla de comentarios mientras se comprueba. No hay ningún instante
+> en el que un comentario pueda quedarse sin dueño.
+>
+> Dos columnas excluyentes y no una tabla de autores intermedia (T-34): así el invariante «exactamente uno» lo
+> garantiza Postgres con un `CHECK`, y las dos claves ajenas siguen siendo obligatorias cada una por su lado. Con
+> una tabla intermedia, «este comentario no es de nadie» sería una fila válida.
+>
+> **Sobre BC3.** Cada comentario apunta a la **revisión** del prompt con la que se escribió, no a una copia del
+> texto: duplicar kilobytes por línea escrita sería tirar el espacio, y la pregunta que hay que poder contestar
+> —«¿por qué dijo esto?»— se contesta igual de bien con un puntero.
+
+### Bloque BD — Plantillas e instancias
+
+| # | Tarea | Verificación | Traza | Estado |
+|---|---|---|---|---|
+| BD1 | Alta, edición y borrado de plantillas, solo del `OWNER` | Un miembro no las escribe ni por la API | RF-1501, RF-1502 | ⬜ |
+| BD2 | Añadir y quitar agentes lo hace quien pueda editar la app | Con lectura no; el invitado con edición sí | RF-1503 | ⬜ |
+| BD3 | El prompt se ajusta para esa app sin tocar la plantilla | Editar la instancia no cambia la plantilla, ni la plantilla las instancias | RF-1504, RF-1505 | ⬜ |
+| BD4 | De qué plantilla desciende y si se ha desviado de ella | Y adoptar el cambio de la plantilla cuando se quiera | RF-1504, RF-1505 | ⬜ |
+| BD5 | Tope de agentes por app, configurable de instancia | Cinco por defecto; el sexto se rechaza diciendo por qué | RF-1507, RNF-1002 | ⬜ |
+| BD6 | Auditoría de plantillas y agentes, sin cuerpo de prompt | Se registra que cambió, no lo que dice | RF-1702, RF-1703 | ⬜ |
+| BD7 | El *seed* trae el proveedor de mentira y un par de plantillas | El flujo se prueba sin configurar nada ni gastar cuota de nadie | RNF-1003 | ⬜ |
+
+> **Sobre BD3 y BD4.** Editar una plantilla no propaga nada, y eso es deliberado: una instancia lleva el prompt
+> con el que sus comentarios se escribieron, y reescribirla a distancia dejaría un historial en el que el agente
+> dice cosas que su perfil actual no explica. Lo que sí se hace es **avisar** en las apps afectadas y ofrecer
+> adoptar el cambio, que es una decisión de quien edita esa app y no del dueño del workspace.
+
+### Bloque BE — Cuándo habla un agente, y cuándo calla
+
+| # | Tarea | Verificación | Traza | Estado |
+|---|---|---|---|---|
+| BE1 | `apps/worker`, consumidor de las colas de IA, aparte de la API | Un pico de respuestas no degrada la navegación | T-32, RNF-705 | ⬜ |
+| BE2 | La cola `ai:agent-reply`, con reintentos y cortacircuitos por proveedor | Solo `TRANSIENT` y `RATE_LIMIT` se reintentan; un `AUTH` no | RNF-703, RNF-704 | ⬜ |
+| BE3 | Disparo por mención: una **persona** escribe `@handle` en su app | El agente contesta en ese hilo, en su papel | RF-1602 | ⬜ |
+| BE4 | Disparo por réplica: una **persona** responde donde el agente ya escribió | Sin volver a mencionarlo | RF-1602 | ⬜ |
+| BE5 | Lo escrito por un agente no dispara a nadie | `author_id IS NOT NULL` como condición de entrada del consumidor | RF-1604, T-35 | ⬜ |
+| BE6 | Una mención escrita por un agente no se registra ni avisa | Ni en `comment_agent_mentions` ni en `comment_mentions` | RF-1604 | ⬜ |
+| BE7 | Tope de intervenciones por hilo y agente, configurable de instancia | Al tercero calla; una mención explícita le devuelve la palabra | RF-1605, RNF-1002 | ⬜ |
+| BE8 | Commitear una versión no invoca a nadie | Guardar sigue siendo gratis | RF-1603 | ⬜ |
+| BE9 | Perfil y contenido, separados al construir la petición | Un documento que pida saltarse el perfil no cambia el comportamiento | RF-1614, RNF-605 | ⬜ |
+| BE10 | El contexto entregado: perfil, metadatos de la app y el hilo | Nunca otras apps, nunca otro workspace | RNF-604, RF-1512 | ⬜ |
+| BE11 | El comentario guarda la revisión de prompt con la que se generó | Editar la personalidad después no reescribe la historia | RF-1510 | ⬜ |
+| BE12 | La respuesta pasa por el paso común de invocación | Cupo, registro y traza, con su `actor_agent_id` y tarea `AGENT_REPLY` | RF-1201, RD-10 | ⬜ |
+| BE13 | Un reintento no duplica el comentario | Escritura y cierre del trabajo en la misma transacción, con clave de idempotencia | T-33, RNF-703 | ⬜ |
+| BE14 | Las personas se enteran; el agente no recibe nada | Misma audiencia que entre personas | RF-1612, RF-902 | ⬜ |
+| BE15 | Silenciar los avisos de un agente concreto | Sigue escribiendo; deja de avisar a quien lo silenció | RF-1612 | ⬜ |
+
+> **Sobre BE1 y BE2.** Una respuesta de agente no se espera mirando la pantalla, así que no tiene por qué vivir
+> dentro de una petición HTTP: va a la cola y el worker la escribe cuando la tiene. De paso resuelve gratis lo
+> que en el asistente costó trabajo —reintentos con espera creciente, concurrencia acotada por proveedor,
+> cancelación— porque lo pone la librería y no nosotros (T-32).
+>
+> El worker es **proceso aparte** desde el primer día. Meterlo dentro de la API sería más rápido hoy y muy caro
+> en H13: cinco agentes revisando a la vez comparten CPU y límite de tasa con quien está navegando.
+>
+> **Sobre BE5, BE6 y BE7 — los tres cortafuegos.** Ninguno de los tres se le pide al modelo, porque un cortafuegos
+> que vive en un prompt es una súplica (T-35). Los tres son condiciones comprobables con una consulta:
+>
+> 1. Que un agente no reaccione a otro es `author_id IS NOT NULL` en el consumidor del evento.
+> 2. Que su mención no invoque ni notifique es no insertar la fila; el texto `@handle` sigue ahí, pero no
+>    significa nada.
+> 3. Que el tope se respete es contar sus comentarios en ese hilo antes de encolar.
+>
+> El tope tiene una salvedad que conviene ver escrita: una **mención explícita de una persona** le devuelve la
+> palabra aunque lo hubiera agotado (RF-1605). El tope existe para que un hilo no se llene solo, no para dejar
+> mudo a quien alguien está llamando a propósito.
+>
+> **Sobre BE9.** La garantía de que un documento no reprograme a un agente es estructural y no textual: un agente
+> sin herramientas solo puede escribir un mal comentario (RF-1601, RNF-605). Separar perfil de contenido en la
+> petición es la segunda línea, no la primera. Es la diferencia entre limitar el daño y confiar en que no ocurra.
+
+### Bloque BF — Los agentes en la interfaz
+
+| # | Tarea | Verificación | Traza | Estado |
+|---|---|---|---|---|
+| BF1 | Plantillas en los ajustes del workspace | Solo para el `OWNER`, con icono como el de las apps | RF-1501, RF-1502, D-14 | ⬜ |
+| BF2 | Sección de agentes en la ficha de la app | Icono, perfil y estado; y sin colarse en los contribuidores | RF-1511 | ⬜ |
+| BF3 | Aviso de que la plantilla de origen cambió, y adoptarlo | En la app afectada, no en la plantilla | RF-1505 | ⬜ |
+| BF4 | Los agentes, mencionables desde el compositor | Distinguibles de una persona en la lista y en el texto | RF-1506, RF-815 | ⬜ |
+| BF5 | Distintivo de IA en el comentario y en el panel de hilos | Sin depender del icono | RF-1611, RF-1701 | ⬜ |
+| BF6 | La respuesta aparece sin recargar | Por el canal que ya alimenta los avisos | RF-1602, T-6 | ⬜ |
+| BF7 | Distinguir los hilos con participación de IA | Y que cuenten como abiertos y se busquen igual que los demás | RF-1613, RF-811 | ⬜ |
+| BF8 | Un agente retirado, marcado allí donde escribió | Mismo criterio que con una persona | RF-1509, RF-813 | ⬜ |
+| BF9 | Con qué proveedor y modelo se generó, a la vista | En el propio comentario | RF-1704 | ⬜ |
+| BF10 | Borrar un hilo de agente, como cualquier otro | Lo hace el precursor de la app | RF-1705, RF-806 | ⬜ |
+| BF11 | Sin disponibilidad, los agentes no se ofrecen | Ni con la IA apagada, ni sin modelo asignado a su tarea | RF-1010 | ⬜ |
+
+> **Sobre BF6.** Es la primera vez que algo aparece en el panel de comentarios **sin que quien mira haya hecho
+> nada**: el agente contesta cuando el worker termina, que puede ser diez segundos después de mandar la mención.
+> No se monta un canal nuevo para eso —el de avisos ya llega a esa pantalla (T-6)— pero sí hay que decidir qué
+> hacer mientras tanto, porque un hilo que no acusa recibo de la mención parece roto.
+>
+> **Sobre BF4 y BF5.** Que un agente se distinga de una persona es requisito en **todas partes** donde aparezca
+> (RF-1506), y el icono no basta: un emoji de colores es exactamente lo que también tiene un compañero. El
+> distintivo es aparte del icono a propósito (RF-1611).
+
+### Bloque BG — Cerrar H12
+
+| # | Tarea | Verificación | Traza | Estado |
+|---|---|---|---|---|
+| BG1 | Suite explícita de cortafuegos | Un agente no reacciona a otro; su mención no invoca ni avisa; el tope se respeta | RNF-902 | ⬜ |
+| BG2 | Recorrido completo con el proveedor de mentira | Crear plantilla, añadir agente, mencionarlo, que conteste, replicarle y que calle al tope | RNF-905 | ⬜ |
