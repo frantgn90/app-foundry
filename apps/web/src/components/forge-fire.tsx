@@ -10,10 +10,12 @@
  * Adaptado de «CSS Only Fire», de Simon Goellner (@simeydotme):
  * https://codepen.io/simeydotme/pen/PoyzbPM
  *
- * En oscuro es la forja —blanco, naranja, oro—; en claro, una llama de gas
- * azulada, porque sobre fondo claro la receta original se satura y tapa la
- * página. La receta entera vive en `index.css`, bajo «El fuego de la forja»;
- * aquí solo se cuelga la capa.
+ * Es una llama de gas azul en los dos modos, y baja: se queda a los pies de la
+ * pantalla porque es el suelo de la escena y no el asunto. Lo que cambia entre
+ * claro y oscuro no es el color sino cómo se pinta —sobre fondo claro hay que
+ * invertirla, porque la receta original se satura y tapa la página—. La receta
+ * entera vive en `index.css`, bajo «El fuego de la forja»; aquí solo se cuelga
+ * la capa.
  *
  * Lo único que se anima es `background-position`, pero que sea barato de
  * calcular no lo hace gratis: el `filter` obliga a rehacer la capa en cada

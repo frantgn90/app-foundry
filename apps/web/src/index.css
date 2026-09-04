@@ -242,7 +242,7 @@
   --fuego-ruido: url("data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' width='350' height='500'><filter id='r' x='0' y='0' width='100%25' height='100%25' color-interpolation-filters='sRGB'><feTurbulence type='fractalNoise' baseFrequency='0.09' numOctaves='5' stitchTiles='stitch' seed='3'/><feColorMatrix type='saturate' values='0'/><feColorMatrix type='matrix' values='1 0 0 0 0 0 1 0 0 0 0 0 1 0 0 0 0 0 0 1'/><feComponentTransfer><feFuncR type='gamma' exponent='2.6'/><feFuncG type='gamma' exponent='2.6'/><feFuncB type='gamma' exponent='2.6'/></feComponentTransfer></filter><rect width='350' height='500' filter='url(%23r)'/></svg>");
 
   /*
-   * ── Modo claro: llama de gas ──
+   * ── Modo claro: la misma llama, pintada del revés ──
    *
    * Sobre un fondo claro, `color-dodge` no puede pintar fuego: divide por lo
    * que hay debajo, y sobre casi blanco cualquier llama se satura y tapa la
@@ -280,19 +280,29 @@
 }
 
 /*
- * ── Modo oscuro: la forja ──
+ * ── Modo oscuro: la misma llama de gas ──
  *
- * Aquí sí vale la receta original tal cual: sobre fondo oscuro `color-dodge`
- * enciende, y los colores son los del fuego de verdad.
+ * Aquí no hace falta invertir nada: sobre fondo oscuro `color-dodge` enciende y
+ * el color escrito es el color que se ve, así que los azules van tal cual y no
+ * como complemento del que se busca.
+ *
+ * Lo que sí se hereda del modo claro es el problema del brillo. La receta de la
+ * forja llegaba con 3,7 porque un naranja aguanta saturarse y sigue pareciendo
+ * fuego; `contrast(6)` lleva un azul a cian eléctrico mucho antes. Con 2,2 los
+ * canales caen dentro del tramo donde todavía quedan tonos intermedios, que es
+ * lo que distingue una llama de una mancha.
+ *
+ * El núcleo se queda blanco: en una llama de gas la base es lo más caliente y
+ * lo menos coloreado, igual que en claro.
  */
 :root[data-theme='dark'],
 :root[data-theme='dark'] :root {
   --fuego-mezcla: color-dodge;
   --fuego-invertir: invert(0);
-  --fuego-brillo: 3.7;
+  --fuego-brillo: 2.2;
   --fuego-nucleo: white;
-  --fuego-medio: #ff8951;
-  --fuego-alto: #dcbc169c;
+  --fuego-medio: #3b6fe0; /* Azul intenso, ya sin invertir. */
+  --fuego-alto: #7aa8ff70; /* Azul pálido, desvaneciéndose. */
   --fuego-lecho: oklch(24% 0.02 265);
 }
 
@@ -300,10 +310,10 @@
   :root:not([data-theme='light']) {
     --fuego-mezcla: color-dodge;
     --fuego-invertir: invert(0);
-    --fuego-brillo: 3.7;
+    --fuego-brillo: 2.2;
     --fuego-nucleo: white;
-    --fuego-medio: #ff8951;
-    --fuego-alto: #dcbc169c;
+    --fuego-medio: #3b6fe0;
+    --fuego-alto: #7aa8ff70;
     --fuego-lecho: oklch(24% 0.02 265);
   }
 }
@@ -321,7 +331,7 @@
    * qué mezclarse y la llama saldría plana. Del fondo al lecho, para que las
    * brasas no empiecen de golpe.
    */
-  background: linear-gradient(to bottom, var(--color-fondo) 40%, var(--fuego-lecho) 64%);
+  background: linear-gradient(to bottom, var(--color-fondo) 55%, var(--fuego-lecho) 80%);
   /* El navegador puede saltarse todo lo de dentro al componer el resto. */
   contain: strict;
 }
@@ -335,15 +345,16 @@
     var(--fuego-ruido),
     /*
      * El color y, con el último tramo, la altura: la llama muere donde este
-     * degradado se vuelve transparente. Más bajo que en el original, para que
-     * el fuego se quede a los pies y no invada el botón de entrar.
+     * degradado se vuelve transparente. Bastante más bajo que en el original,
+     * que llegaba a un tercio de la pantalla: el fuego es el suelo de la
+     * escena, no el asunto, y a esa altura competía con el botón de entrar.
      */
     linear-gradient(
         0deg,
         var(--fuego-nucleo) 0px,
-        var(--fuego-medio) 5px,
-        var(--fuego-alto) 12%,
-        transparent 32%
+        var(--fuego-medio) 4px,
+        var(--fuego-alto) 8%,
+        transparent 23%
       ),
     /* Y la elipse apaga los lados, que si no el fuego llega hasta los bordes. */
     radial-gradient(ellipse at bottom, transparent 30%, black 60%);
