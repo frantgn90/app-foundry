@@ -547,7 +547,7 @@ empezar cada hito, con el mismo método que la v1.
 | **H9**  | Puerto y adaptadores, cifrado de credenciales, catálogo por API, modelo por tarea, cupos       | La IA ya tiene grifo y contador    |
 | **H10** | Arreglo del menú de selección (U26, U27) y asistente de escritura, con diff que se acepta      | **Primer valor real**              |
 
-Solo se desglosa el hito en curso. H9 está cerrada; H10 está desglosada abajo.
+Solo se desglosa el hito en curso. H9 y H10 están cerradas; H11 está desglosada abajo.
 | **H11** | Generación de ideas, con y sin búsqueda web, y la app creada con su visión sembrada            | Cierra «no tengo ideas»            |
 | **H12** | Agentes: modelo, plantillas, instancias, autoría polimórfica, menciones y respuestas           | Un interlocutor con perfil         |
 | **H13** | Revisión en abanico: cola, estimación, confirmación, cancelación y cortafuegos                 | **Pensar acompañado, completo**    |
@@ -782,3 +782,55 @@ Solo se desglosa el hito en curso. H9 está cerrada; H10 está desglosada abajo.
 >
 > Nueve de los diez paneles quedan con datos. El décimo —«Desfase del contador de cupo»— sigue vacío **y así
 > debe estar**: solo se mueve cuando una conciliación corrige un descuadre, y no haberlo es el estado deseado.
+
+
+---
+
+## H11 — Cierra «no tengo ideas»
+
+> Objetivo: que alguien que abre el producto sin una idea concreta salga de ahí con una app creada y su visión
+> ya empezada. Es la otra mitad del valor de la v2: H10 ayuda a escribir lo que ya se piensa, y esto ayuda a
+> tener qué pensar.
+>
+> Lo que **no** entra: agentes (H12 y H13). Y una línea que no se cruza: lo que sale del conocimiento del
+> modelo no se presenta como si saliera del mercado (RF-1305). Una propuesta que finge estar fundamentada es
+> peor que ninguna, porque se decide sobre ella creyendo que hay datos detrás.
+
+### Bloque AY — Las ideas por dentro
+
+| # | Tarea | Verificación | Traza | Estado |
+|---|---|---|---|---|
+| AY1 | El esquema de una propuesta, en el subconjunto estricto | Todos los campos obligatorios, `additionalProperties: false`, lo opcional como unión con `null` | RF-1303, T-24 | ⬜ |
+| AY2 | Las restricciones, todas opcionales, en el prompt | Sin rellenar nada se propone igual | RF-1302 | ⬜ |
+| AY3 | Investigar y luego dar forma: dos llamadas cuando hay búsqueda web | La primera trae hallazgos con fuentes; la segunda da forma citándolas | RF-1304, T-25 | ⬜ |
+| AY4 | Sin búsqueda web, una sola llamada y el resultado va marcado | Se dice que sale del conocimiento del modelo, no de datos de mercado | RF-1305 | ⬜ |
+| AY5 | Otra tanda sin repetir lo ya visto | Los títulos vistos viajan como exclusiones | RF-1307 | ⬜ |
+| AY6 | Ruta de generación en streaming, por el paso común de invocación | Las propuestas llegan conforme se arman, con su cupo y su registro | RF-1301, RF-1306, RD-10 | ⬜ |
+
+### Bloque AZ — De la propuesta a la app
+
+| # | Tarea | Verificación | Traza | Estado |
+|---|---|---|---|---|
+| AZ1 | Elegir crea la app en una sola transacción | Nombre, descripción, estado `IDEA` y etiquetas sugeridas | RF-1308 | ⬜ |
+| AZ2 | La visión sembrada como copia de trabajo, sin versión | Nace con cambios sin commitear, sobre la plantilla de la v1 | RF-1308, RF-503, RF-505 | ⬜ |
+| AZ3 | Constancia de que la visión nació de una propuesta | Visible en la ficha mientras nadie haya commiteado | RF-1311 | ⬜ |
+| AZ4 | Acceso y precursor, por las reglas de la v1 sin excepción | Crearla con ayuda de la IA no cambia de quién es | RF-1310, D-9 | ⬜ |
+| AZ5 | Lo descartado no deja rastro | Sin elegir, solo queda el registro de la invocación | RF-1312 | ⬜ |
+
+### Bloque BA — Las ideas en la interfaz
+
+| # | Tarea | Verificación | Traza | Estado |
+|---|---|---|---|---|
+| BA1 | La vía «no sé qué construir», junto a crear a mano | En el mismo panel de creación de la home del workspace | RF-1301 | ⬜ |
+| BA2 | El formulario de restricciones, todo opcional | Se genera sin rellenar nada | RF-1302 | ⬜ |
+| BA3 | Las fichas aparecen conforme llegan | Sin esperar al lote completo | RF-1306 | ⬜ |
+| BA4 | Fuentes con enlace, o el aviso de que no las hay | Nunca se presenta como fundamentado lo que no lo está | RF-1304, RF-1305 | ⬜ |
+| BA5 | Otra tanda conservando las entradas | Y sin repetir lo que ya se enseñó | RF-1307 | ⬜ |
+| BA6 | Elegir aterriza en el editor con el borrador delante | Y con el aviso de cambios sin commitear | RF-1309 | ⬜ |
+| BA7 | Sin disponibilidad, la vía no aparece | Ni con la IA apagada, ni sin modelo asignado | RF-1010 | ⬜ |
+
+### Bloque BB — Cerrar H11
+
+| # | Tarea | Verificación | Traza | Estado |
+|---|---|---|---|---|
+| BB1 | Recorrido completo con el proveedor de mentira | De «no tengo ideas» a la app con su borrador delante | RNF-905 | ⬜ |
