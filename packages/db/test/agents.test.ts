@@ -10,6 +10,8 @@ import {
   comments,
   commentThreads,
   documents,
+  aiInvocations,
+  workspaceAiProviders,
 } from '../src/index.js';
 import { asAppUser, startTestDb, type TestDb } from './helpers.js';
 import { type Scenario, seed } from './scenario.js';
@@ -607,6 +609,56 @@ describe('a quién se puede invocar con una mención', () => {
       .from(commentAgentMentions)
       .where(eq(commentAgentMentions.commentId, suyo));
     expect(quedan).toHaveLength(0);
+  });
+});
+
+describe('quién provocó una invocación', () => {
+  it('la persona y el agente van juntos: uno gastó y el otro paga', async () => {
+    await db.db.insert(workspaceAiProviders).values({
+      workspaceId: e.wsAna,
+      provider: 'ANTHROPIC',
+      credentialHint: 'abcd',
+      createdBy: e.ana,
+    });
+
+    const [creado] = await db.db
+      .insert(agents)
+      .values(agente(appAna, 'que-gasta'))
+      .returning({ id: agents.id });
+
+    const [fila] = await db.db
+      .insert(aiInvocations)
+      .values({
+        workspaceId: e.wsAna,
+        appId: appAna,
+        actorUserId: e.ana,
+        actorAgentId: creado!.id,
+        task: 'AGENT_REPLY',
+        provider: 'ANTHROPIC',
+        modelId: 'claude-opus-5',
+        outcome: 'COMPLETED',
+      })
+      .returning({
+        actorUserId: aiInvocations.actorUserId,
+        actorAgentId: aiInvocations.actorAgentId,
+      });
+
+    expect(fila!.actorUserId).toBe(e.ana);
+    expect(fila!.actorAgentId).toBe(creado!.id);
+  });
+
+  it('sin agente, como hasta ahora: las ideas y el asistente no tienen ninguno', async () => {
+    await expect(
+      db.db.insert(aiInvocations).values({
+        workspaceId: e.wsAna,
+        appId: appAna,
+        actorUserId: e.ana,
+        task: 'TEXT_ASSIST',
+        provider: 'ANTHROPIC',
+        modelId: 'claude-opus-5',
+        outcome: 'COMPLETED',
+      }),
+    ).resolves.not.toThrow();
   });
 });
 

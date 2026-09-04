@@ -16,6 +16,7 @@ import {
 
 import { aiOutcomeEnum, aiProviderEnum, aiTaskEnum, providerStatusEnum } from './enums.js';
 import { bytea } from './types.js';
+import { agents } from './agents.js';
 import { apps } from './apps.js';
 import { users } from './users.js';
 import { workspaces } from './workspaces.js';
@@ -217,6 +218,15 @@ export const aiInvocations = pgTable(
      * gastó, y borrarlo descuadraría el mes.
      */
     actorUserId: uuid('actor_user_id').references(() => users.id, { onDelete: 'set null' }),
+    /**
+     * Y qué agente, cuando la provocó uno (RD-10).
+     *
+     * No sustituye al de arriba: los dos van juntos en una respuesta de agente,
+     * porque detrás de ella hay siempre una persona que la desencadenó —quien
+     * mencionó, quien pidió la revisión— y es a quien se le imputa el consumo.
+     * El agente dice **qué perfil** gastó; la persona, **a cuenta de quién**.
+     */
+    actorAgentId: uuid('actor_agent_id').references(() => agents.id, { onDelete: 'set null' }),
     task: aiTaskEnum('task').notNull(),
     provider: aiProviderEnum('provider').notNull(),
     modelId: text('model_id').notNull(),
