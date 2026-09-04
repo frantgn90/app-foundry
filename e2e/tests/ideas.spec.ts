@@ -53,7 +53,7 @@ test('generar ideas, elegir una y aterrizar en su visión', async ({ page, conte
     });
     /* Y se dice de dónde salen, siempre (RF-1304, RF-1305). */
     await expect(
-      page.getByText(/Grounded in what was found|come from what the model knows/),
+      page.getByText(/Grounded in what was found|come from its own memory/),
     ).toBeVisible();
   });
 

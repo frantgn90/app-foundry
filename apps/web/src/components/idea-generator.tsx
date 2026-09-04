@@ -243,7 +243,7 @@ export function IdeaGenerator({
         <p className="text-xs text-[var(--color-texto-suave)]">
           {grounded
             ? 'Grounded in what was found on the web just now.'
-            : 'These come from what the model knows, not from current market data.'}
+            : 'This model did not search the web, so these come from its own memory — not from what the market looks like today.'}
         </p>
       )}
 

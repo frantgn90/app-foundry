@@ -10,10 +10,21 @@ import {
   useAssignTaskModel,
 } from '../lib/api.js';
 
-const TAREAS: Record<AiTaskId, { titulo: string; para: string }> = {
+const TAREAS: Record<AiTaskId, { titulo: string; para: string; aviso?: string }> = {
   IDEA_GENERATION: {
     titulo: 'Coming up with ideas',
     para: 'Proposes app ideas from your constraints. Reasoning matters more than speed here.',
+    /*
+     * El aviso existe porque esto no se puede saber preguntando.
+     *
+     * Qué modelo admite herramientas de servidor es cosa del modelo, no del
+     * proveedor, y ninguno de los dos lo publica en su catálogo: Groq lo tiene
+     * escrito a mano en su documentación y Anthropic no lo expone. Así que no se
+     * filtra la lista —filtrar con datos inventados es peor que no filtrar— y se
+     * dice aquí, que es donde se elige.
+     */
+    aviso:
+      'Ideas are much better with a model that can search the web. Without it they still come, but from what the model already knows — and the app says so when that happens.',
   },
   TEXT_ASSIST: {
     titulo: 'Helping you write',
@@ -100,6 +111,13 @@ function TaskRow({
         <Estado asignacion={asignacion} />
       </div>
       <p className="text-xs text-[var(--color-texto-suave)]">{definicion.para}</p>
+
+      {definicion.aviso && (
+        <p className="flex items-start gap-1.5 text-xs text-[var(--color-texto-suave)]">
+          <span aria-hidden>ℹ</span>
+          <span>{definicion.aviso}</span>
+        </p>
+      )}
 
       <select
         className="mt-1 rounded-md border border-[var(--color-borde)] bg-transparent px-2 py-1.5 text-sm"
