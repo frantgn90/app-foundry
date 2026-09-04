@@ -162,16 +162,39 @@ export class GroqProvider implements LlmProvider {
             !seGestionaSolo(request.model) && {
               tools: [{ type: 'browser_search' as const }],
             }),
-          ...(request.webSearch && {
-            search_settings: {
-              ...(request.webSearch.allowedDomains && {
-                include_domains: [...request.webSearch.allowedDomains],
-              }),
-              ...(request.webSearch.blockedDomains && {
-                exclude_domains: [...request.webSearch.blockedDomains],
-              }),
-            },
-          }),
+          /*
+           * A los sistemas `compound` se les dice **qué herramientas puede usar**,
+           * no que las use: eso lo deciden ellos. Y decírselo importa por lo que
+           * deja fuera —ejecutar código y consultar Wolfram— más que por lo que
+           * deja dentro: aquí se viene a investigar un mercado, y una tarea que
+           * puede ejecutar código sin que nadie lo haya pedido es una tarea que
+           * hace más de lo que dice.
+           *
+           * Buscar y abrir lo encontrado van juntos: una búsqueda cuyos
+           * resultados no se pueden abrir da titulares, no hallazgos.
+           */
+          ...(request.webSearch &&
+            seGestionaSolo(request.model) && {
+              compound_custom: { tools: { enabled_tools: ['web_search', 'visit_website'] } },
+            }),
+          /*
+           * Los dominios permitidos o bloqueados solo se mandan a quien lleva la
+           * herramienta declarada: la documentación de los sistemas `compound`
+           * no combina `search_settings` con su propia configuración, y mandar
+           * de más a un modelo que ya rechazó dos parámetros distintos es
+           * tentar a la suerte.
+           */
+          ...(request.webSearch &&
+            !seGestionaSolo(request.model) && {
+              search_settings: {
+                ...(request.webSearch.allowedDomains && {
+                  include_domains: [...request.webSearch.allowedDomains],
+                }),
+                ...(request.webSearch.blockedDomains && {
+                  exclude_domains: [...request.webSearch.blockedDomains],
+                }),
+              },
+            }),
         },
         signal ? { signal } : {},
       );

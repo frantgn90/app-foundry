@@ -142,10 +142,11 @@ describe('el adaptador de Groq', () => {
     });
 
     /*
-     * Los modelos `compound` ejecutan sus herramientas por su cuenta y su lista
-     * solo admite las del cliente: declararles la búsqueda es un 400.
+     * A los sistemas `compound` no se les declara la herramienta —su lista solo
+     * admite las del cliente y declararla es un 400— sino que se les dice **qué
+     * pueden usar**, que es su propia forma de configurarse.
      */
-    it('a los que buscan por su cuenta no se les declara nada', async () => {
+    it('a los que se gestionan solos se les dice qué pueden usar, no que lo usen', async () => {
       const { client, params } = stub([{ content: 'hola' }]);
       const proveedor = new GroqProvider(() => client);
 
@@ -157,8 +158,17 @@ describe('el adaptador de Groq', () => {
       );
 
       expect(params[0]?.['tools']).toBeUndefined();
-      /* Pero los ajustes de búsqueda sí valen para ellos. */
-      expect(params[0]).toHaveProperty('search_settings');
+      expect(params[0]?.['compound_custom']).toEqual({
+        tools: { enabled_tools: ['web_search', 'visit_website'] },
+      });
+      /*
+       * Y lo que importa de esa lista es lo que deja fuera: aquí se viene a
+       * investigar un mercado, no a ejecutar código.
+       */
+      const permitidas = (params[0]?.['compound_custom'] as { tools: { enabled_tools: string[] } })
+        .tools.enabled_tools;
+      expect(permitidas).not.toContain('code_interpreter');
+      expect(permitidas).not.toContain('wolfram_alpha');
     });
 
     it('recoge las fuentes de las herramientas ejecutadas', async () => {
