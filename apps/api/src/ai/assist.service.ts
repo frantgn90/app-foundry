@@ -370,6 +370,17 @@ export class AiAssistService {
          * como tal y con lo que se llegó a consumir, que se gastó igual.
          */
         const cancelado = signal.aborted || kind === ProviderErrorKind.CANCELLED;
+
+        /* El motivo del proveedor, entero y solo aquí: al cliente le llega la
+           taxonomía, que es lo que se puede enseñar sin filtrar la clave. */
+        if (!cancelado) {
+          this.logger.warn(
+            `${empezada.plan.provider} ha rechazado asistir con ${empezada.plan.modelId} (${kind}): ${
+              error instanceof Error ? error.message : String(error)
+            }`,
+          );
+        }
+
         const real = usage ?? this.estimatedUsage(empezada, generado);
         await this.settle(
           context,

@@ -201,6 +201,23 @@ export class AiIdeasService {
       const kind = error instanceof ProviderError ? error.kind : ProviderErrorKind.TRANSIENT;
       const cancelado = signal.aborted || kind === ProviderErrorKind.CANCELLED;
 
+      /*
+       * El motivo del proveedor, entero, en el registro del servidor.
+       *
+       * Al cliente le llega la taxonomía —«algo iba mal en la petición»—, que es
+       * lo que se puede enseñar sin arriesgarse a filtrar la clave (RNF-602).
+       * Pero eso no basta para arreglar nada: cuál de las dos llamadas falló y
+       * qué dijo exactamente el proveedor solo se sabe si consta aquí. Sin esta
+       * línea hubo que deducirlo cruzando filas de la tabla de invocaciones.
+       */
+      if (!cancelado) {
+        this.logger.warn(
+          `${empezada.plan.provider} ha rechazado dar forma a las ideas con ${empezada.plan.modelId} (${kind}): ${
+            error instanceof Error ? error.message : String(error)
+          }`,
+        );
+      }
+
       await this.settle(context, empezada, usage ?? this.estimated(empezada, crudo), userId, {
         outcome: cancelado ? 'CANCELLED' : 'FAILED',
         ...(cancelado ? {} : { errorKind: kind }),
