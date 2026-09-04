@@ -266,6 +266,13 @@
    */
   --fuego-brillo: 2.4;
   /*
+   * El contraste es lo que recorta el ruido desenfocado en lenguas de llama.
+   * Aquí puede ir al máximo porque la llama se pinta invertida: lo que el
+   * contraste satura son los complementos, y saturar un complemento oscuro da
+   * justo el azul que se busca.
+   */
+  --fuego-contraste: 6;
+  /*
    * El origen de la llama es el complementario exacto del blanco del modo
    * oscuro: negro. Cualquier color claro aquí se satura a blanco antes de
    * invertirse, y blanco invertido es negro —era lo que dejaba un filo negro
@@ -288,21 +295,30 @@
  *
  * Lo que sí se hereda del modo claro es el problema del brillo. La receta de la
  * forja llegaba con 3,7 porque un naranja aguanta saturarse y sigue pareciendo
- * fuego; `contrast(6)` lleva un azul a cian eléctrico mucho antes. Con 2,2 los
- * canales caen dentro del tramo donde todavía quedan tonos intermedios, que es
- * lo que distingue una llama de una mancha.
+ * fuego; un contraste alto lleva un azul a cian eléctrico mucho antes. Con 2,2
+ * los canales caen dentro del tramo donde todavía quedan tonos intermedios, que
+ * es lo que distingue una llama de una mancha.
+ *
+ * Y por eso el contraste afloja a 4, que es la única asimetría de verdad entre
+ * los dos modos. Sin invertir, el contraste actúa sobre el color escrito, y
+ * `contrast(6)` no deja a un azul oscuro ninguna salida: o lo empuja al azul
+ * puro —y deja de ser oscuro— o lo hunde a negro y la llama desaparece. Bajarlo
+ * conserva los tonos medios que sostienen un azul profundo, a cambio de unas
+ * lenguas algo menos recortadas. En claro no hace falta: allí lo que el
+ * contraste satura son los complementos, no lo que se ve.
  *
  * El núcleo se queda blanco: en una llama de gas la base es lo más caliente y
- * lo menos coloreado, igual que en claro.
+ * lo menos coloreada, igual que en claro.
  */
 :root[data-theme='dark'],
 :root[data-theme='dark'] :root {
   --fuego-mezcla: color-dodge;
   --fuego-invertir: invert(0);
   --fuego-brillo: 2.2;
+  --fuego-contraste: 4;
   --fuego-nucleo: white;
-  --fuego-medio: #3b6fe0; /* Azul intenso, ya sin invertir. */
-  --fuego-alto: #7aa8ff70; /* Azul pálido, desvaneciéndose. */
+  --fuego-medio: #233aa8; /* Azul profundo, ya sin invertir. */
+  --fuego-alto: #3f5cc870; /* Un punto más claro, desvaneciéndose. */
   --fuego-lecho: oklch(24% 0.02 265);
 }
 
@@ -311,9 +327,10 @@
     --fuego-mezcla: color-dodge;
     --fuego-invertir: invert(0);
     --fuego-brillo: 2.2;
+    --fuego-contraste: 4;
     --fuego-nucleo: white;
-    --fuego-medio: #3b6fe0;
-    --fuego-alto: #7aa8ff70;
+    --fuego-medio: #233aa8;
+    --fuego-alto: #3f5cc870;
     --fuego-lecho: oklch(24% 0.02 265);
   }
 }
@@ -367,7 +384,8 @@
   background-blend-mode: hard-light, color-dodge, multiply;
   background-repeat: repeat, repeat, repeat, no-repeat;
   mix-blend-mode: var(--fuego-mezcla);
-  filter: brightness(var(--fuego-brillo)) blur(7px) contrast(6) var(--fuego-invertir);
+  filter: brightness(var(--fuego-brillo)) blur(7px) contrast(var(--fuego-contraste))
+    var(--fuego-invertir);
   animation: fuego-forja 1.75s linear infinite;
 }
 
