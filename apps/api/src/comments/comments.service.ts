@@ -4,7 +4,7 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { and, asc, desc, eq, inArray, isNull, ne, or, sql } from 'drizzle-orm';
+import { and, asc, desc, eq, inArray, isNotNull, isNull, ne, or, sql } from 'drizzle-orm';
 
 import { createAnchor, extractMentions, reanchor } from '@app-foundry/core';
 import {
@@ -586,13 +586,19 @@ export class CommentsService {
     };
   }
 
-  /** Quienes han escrito en un hilo concreto, borrados incluidos: siguen ahí. */
+  /**
+   * Quienes han escrito en un hilo concreto, borrados incluidos: siguen ahí.
+   *
+   * Personas y solo personas. Un agente escribe en el hilo y no por eso pasa a
+   * ser destinatario de nada: no recibe avisos (RF-1612), así que se descarta
+   * aquí y no al repartirlos, que es donde se colaría sin que nadie lo notara.
+   */
   private async participantesDelHilo(threadId: string): Promise<string[]> {
     const filas = await currentTx()
       .selectDistinct({ userId: comments.authorId })
       .from(comments)
-      .where(eq(comments.threadId, threadId));
-    return filas.map((f) => f.userId);
+      .where(and(eq(comments.threadId, threadId), isNotNull(comments.authorId)));
+    return filas.map((f) => f.userId!);
   }
 
   private async workspaceOf(appId: string): Promise<string> {

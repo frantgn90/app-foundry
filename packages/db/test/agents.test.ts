@@ -1,7 +1,15 @@
 import { and, desc, eq, isNotNull, sql } from 'drizzle-orm';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
-import { agentPromptRevisions, agents, agentTemplates, apps } from '../src/index.js';
+import {
+  agentPromptRevisions,
+  agents,
+  agentTemplates,
+  apps,
+  comments,
+  commentThreads,
+  documents,
+} from '../src/index.js';
 import { asAppUser, startTestDb, type TestDb } from './helpers.js';
 import { type Scenario, seed } from './scenario.js';
 
@@ -374,6 +382,142 @@ describe('el prompt, versión a versión', () => {
       ),
     );
     expect(mensajeDe(error)).toContain('permission denied');
+  });
+});
+
+describe('quién firma un comentario', () => {
+  let documento: string;
+  let unAgente: string;
+  let suPerfil: string;
+
+  beforeAll(async () => {
+    const [doc] = await db.db
+      .insert(documents)
+      .values({ appId: appAna, type: 'VISION' })
+      .returning({ id: documents.id });
+    documento = doc!.id;
+
+    const [creado] = await db.db
+      .insert(agents)
+      .values(agente(appAna, 'firmante'))
+      .returning({ id: agents.id });
+    unAgente = creado!.id;
+
+    const [revision] = await db.db
+      .insert(agentPromptRevisions)
+      .values({ agentId: unAgente, revision: 1, prompt: 'Be blunt about scope.' })
+      .returning({ id: agentPromptRevisions.id });
+    suPerfil = revision!.id;
+  });
+
+  /** Un hilo abierto por quien se diga, para colgarle comentarios. */
+  async function hilo(de: { persona?: string; agente?: string }): Promise<string> {
+    const [creado] = await db.db
+      .insert(commentThreads)
+      .values({
+        appId: appAna,
+        documentId: documento,
+        kind: 'GENERAL',
+        createdBy: de.persona ?? null,
+        createdByAgentId: de.agente ?? null,
+      })
+      .returning({ id: commentThreads.id });
+    return creado!.id;
+  }
+
+  it('una persona, como siempre', async () => {
+    const suyo = await hilo({ persona: e.ana });
+    await expect(
+      db.db.insert(comments).values({ threadId: suyo, body: 'Lo de siempre.', authorId: e.ana }),
+    ).resolves.not.toThrow();
+  });
+
+  it('o un agente, con el perfil con el que escribió', async () => {
+    const suyo = await hilo({ agente: unAgente });
+    await expect(
+      db.db.insert(comments).values({
+        threadId: suyo,
+        body: 'Scope looks wider than the problem.',
+        authorAgentId: unAgente,
+        agentPromptRevisionId: suPerfil,
+      }),
+    ).resolves.not.toThrow();
+  });
+
+  it('nadie, no: un comentario sin autor no se sabe a quién responde', async () => {
+    const suyo = await hilo({ persona: e.ana });
+    const error = await fallo(() =>
+      db.db.insert(comments).values({ threadId: suyo, body: 'De nadie.' }),
+    );
+    expect(mensajeDe(error)).toContain('comments_single_author_check');
+  });
+
+  it('los dos a la vez, tampoco: no se podría creer', async () => {
+    const suyo = await hilo({ persona: e.ana });
+    const error = await fallo(() =>
+      db.db.insert(comments).values({
+        threadId: suyo,
+        body: 'De dos.',
+        authorId: e.ana,
+        authorAgentId: unAgente,
+        agentPromptRevisionId: suPerfil,
+      }),
+    );
+    expect(mensajeDe(error)).toContain('comments_single_author_check');
+  });
+
+  it('un agente sin su perfil deja RF-1510 sin respuesta', async () => {
+    const suyo = await hilo({ agente: unAgente });
+    const error = await fallo(() =>
+      db.db
+        .insert(comments)
+        .values({ threadId: suyo, body: 'Sin perfil.', authorAgentId: unAgente }),
+    );
+    expect(mensajeDe(error)).toContain('comments_agent_prompt_pair_check');
+  });
+
+  it('y un perfil colgando de una persona no significa nada', async () => {
+    const suyo = await hilo({ persona: e.ana });
+    const error = await fallo(() =>
+      db.db.insert(comments).values({
+        threadId: suyo,
+        body: 'Perfil de más.',
+        authorId: e.ana,
+        agentPromptRevisionId: suPerfil,
+      }),
+    );
+    expect(mensajeDe(error)).toContain('comments_agent_prompt_pair_check');
+  });
+
+  it('lo mismo vale para el hilo: ni sin autor ni con dos', async () => {
+    const sinNadie = await fallo(() => hilo({}));
+    expect(mensajeDe(sinNadie)).toContain('comment_threads_single_author_check');
+
+    const conDos = await fallo(() => hilo({ persona: e.ana, agente: unAgente }));
+    expect(mensajeDe(conDos)).toContain('comment_threads_single_author_check');
+  });
+
+  it('retirar al agente no borra lo que escribió, y sigue firmado por él', async () => {
+    await db.db
+      .update(agents)
+      .set({ removedAt: new Date(), active: false })
+      .where(eq(agents.id, unAgente));
+
+    const suyos = await db.db.select().from(comments).where(eq(comments.authorAgentId, unAgente));
+    expect(suyos.length).toBeGreaterThan(0);
+    expect(suyos[0]!.agentPromptRevisionId).toBe(suPerfil);
+  });
+
+  it('ni se le puede borrar de la tabla mientras haya algo suyo escrito', async () => {
+    const error = await fallo(() => db.db.delete(agents).where(eq(agents.id, unAgente)));
+    /*
+     * Salta el hilo antes que el comentario, porque este agente abrió los dos y
+     * Postgres comprueba en el orden que quiere. Da igual cuál de las dos
+     * claves lo pare: lo que se comprueba es que borrarlo a mano no se puede
+     * mientras quede rastro suyo (RF-1509).
+     */
+    expect(mensajeDe(error)).toContain('violates foreign key constraint');
+    expect(mensajeDe(error)).toContain('agents');
   });
 });
 

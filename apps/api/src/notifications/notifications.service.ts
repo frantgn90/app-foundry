@@ -211,11 +211,17 @@ export class NotificationsService {
       .where(eq(apps.id, appId));
     if (!app) throw new NotFoundException('The app does not exist');
 
+    /*
+     * Personas: haber comentado implica a quien comenta, y un agente no se
+     * implica en nada ni recibe avisos (RF-1612). Filtrarlo aquí y no al
+     * repartir es lo que evita que aparezca en la audiencia de un aviso futuro
+     * sin que nadie se dé cuenta.
+     */
     const comentaristas = await tx
       .selectDistinct({ userId: comments.authorId })
       .from(comments)
       .innerJoin(commentThreads, eq(commentThreads.id, comments.threadId))
-      .where(eq(commentThreads.appId, appId));
+      .where(and(eq(commentThreads.appId, appId), isNotNull(comments.authorId)));
 
     const editores = await tx
       .selectDistinct({ userId: documentVersions.authorId })
@@ -232,7 +238,7 @@ export class NotificationsService {
       entorno: {
         actor,
         precursor: app.precursorId,
-        participantes: [...comentaristas, ...editores].map((r) => r.userId),
+        participantes: [...comentaristas, ...editores].map((r) => r.userId!),
       },
       workspaceId: app.workspaceId,
       appName: app.name,

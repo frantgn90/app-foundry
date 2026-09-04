@@ -10,6 +10,7 @@ import {
   uuid,
 } from 'drizzle-orm/pg-core';
 
+import { agentPromptRevisions, agents } from './agents.js';
 import { apps, documents, documentVersions } from './apps.js';
 import { anchorStatusEnum, threadKindEnum, threadStatusEnum } from './enums.js';
 import { users } from './users.js';
@@ -70,9 +71,18 @@ export const commentThreads = pgTable(
     workingEnd: integer('working_end'),
     workingStatus: anchorStatusEnum('working_status'),
 
-    createdBy: uuid('created_by')
-      .notNull()
-      .references(() => users.id, { onDelete: 'restrict' }),
+    /**
+     * Quién lo abrió, si fue una persona (T-34).
+     *
+     * Deja de ser obligatorio porque un agente también abre hilos, y entonces
+     * el que lleva valor es el de al lado. Que sea **exactamente uno** de los
+     * dos no queda al criterio de quien escriba el INSERT: lo garantiza un
+     * `CHECK` del motor, porque un hilo sin autor no se puede leer y uno con
+     * dos no se puede creer.
+     */
+    createdBy: uuid('created_by').references(() => users.id, { onDelete: 'restrict' }),
+    /** Quién lo abrió, si fue un agente de esta app (T-34). */
+    createdByAgentId: uuid('created_by_agent_id').references(() => agents.id),
     resolvedBy: uuid('resolved_by').references(() => users.id, { onDelete: 'set null' }),
     resolvedAt: timestamp('resolved_at', { withTimezone: true }),
     reopenedBy: uuid('reopened_by').references(() => users.id, { onDelete: 'set null' }),
@@ -107,9 +117,20 @@ export const comments = pgTable(
       onDelete: 'cascade',
     }),
     body: text('body').notNull(),
-    authorId: uuid('author_id')
-      .notNull()
-      .references(() => users.id, { onDelete: 'restrict' }),
+    /** El autor, si es una persona. Excluyente con el de agente (T-34). */
+    authorId: uuid('author_id').references(() => users.id, { onDelete: 'restrict' }),
+    /** El autor, si es un agente de la app del hilo (T-34). */
+    authorAgentId: uuid('author_agent_id').references(() => agents.id),
+    /**
+     * Con qué perfil lo escribió (RF-1510).
+     *
+     * Un puntero y no una copia del prompt: la revisión es inmutable, así que
+     * apuntar y copiar valen lo mismo, y copiar costaría kilobytes por línea.
+     * Va y viene con `authorAgentId`: los dos o ninguno.
+     */
+    agentPromptRevisionId: uuid('agent_prompt_revision_id').references(
+      () => agentPromptRevisions.id,
+    ),
     editedAt: timestamp('edited_at', { withTimezone: true }),
     deletedAt: timestamp('deleted_at', { withTimezone: true }),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
@@ -117,6 +138,11 @@ export const comments = pgTable(
   (table) => [
     index('comments_thread_idx').on(table.threadId, table.createdAt),
     index('comments_author_idx').on(table.authorId),
+    /**
+     * Cuántas veces ha hablado ya un agente en este hilo: es la consulta del
+     * cortafuegos de turnos (RF-1605), y se hace antes de cada intervención.
+     */
+    index('comments_author_agent_idx').on(table.authorAgentId, table.threadId),
   ],
 );
 

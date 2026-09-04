@@ -42,8 +42,13 @@ export interface Entorno {
   participantes?: string[] | undefined;
   /** Quienes han escrito en el hilo concreto. */
   participantesDelHilo?: string[] | undefined;
-  /** Quien abrió el hilo. */
-  autorDelHilo?: string | undefined;
+  /**
+   * Quien abrió el hilo, si fue una persona.
+   *
+   * Nulo cuando lo abrió un agente: entonces no hay a quién avisar por ese
+   * concepto, y `unicos` lo descarta sin más (RF-1612).
+   */
+  autorDelHilo?: string | null | undefined;
   /** Mencionados por handle en el texto, ya resueltos a identificadores. */
   mencionados?: string[] | undefined;
   /** Destinatario directo, cuando la acción va dirigida a alguien concreto. */
@@ -56,7 +61,7 @@ export interface Aviso {
   type: NotificationType;
 }
 
-function unicos(valores: (string | undefined)[]): string[] {
+function unicos(valores: (string | null | undefined)[]): string[] {
   return [...new Set(valores.filter((v): v is string => typeof v === 'string' && v.length > 0))];
 }
 
