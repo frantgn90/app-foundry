@@ -1,6 +1,9 @@
+import { useEffect, useState } from 'react';
+
 import { Button } from '../components/ui/button.js';
 import { Logo } from '../components/logo.js';
 import { ForgeFire } from '../components/forge-fire.js';
+import { cn } from '../lib/utils.js';
 
 /** Único proveedor de identidad de la plataforma (D-22). */
 function GitHubIcon() {
@@ -12,6 +15,28 @@ function GitHubIcon() {
 }
 
 export function LoginPage() {
+  /*
+   * Entrar se va a GitHub, y entre el clic y la primera pantalla de allí pasan
+   * segundos en los que la pantalla se queda igual que estaba: sin señal, lo
+   * natural es pensar que el botón no ha llegado a pulsarse y volver a pulsarlo.
+   */
+  const [entrando, setEntrando] = useState(false);
+
+  /*
+   * Volver atrás desde GitHub devuelve esta misma página tal cual la dejamos
+   * —el navegador la tenía guardada, no la vuelve a construir—, y con ella un
+   * barrido eterno sobre un botón que ya no está haciendo nada.
+   */
+  useEffect(() => {
+    const alVolver = (evento: PageTransitionEvent) => {
+      if (evento.persisted) setEntrando(false);
+    };
+    window.addEventListener('pageshow', alVolver);
+    return () => {
+      window.removeEventListener('pageshow', alVolver);
+    };
+  }, []);
+
   return (
     <main className="relative mx-auto flex min-h-screen max-w-md flex-col justify-center gap-8 px-6 py-16">
       <ForgeFire />
@@ -30,12 +55,25 @@ export function LoginPage() {
         // Enlace normal y no fetch: el flujo OAuth es una navegación de verdad,
         // con redirecciones a GitHub y de vuelta.
         onClick={() => {
+          // Pulsar dos veces no adelanta nada: la primera navegación ya está en
+          // marcha, y la segunda solo la reiniciaría.
+          if (entrando) return;
+          setEntrando(true);
           window.location.href = '/api/v1/auth/github';
         }}
+        /*
+         * Ocupado, pero no deshabilitado: apagar el botón lo aleja justo cuando
+         * se acaba de pulsar, y el barrido ya dice que está en curso.
+         */
+        aria-busy={entrando}
         className="w-full py-2.5"
       >
+        {/* El icono se queda entero: el recorte del barrido lo dejaría en blanco,
+            porque se dibuja con el color del texto. */}
         <GitHubIcon />
-        Continue with GitHub
+        <span className={cn(entrando && 'pensando pensando-sobre-acento')}>
+          Continue with GitHub
+        </span>
       </Button>
 
       <p className="text-xs text-[var(--color-texto-suave)]">

@@ -436,6 +436,12 @@
  * obliga a relacionar dos cosas separadas.
  */
 .pensando {
+  /*
+   * La cresta y el apagado son variables porque el barrido también se usa sobre
+   * el acento —el botón de entrar—, donde el texto normal no pinta nada: ahí lo
+   * único que cambia son estos dos colores, no el mecanismo.
+   */
+  --pensando-cresta: var(--color-texto);
   /* Mezclado hacia el fondo, así apaga igual de bien en claro y en oscuro. */
   --pensando-apagado: color-mix(in oklab, var(--color-texto-suave) 55%, var(--color-superficie));
 
@@ -452,7 +458,7 @@
     90deg,
     var(--pensando-apagado) 0%,
     var(--pensando-apagado) 42%,
-    var(--color-texto) 50%,
+    var(--pensando-cresta) 50%,
     var(--pensando-apagado) 58%,
     var(--pensando-apagado) 100%
   );
@@ -482,6 +488,27 @@
     background: none;
     color: var(--color-texto-suave);
   }
+
+  .pensando-sobre-acento {
+    color: var(--color-acento-texto);
+    opacity: 0.75;
+  }
+}
+
+/*
+ * El mismo barrido, sobre el acento.
+ *
+ * Es lo que se ve al entrar: mientras el navegador se va a GitHub, el rótulo del
+ * botón barre igual que barre un texto que el modelo está escribiendo. La señal
+ * es la misma en toda la aplicación —algo está en curso y todavía no hay nada
+ * que leer— y por eso comparte clase; lo que no puede compartir es la paleta,
+ * porque el texto oscuro sobre el azul del botón no se leería.
+ */
+.pensando-sobre-acento {
+  --pensando-cresta: var(--color-acento-texto);
+  /* La misma proporción que apaga el texto normal, para que el barrido pese
+     igual aquí que en el resto de la aplicación. */
+  --pensando-apagado: color-mix(in oklab, var(--color-acento-texto) 55%, var(--color-acento));
 }
 
 /*
