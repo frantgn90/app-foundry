@@ -222,6 +222,27 @@ describe('el adaptador de Groq', () => {
     });
 
     /*
+     * Y a los que se gestionan solos no se les pide **nada**: pedirles el formato
+     * de razonamiento es otro 400, igual que declararles herramientas. Con ellos
+     * se habla y ya está.
+     */
+    it('a los que se gestionan solos no se les pide ningún formato', async () => {
+      const { client, params } = stub([{ content: 'hola' }]);
+      const proveedor = new GroqProvider(() => client);
+
+      await recoger(
+        proveedor.streamText(
+          { ...peticion(), model: 'groq/compound-mini', webSearch: { maxUses: 2 } },
+          credencial,
+        ),
+      );
+
+      expect(params[0]?.['reasoning_format']).toBeUndefined();
+      expect(params[0]?.['include_reasoning']).toBeUndefined();
+      expect(params[0]?.['tools']).toBeUndefined();
+    });
+
+    /*
      * Sin herramientas ni esquema no se toca: es lo que permite que el asistente
      * de escritura reciba el razonamiento en crudo y lo separe él, para poder
      * enseñarlo plegado.

@@ -134,19 +134,13 @@ export class GroqProvider implements LlmProvider {
            * model generated output that could not be parsed» que no dice en
            * ningún momento que el problema sea este.
            *
-           * Se pide oculto porque aquí no se usa: lo que interesa de estas dos
-           * llamadas es lo que el modelo concluye, no cómo llegó. En el asistente
-           * de escritura, que no lleva ni herramientas ni esquema, se sigue
-           * recibiendo en crudo y separándolo nosotros (`ReasoningSplitter`), que
-           * es lo que permite enseñarlo plegado.
-           *
-           * Y los `gpt-oss` no admiten ese parámetro: tienen el suyo, que además
-           * es mutuamente excluyente con el otro.
+           * Se pide oculto porque en estas dos llamadas no se usa: interesa lo
+           * que el modelo concluye, no cómo llegó. En el asistente de escritura,
+           * que no lleva ni herramientas ni esquema, se sigue recibiendo en crudo
+           * y separándolo nosotros (`ReasoningSplitter`), que es lo que permite
+           * enseñarlo plegado.
            */
-          ...(sinRazonamientoEnCrudo &&
-            (esGptOss(request.model)
-              ? { include_reasoning: false }
-              : { reasoning_format: 'hidden' as const })),
+          ...(sinRazonamientoEnCrudo && controlDeRazonamiento(request.model)),
           ...(schema && {
             response_format: {
               type: 'json_schema' as const,
@@ -156,7 +150,7 @@ export class GroqProvider implements LlmProvider {
           /*
            * Hay dos formas de buscar en Groq, y confundirlas es un 400.
            *
-           * Los modelos `compound` **ejecutan sus herramientas por su cuenta**:
+           * Los sistemas `compound` **ejecutan sus herramientas por su cuenta**:
            * se les pregunta y deciden solos si buscan. Declarárselas es un error
            * —«tools[0].type must be one of [function, mcp]»— porque su lista de
            * herramientas solo admite las que ejecuta el cliente. Los `gpt-oss`
@@ -165,7 +159,7 @@ export class GroqProvider implements LlmProvider {
            * Los ajustes de búsqueda valen para los dos, así que van siempre.
            */
           ...(request.webSearch &&
-            !buscaPorSuCuenta(request.model) && {
+            !seGestionaSolo(request.model) && {
               tools: [{ type: 'browser_search' as const }],
             }),
           ...(request.webSearch && {
@@ -217,19 +211,35 @@ export class GroqProvider implements LlmProvider {
  * gobierna un techo, y un techo que se queda corto no es un techo.
  */
 /**
- * Si el modelo se encarga solo de sus herramientas.
+ * Si el modelo se gestiona solo.
+ *
+ * Los sistemas `compound` no son modelos sino agentes: deciden por su cuenta
+ * cuándo buscar y cómo entregar lo que piensan. Declararles herramientas es un
+ * error, y pedirles un formato de razonamiento, otro. **Con ellos se habla y ya
+ * está**, que es justo lo que los hace cómodos y lo que hay que respetar.
  *
  * Es una regla por familia y no un dato del catálogo porque Groq no publica esto
  * en ninguna parte consultable: está escrito en su documentación y punto. Al
- * menos aquí está en un sitio, con su motivo, en vez de repartida por el código.
+ * menos aquí está en un sitio, con su motivo, y es **un** concepto en vez de dos
+ * excepciones sueltas.
  */
-function buscaPorSuCuenta(model: string): boolean {
+function seGestionaSolo(model: string): boolean {
   return model.startsWith('groq/compound');
 }
 
-/** Los `gpt-oss` tienen su propio interruptor de razonamiento, no el común. */
-function esGptOss(model: string): boolean {
-  return model.includes('gpt-oss');
+/**
+ * Cómo pedir que el razonamiento no venga en crudo, según quién conteste.
+ *
+ * Tres respuestas para lo mismo: los que se gestionan solos no admiten que se
+ * les pida nada, los `gpt-oss` tienen su propio interruptor —mutuamente
+ * excluyente con el común— y el resto usa el parámetro general.
+ */
+function controlDeRazonamiento(
+  model: string,
+): { include_reasoning: boolean } | { reasoning_format: 'hidden' } | Record<string, never> {
+  if (seGestionaSolo(model)) return {};
+  if (model.includes('gpt-oss')) return { include_reasoning: false };
+  return { reasoning_format: 'hidden' };
 }
 
 export function approximateTokens(request: TextRequest): number {
