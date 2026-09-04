@@ -16,6 +16,37 @@ import { Card } from './ui/card.js';
 import { Input } from './ui/input.js';
 
 /**
+ * El botón que abre la vía «no sé qué construir» (RF-1301).
+ *
+ * Va en la misma fila que crear a mano, a su derecha: son las dos formas de
+ * empezar y ninguna es un rincón de la otra. Es su propio componente porque el
+ * botón y el panel viven en sitios distintos de la pantalla —uno en la fila,
+ * otro debajo— y un solo componente no puede pintarse en dos padres.
+ */
+export function IdeaTrigger({ onAbrir }: { onAbrir: () => void }) {
+  return (
+    <button
+      /* Vive dentro del formulario de crear a mano: sin esto sería otro botón de
+         envío, y abrir las ideas intentaría crear una app sin nombre. */
+      type="button"
+      onClick={onAbrir}
+      className="boton-inspirar shrink-0"
+    >
+      {/*
+        La caja de fuera lleva el degradado; esta lleva la superficie opaca y deja
+        asomar el píxel y medio de aquella por todo el contorno. El radio interior
+        es el de fuera menos el relleno, o el borde se vería más grueso en las
+        esquinas que en los lados.
+      */}
+      <span className="flex h-full items-center gap-2 rounded-[calc(0.6rem-1.5px)] bg-[var(--color-superficie)] px-3 text-sm font-medium">
+        <Logo className="size-4" />
+        Get inspired
+      </span>
+    </button>
+  );
+}
+
+/**
  * La vía «no sé qué construir» (RF-1301..1309).
  *
  * Vive en el mismo panel que crear a mano y no en otra pantalla: son las dos
@@ -25,11 +56,12 @@ import { Input } from './ui/input.js';
 export function IdeaGenerator({
   workspaceId,
   onCreated,
+  onCerrar,
 }: {
   workspaceId: string;
   onCreated: (appId: string) => void;
+  onCerrar: () => void;
 }) {
-  const [abierto, setAbierto] = useState(false);
   const [constraints, setConstraints] = useState<IdeaConstraints>({});
   const [propuestas, setPropuestas] = useState<IdeaProposal[]>([]);
   const [sources, setSources] = useState<IdeaSource[]>([]);
@@ -105,37 +137,7 @@ export function IdeaGenerator({
   function cerrar() {
     abortRef.current?.abort();
     abortRef.current = null;
-    setAbierto(false);
-    setPropuestas([]);
-    setSources([]);
-    setGrounded(null);
-    setError(null);
-    setGenerando(false);
-  }
-
-  if (!abierto) {
-    return (
-      <button
-        /* Vive dentro del formulario de crear a mano: sin esto sería otro botón
-           de envío, y abrir las ideas intentaría crear una app sin nombre. */
-        type="button"
-        onClick={() => {
-          setAbierto(true);
-        }}
-        className="boton-inspirar self-start"
-      >
-        {/*
-          La caja de fuera lleva el degradado; esta lleva la superficie opaca y
-          deja asomar dos píxeles de aquella por todo el contorno. El radio
-          interior es el de fuera menos el relleno, o el borde se vería más
-          grueso en las esquinas que en los lados.
-        */}
-        <span className="flex items-center gap-2 rounded-[calc(0.6rem-2px)] bg-[var(--color-superficie)] px-3 py-1.5 text-sm font-medium">
-          <Logo className="size-4" />
-          Get inspired
-        </span>
-      </button>
-    );
+    onCerrar();
   }
 
   return (
