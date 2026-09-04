@@ -316,6 +316,18 @@ fallos dejan de ser una molestia al comentar y pasan a inutilizar media función
   y es de personas (RF-509, D-8).
 - **RF-1512** — Los agentes de una app **NO DEBEN** ser visibles ni mencionables desde otra app, aunque
   compartan plantilla y workspace.
+- **RF-1513** — El producto **DEBE** traer un **catálogo de plantillas de fábrica**: al menos Product Owner,
+  marketing, dirección técnica, diseño y experiencia de uso, abogado del diablo, y datos y métricas. Seis
+  perfiles que no se pisan, para que nadie tenga que redactar un prompt de personalidad antes de poder usar la
+  función por primera vez.
+- **RF-1514** — El catálogo **DEBE** vivir en el propio producto y no en la base de datos: no es contenido de
+  nadie, no se edita desde la aplicación y mejora con cada versión. Adoptar una de sus plantillas **DEBE**
+  copiarla al workspace, y a partir de ahí es una plantilla propia como cualquier otra (RF-1501, RF-1502):
+  se edita, se borra y **deja de seguir al catálogo**. Adoptarla es, por tanto, crear una plantilla, y solo el
+  `OWNER` **DEBE** poder hacerlo.
+- **RF-1515** — Un workspace sin plantillas propias **DEBE** ofrecer el catálogo en lugar de un estado vacío, y
+  adoptar una **DEBERÍA** ser un solo gesto. Si el handle de la plantilla adoptada ya existe en ese workspace,
+  el sistema **DEBE** decirlo y dejar elegir otro, nunca sobrescribir la que había.
 
 ### 5.7 Agentes: cuándo hablan y qué escriben
 
@@ -445,7 +457,8 @@ fallos dejan de ser una molestia al comentar y pasan a inutilizar media función
   de invocaciones por miembro, retención del consumo— **DEBEN** venir de configuración documentada en
   `.env.example` (RNF-304).
 - **RNF-1003** — El *seed* de ejemplo **DEBERÍA** incluir el proveedor de mentira y un par de plantillas de
-  agente, para poder probar el flujo completo sin consumir la cuota de nadie.
+  agente adoptadas del catálogo de fábrica (RF-1513), para poder probar el flujo completo sin consumir la cuota
+  de nadie y sin una segunda colección de prompts que mantener al día.
 
 ---
 
@@ -469,8 +482,9 @@ La v2 está terminada cuando, en una instancia local:
    teclado, arrastrando hacia la izquierda y sobre un título; y ofrece comentar y las acciones de IA juntas.
 9. Se pide mejorar el documento entero: se ve el techo de tokens antes, y el resultado llega como un diff
    sobre todo el texto que también se puede descartar sin dejar rastro.
-10. El dueño define dos plantillas con personalidades distintas y las instancia en una app; una de ellas con
-    el prompt ajustado para esa app.
+10. El dueño abre un workspace sin plantillas propias, encuentra el catálogo de fábrica en vez de un estado
+    vacío, adopta dos de sus perfiles de un gesto y las instancia en una app; una de ellas con el prompt
+    ajustado para esa app. Editar la copia adoptada no cambia nada del catálogo, ni al revés.
 11. Se menciona a un agente en un hilo y responde en su papel; se le responde y vuelve a contestar; al tercer
     turno calla.
 12. Un agente no responde jamás a lo que escribe otro, y una mención escrita por un agente no invoca a nadie.

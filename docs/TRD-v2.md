@@ -91,6 +91,7 @@ packages/
   core/
     src/ai/                  # NUEVO: puerto, tipos, capacidades, tareas,
                              # reglas de disparo y cortafuegos de agentes
+      agent-catalog.ts       # las plantillas de fábrica, como datos (RF-1514)
 apps/
   worker/                    # NUEVO: consumidor de las colas de IA
 ```
@@ -268,6 +269,22 @@ agent_prompt_revisions                       -- RF-1510
 
 El prompt vigente es la revisión de número más alto. Cada comentario guarda **la revisión concreta** con la
 que se escribió, no una copia del texto: duplicar kilobytes por línea escrita sería tirar el espacio.
+
+**El catálogo de fábrica no es una tabla** (RF-1514). Los seis perfiles viven en `core/src/ai/agent-catalog.ts`
+como datos: nombre, handle sugerido, icono y prompt. No son de nadie, nadie los edita desde la aplicación y
+mejoran con el despliegue, así que una tabla solo añadiría filas que mantener sincronizadas con el código.
+
+Adoptar uno **copia** sus campos a una fila de `agent_templates` y ahí se acaba el vínculo: no se guarda de qué
+entrada del catálogo salió. Es deliberado. Guardarlo invitaría a la pregunta «tu plantilla de origen cambió,
+¿la adoptas?» que RF-1505 sí plantea entre plantilla e instancia, y ahí no tendría el mismo sentido: entre dos
+filas del workspace el cambio lo hizo alguien conocido, mientras que un catálogo que cambia solo al desplegar
+estaría proponiéndole al dueño adoptar una decisión nuestra sobre un texto que él ya hizo suyo.
+
+Una consecuencia que conviene ver escrita: como adoptar es **crear una plantilla**, lo hace el `OWNER` y nadie
+más (RF-1502, RF-1514). Un miembro con permiso de edición en una app puede añadirle agentes, pero solo a partir
+de plantillas que ya existan en el workspace. Un workspace recién creado necesita, por tanto, un gesto de su
+dueño antes de que ninguna app pueda tener agentes; a cambio, `agents.template_id` sigue apuntando siempre a
+una fila y no hace falta una segunda relación polimórfica para saber de dónde desciende un agente.
 
 ### 7.3 Comentarios: autoría polimórfica
 
@@ -568,7 +585,8 @@ Rutas nuevas, todas bajo el mismo esquema de sesión y CSRF de la v1:
 | `GET /workspaces/:id/ai/usage` | miembro *(el suyo)* / `OWNER` *(todo)* | Consumo del mes |
 | `POST /workspaces/:id/ai/ideas` | miembro | Generación de ideas (SSE) |
 | `POST /apps/:id/document/assist` | edición | Propuesta sobre la selección (SSE) |
-| `GET/POST/PATCH/DELETE /workspaces/:id/agent-templates/...` | `OWNER` | Plantillas |
+| `GET /workspaces/:id/agent-templates/catalog` | `OWNER` | Catálogo de fábrica, y cuáles chocan de handle |
+| `GET/POST/PATCH/DELETE /workspaces/:id/agent-templates/...` | `OWNER` | Plantillas, propias o adoptadas |
 | `GET/POST/PATCH/DELETE /apps/:id/agents/...` | edición | Agentes de la app |
 | `POST /apps/:id/reviews/estimate` | lectura | Techo de tokens y confirmación |
 | `POST /apps/:id/reviews` | lectura | Lanzar revisión |
@@ -675,7 +693,7 @@ contra la documentación se comporta como dice cuando hay alguien al otro lado.
 | RF-1201..1210 consumo y cupos | §7.4, §9, §10 |
 | RF-1301..1312 ideas | §12.1 |
 | RF-1401..1416 asistente y menú de selección | §12.2, §12.2.1 |
-| RF-1501..1512 agentes | §7.2, §13, §14 |
+| RF-1501..1515 agentes y catálogo de fábrica | §7.2, §13, §14 |
 | RF-1601..1614 conversación de agentes | §12.3, §8.4 |
 | RF-1701..1705 transparencia y auditoría | §7.4, §14, §15 |
 | RNF-601..607 seguridad | §8 |

@@ -547,7 +547,7 @@ empezar cada hito, con el mismo método que la v1.
 | **H9** ✅  | Puerto y adaptadores, cifrado de credenciales, catálogo por API, modelo por tarea, cupos       | La IA ya tiene grifo y contador    |
 | **H10** ✅ | Arreglo del menú de selección (U26, U27) y asistente de escritura, con diff que se acepta      | **Primer valor real**              |
 | **H11** ✅ | Generación de ideas, con y sin búsqueda web, y la app creada con su visión sembrada            | Cierra «no tengo ideas»            |
-| **H12**    | Agentes: modelo, plantillas, instancias, autoría polimórfica, menciones y respuestas           | Un interlocutor con perfil         |
+| **H12**    | Agentes: modelo, catálogo de fábrica, instancias, autoría polimórfica, menciones y respuestas  | Un interlocutor con perfil         |
 | **H13**    | Revisión en abanico: cola, estimación, confirmación, cancelación y cortafuegos                 | **Pensar acompañado, completo**    |
 | **H14**    | Panel de Grafana, recorrido de extremo a extremo, conciliación de cupos y cierre               | v2 completa                        |
 
@@ -891,6 +891,10 @@ Solo se desglosa el hito en curso. H9, H10 y H11 están cerradas; **H12** está 
 >
 > Lo que **no** entra: la revisión en abanico (H13). Aquí un agente habla cuando le hablan, de uno en uno.
 >
+> Y entra el **catálogo de fábrica** (RF-1513..1515): seis perfiles listos —producto, marketing, dirección
+> técnica, diseño, abogado del diablo, y datos y métricas— para que estrenar la función no empiece por
+> redactar un prompt de personalidad en una caja vacía.
+>
 > Dos cosas que la tabla de hitos coloca en H13 y que aquí no se pueden aplazar. La primera, los **cortafuegos**
 > de RF-1604 y RF-1605: son la condición de entrada del disparo, no un añadido posterior, y sin ellos H12
 > entregaría agentes capaces de contestarse entre sí. La segunda, la **cola y el worker**: el TRD manda las
@@ -928,14 +932,38 @@ Solo se desglosa el hito en curso. H9, H10 y H11 están cerradas; **H12** está 
 | # | Tarea | Verificación | Traza | Estado |
 |---|---|---|---|---|
 | BD1 | Alta, edición y borrado de plantillas, solo del `OWNER` | Un miembro no las escribe ni por la API | RF-1501, RF-1502 | ⬜ |
-| BD2 | Añadir y quitar agentes lo hace quien pueda editar la app | Con lectura no; el invitado con edición sí | RF-1503 | ⬜ |
-| BD3 | El prompt se ajusta para esa app sin tocar la plantilla | Editar la instancia no cambia la plantilla, ni la plantilla las instancias | RF-1504, RF-1505 | ⬜ |
-| BD4 | De qué plantilla desciende y si se ha desviado de ella | Y adoptar el cambio de la plantilla cuando se quiera | RF-1504, RF-1505 | ⬜ |
-| BD5 | Tope de agentes por app, configurable de instancia | Cinco por defecto; el sexto se rechaza diciendo por qué | RF-1507, RNF-1002 | ⬜ |
-| BD6 | Auditoría de plantillas y agentes, sin cuerpo de prompt | Se registra que cambió, no lo que dice | RF-1702, RF-1703 | ⬜ |
-| BD7 | El *seed* trae el proveedor de mentira y un par de plantillas | El flujo se prueba sin configurar nada ni gastar cuota de nadie | RNF-1003 | ⬜ |
+| BD2 | El catálogo de fábrica, seis perfiles, como datos en `core` | Product owner, marketing, dirección técnica, diseño, abogado del diablo, y datos y métricas | RF-1513, RF-1514 | ⬜ |
+| BD3 | Adoptar una del catálogo la copia al workspace | Y ahí se corta el vínculo: editar la copia no toca el catálogo, ni al revés | RF-1514 | ⬜ |
+| BD4 | Adoptar es crear, así que lo hace el `OWNER` | Un miembro con edición no puede, ni por la API | RF-1502, RF-1514 | ⬜ |
+| BD5 | Un handle que ya existe se avisa y se deja elegir otro | Nunca se sobrescribe la plantilla que había | RF-1515, RF-1506 | ⬜ |
+| BD6 | Añadir y quitar agentes lo hace quien pueda editar la app | Con lectura no; el invitado con edición sí | RF-1503 | ⬜ |
+| BD7 | El prompt se ajusta para esa app sin tocar la plantilla | Editar la instancia no cambia la plantilla, ni la plantilla las instancias | RF-1504, RF-1505 | ⬜ |
+| BD8 | De qué plantilla desciende y si se ha desviado de ella | Y adoptar el cambio de la plantilla cuando se quiera | RF-1504, RF-1505 | ⬜ |
+| BD9 | Tope de agentes por app, configurable de instancia | Cinco por defecto; el sexto se rechaza diciendo por qué | RF-1507, RNF-1002 | ⬜ |
+| BD10 | Auditoría de plantillas y agentes, sin cuerpo de prompt | Se registra que cambió, no lo que dice | RF-1702, RF-1703 | ⬜ |
+| BD11 | El *seed* trae el proveedor de mentira y dos plantillas del catálogo | El flujo se prueba sin configurar nada ni gastar cuota de nadie | RNF-1003, RF-1513 | ⬜ |
 
-> **Sobre BD3 y BD4.** Editar una plantilla no propaga nada, y eso es deliberado: una instancia lleva el prompt
+> **Sobre BD2, BD3 y BD4 — el catálogo de fábrica.** Nadie debería tener que redactar un prompt de personalidad
+> para poder probar la función por primera vez, así que el producto trae seis perfiles que no se pisan: quién
+> lo quiere y para qué, cómo se cuenta, si se puede construir, cómo se usa, por qué podría no funcionar y cómo
+> se sabría (RF-1513).
+>
+> Viven en el código y no en la base (RF-1514). No son contenido de nadie, nadie los edita desde la aplicación
+> y mejoran al desplegar; una tabla solo añadiría filas que mantener sincronizadas con el fichero de al lado.
+>
+> Adoptar uno **copia** y corta el vínculo: no se guarda de qué entrada salió. Guardarlo llevaría derecho a la
+> pregunta «el catálogo cambió, ¿lo adoptas?», que entre dos filas del workspace tiene sentido —el cambio lo
+> hizo alguien conocido (RF-1505)— y aquí no: sería proponerle al dueño adoptar una decisión nuestra sobre un
+> texto que él ya hizo suyo.
+>
+> Y una consecuencia que conviene conocer, porque no es evidente y es el precio de esta forma: como adoptar es
+> **crear una plantilla**, lo hace el `OWNER` y nadie más. Un miembro con permiso de edición puede añadir
+> agentes a su app, pero solo a partir de plantillas que ya estén en el workspace. Un workspace recién creado
+> necesita un gesto de su dueño antes de que ninguna app pueda tener agentes. A cambio, `agents.template_id`
+> apunta siempre a una fila y no hace falta una segunda relación polimórfica —encima de la de los comentarios—
+> solo para saber de dónde desciende un agente.
+>
+> **Sobre BD7 y BD8.** Editar una plantilla no propaga nada, y eso es deliberado: una instancia lleva el prompt
 > con el que sus comentarios se escribieron, y reescribirla a distancia dejaría un historial en el que el agente
 > dice cosas que su perfil actual no explica. Lo que sí se hace es **avisar** en las apps afectadas y ofrecer
 > adoptar el cambio, que es una decisión de quien edita esa app y no del dueño del workspace.
@@ -989,23 +1017,24 @@ Solo se desglosa el hito en curso. H9, H10 y H11 están cerradas; **H12** está 
 | # | Tarea | Verificación | Traza | Estado |
 |---|---|---|---|---|
 | BF1 | Plantillas en los ajustes del workspace | Solo para el `OWNER`, con icono como el de las apps | RF-1501, RF-1502, D-14 | ⬜ |
-| BF2 | Sección de agentes en la ficha de la app | Icono, perfil y estado; y sin colarse en los contribuidores | RF-1511 | ⬜ |
-| BF3 | Aviso de que la plantilla de origen cambió, y adoptarlo | En la app afectada, no en la plantilla | RF-1505 | ⬜ |
-| BF4 | Los agentes, mencionables desde el compositor | Distinguibles de una persona en la lista y en el texto | RF-1506, RF-815 | ⬜ |
-| BF5 | Distintivo de IA en el comentario y en el panel de hilos | Sin depender del icono | RF-1611, RF-1701 | ⬜ |
-| BF6 | La respuesta aparece sin recargar | Por el canal que ya alimenta los avisos | RF-1602, T-6 | ⬜ |
-| BF7 | Distinguir los hilos con participación de IA | Y que cuenten como abiertos y se busquen igual que los demás | RF-1613, RF-811 | ⬜ |
-| BF8 | Un agente retirado, marcado allí donde escribió | Mismo criterio que con una persona | RF-1509, RF-813 | ⬜ |
-| BF9 | Con qué proveedor y modelo se generó, a la vista | En el propio comentario | RF-1704 | ⬜ |
-| BF10 | Borrar un hilo de agente, como cualquier otro | Lo hace el precursor de la app | RF-1705, RF-806 | ⬜ |
-| BF11 | Sin disponibilidad, los agentes no se ofrecen | Ni con la IA apagada, ni sin modelo asignado a su tarea | RF-1010 | ⬜ |
+| BF2 | Sin plantillas propias, el catálogo en lugar del estado vacío | Y adoptar una es un solo gesto | RF-1515 | ⬜ |
+| BF3 | Sección de agentes en la ficha de la app | Icono, perfil y estado; y sin colarse en los contribuidores | RF-1511 | ⬜ |
+| BF4 | Aviso de que la plantilla de origen cambió, y adoptarlo | En la app afectada, no en la plantilla | RF-1505 | ⬜ |
+| BF5 | Los agentes, mencionables desde el compositor | Distinguibles de una persona en la lista y en el texto | RF-1506, RF-815 | ⬜ |
+| BF6 | Distintivo de IA en el comentario y en el panel de hilos | Sin depender del icono | RF-1611, RF-1701 | ⬜ |
+| BF7 | La respuesta aparece sin recargar | Por el canal que ya alimenta los avisos | RF-1602, T-6 | ⬜ |
+| BF8 | Distinguir los hilos con participación de IA | Y que cuenten como abiertos y se busquen igual que los demás | RF-1613, RF-811 | ⬜ |
+| BF9 | Un agente retirado, marcado allí donde escribió | Mismo criterio que con una persona | RF-1509, RF-813 | ⬜ |
+| BF10 | Con qué proveedor y modelo se generó, a la vista | En el propio comentario | RF-1704 | ⬜ |
+| BF11 | Borrar un hilo de agente, como cualquier otro | Lo hace el precursor de la app | RF-1705, RF-806 | ⬜ |
+| BF12 | Sin disponibilidad, los agentes no se ofrecen | Ni con la IA apagada, ni sin modelo asignado a su tarea | RF-1010 | ⬜ |
 
-> **Sobre BF6.** Es la primera vez que algo aparece en el panel de comentarios **sin que quien mira haya hecho
+> **Sobre BF7.** Es la primera vez que algo aparece en el panel de comentarios **sin que quien mira haya hecho
 > nada**: el agente contesta cuando el worker termina, que puede ser diez segundos después de mandar la mención.
 > No se monta un canal nuevo para eso —el de avisos ya llega a esa pantalla (T-6)— pero sí hay que decidir qué
 > hacer mientras tanto, porque un hilo que no acusa recibo de la mención parece roto.
 >
-> **Sobre BF4 y BF5.** Que un agente se distinga de una persona es requisito en **todas partes** donde aparezca
+> **Sobre BF5 y BF6.** Que un agente se distinga de una persona es requisito en **todas partes** donde aparezca
 > (RF-1506), y el icono no basta: un emoji de colores es exactamente lo que también tiene un compañero. El
 > distintivo es aparte del icono a propósito (RF-1611).
 
@@ -1014,4 +1043,4 @@ Solo se desglosa el hito en curso. H9, H10 y H11 están cerradas; **H12** está 
 | # | Tarea | Verificación | Traza | Estado |
 |---|---|---|---|---|
 | BG1 | Suite explícita de cortafuegos | Un agente no reacciona a otro; su mención no invoca ni avisa; el tope se respeta | RNF-902 | ⬜ |
-| BG2 | Recorrido completo con el proveedor de mentira | Crear plantilla, añadir agente, mencionarlo, que conteste, replicarle y que calle al tope | RNF-905 | ⬜ |
+| BG2 | Recorrido completo con el proveedor de mentira | Adoptar del catálogo, añadir agente, mencionarlo, que conteste, replicarle y que calle al tope | RNF-905 | ⬜ |
