@@ -403,13 +403,25 @@
  * obliga a relacionar dos cosas separadas.
  */
 .pensando {
+  /* Mezclado hacia el fondo, así apaga igual de bien en claro y en oscuro. */
+  --pensando-apagado: color-mix(in oklab, var(--color-texto-suave) 55%, var(--color-superficie));
+
+  /*
+   * El contraste se abre por los dos lados: la cresta al máximo del texto y el
+   * resto apagado hacia el fondo. Con la base en el gris normal, el barrido
+   * existía pero había que estar mirándolo; separando casi el doble de claridad
+   * se ve de reojo, que es de lo que se trata.
+   *
+   * La franja clara va estrecha —16 puntos— para que se lea como algo que pasa
+   * por encima y no como un texto que cambia de color entero.
+   */
   background: linear-gradient(
     90deg,
-    var(--color-texto-suave) 0%,
-    var(--color-texto-suave) 35%,
+    var(--pensando-apagado) 0%,
+    var(--pensando-apagado) 42%,
     var(--color-texto) 50%,
-    var(--color-texto-suave) 65%,
-    var(--color-texto-suave) 100%
+    var(--pensando-apagado) 58%,
+    var(--pensando-apagado) 100%
   );
   background-size: 250% 100%;
   -webkit-background-clip: text;
