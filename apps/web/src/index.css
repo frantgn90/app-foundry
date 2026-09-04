@@ -450,3 +450,70 @@
     color: var(--color-texto-suave);
   }
 }
+
+/*
+ * El botón de «Get inspired»: blanco, con el borde encendido.
+ *
+ * El brillo es un degradado cónico que gira despacio, y el borde no es un borde
+ * sino ese degradado asomando por debajo: la caja lleva relleno de dos píxeles y
+ * dentro va la superficie opaca. Es la única forma de tener un contorno de
+ * varios colores, porque `border-color` solo admite uno.
+ *
+ * El halo es el mismo degradado repetido detrás y desenfocado. Se pinta por
+ * debajo de la propia caja, así que solo se ve lo que se sale por los bordes, que
+ * es exactamente el brillo difuminado que se busca.
+ */
+@property --inspirar-angulo {
+  syntax: '<angle>';
+  inherits: false;
+  initial-value: 0deg;
+}
+
+.boton-inspirar {
+  position: relative;
+  isolation: isolate;
+  border-radius: 0.6rem;
+  padding: 2px;
+  background: conic-gradient(
+    from var(--inspirar-angulo),
+    oklch(70% 0.19 40),
+    oklch(68% 0.2 350),
+    oklch(62% 0.2 285),
+    oklch(70% 0.15 215),
+    oklch(70% 0.16 160),
+    oklch(70% 0.19 40)
+  );
+  animation: girar-inspirar 7s linear infinite;
+}
+
+.boton-inspirar::before {
+  content: '';
+  position: absolute;
+  inset: -4px;
+  z-index: -1;
+  border-radius: inherit;
+  background: inherit;
+  filter: blur(9px);
+  opacity: 0.5;
+  transition: opacity 150ms ease;
+}
+
+.boton-inspirar:hover::before {
+  opacity: 0.85;
+}
+
+@keyframes girar-inspirar {
+  to {
+    --inspirar-angulo: 360deg;
+  }
+}
+
+/*
+ * Sin movimiento se queda quieto, no apagado: el borde de colores sigue
+ * diciendo lo mismo, y lo único que sobra es el giro.
+ */
+@media (prefers-reduced-motion: reduce) {
+  .boton-inspirar {
+    animation: none;
+  }
+}

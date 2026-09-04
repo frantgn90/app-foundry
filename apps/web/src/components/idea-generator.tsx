@@ -10,6 +10,7 @@ import {
   streamIdeas,
 } from '../lib/ideas.js';
 import { Badge } from './ui/badge.js';
+import { Logo } from './logo.js';
 import { Button } from './ui/button.js';
 import { Card } from './ui/card.js';
 import { Input } from './ui/input.js';
@@ -121,9 +122,18 @@ export function IdeaGenerator({
         onClick={() => {
           setAbierto(true);
         }}
-        className="self-start text-xs text-[var(--color-texto-suave)] underline-offset-2 hover:text-[var(--color-texto)] hover:underline"
+        className="boton-inspirar self-start"
       >
-        …or I don&apos;t know what to build
+        {/*
+          La caja de fuera lleva el degradado; esta lleva la superficie opaca y
+          deja asomar dos píxeles de aquella por todo el contorno. El radio
+          interior es el de fuera menos el relleno, o el borde se vería más
+          grueso en las esquinas que en los lados.
+        */}
+        <span className="flex items-center gap-2 rounded-[calc(0.6rem-2px)] bg-[var(--color-superficie)] px-3 py-1.5 text-sm font-medium">
+          <Logo className="size-4" />
+          Get inspired
+        </span>
       </button>
     );
   }

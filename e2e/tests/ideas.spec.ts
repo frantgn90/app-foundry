@@ -25,7 +25,7 @@ test('generar ideas, elegir una y aterrizar en su visión', async ({ page, conte
    * configurarla: enseñar el camino y que luego no lleve a ninguna parte es
    * peor que no enseñarlo.
    */
-  await expect(page.getByRole('button', { name: /don.t know what to build/i })).toHaveCount(0);
+  await expect(page.getByRole('button', { name: 'Get inspired' })).toHaveCount(0);
 
   await page.getByRole('button', { name: 'AI', exact: true }).click();
   await page.getByRole('button', { name: /I understand/ }).click();
@@ -40,7 +40,7 @@ test('generar ideas, elegir una y aterrizar en su visión', async ({ page, conte
   await page.getByRole('button', { name: 'Apps', exact: true }).click();
 
   await test.step('la vía aparece junto a crear a mano', async () => {
-    await page.getByRole('button', { name: /don.t know what to build/i }).click();
+    await page.getByRole('button', { name: 'Get inspired' }).click();
     await expect(page.getByText(/all of it is optional/i)).toBeVisible();
   });
 
