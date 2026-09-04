@@ -97,6 +97,16 @@ export function AppDetailPage({
    */
   const [conversacionAbierta, setConversacionAbierta] = useState(true);
   const [draft, setDraft] = useState<string | null>(null);
+  /*
+   * De qué app es el borrador que hay en memoria.
+   *
+   * La pantalla se remonta al cambiar de app —lleva `key`— y en condiciones
+   * normales esto siempre coincide con `appId`. Está por si alguna vez deja de
+   * llevarla: sin este cerrojo, el borrador de la app anterior se escribía bajo
+   * la clave de la nueva y el estropicio sobrevivía a recargar, que es mucho
+   * peor que verlo mal un momento.
+   */
+  const appDelBorrador = useRef(appId);
   const [conflict, setConflict] = useState<SaveConflict | null>(null);
   /*
    * Versión que se está mirando, `null` mientras sea la actual. El historial
@@ -357,6 +367,8 @@ export function AppDetailPage({
   // texto. No genera versiones, solo sobrevive a un accidente (RF-506).
   useEffect(() => {
     if (draft === null || !document.data) return;
+    // Un borrador solo se guarda bajo la clave de su propia app.
+    if (appDelBorrador.current !== appId) return;
     if (draft === document.data.content) {
       localStorage.removeItem(draftKey(appId));
       return;
@@ -365,8 +377,11 @@ export function AppDetailPage({
   }, [draft, appId, document.data]);
 
   useEffect(() => {
-    if (!document.data || draft !== null) return;
+    if (!document.data) return;
+    // Hay borrador, pero de otra app: se descarta y se carga el de esta.
+    if (draft !== null && appDelBorrador.current === appId) return;
     const saved = localStorage.getItem(draftKey(appId));
+    appDelBorrador.current = appId;
     setDraft(saved ?? document.data.content);
     // Si había borrador sin guardar, se vuelve a donde se estaba escribiendo.
     if (saved && saved !== document.data.content) setEditando(true);
@@ -379,7 +394,15 @@ export function AppDetailPage({
     return <p className="text-sm">This app could not be loaded.</p>;
   }
 
-  const content = draft ?? document.data.content;
+  /*
+   * El borrador manda, pero solo el de esta app: si el que hay en memoria es de
+   * otra —el hueco de un render, hasta que el efecto de arriba lo reemplace—,
+   * vale lo guardado. Sin esto, ese instante bastaba para que Mod-S mandara al
+   * servidor el texto de la app equivocada, con la revisión buena de esta y sin
+   * conflicto que lo frenara.
+   */
+  const content =
+    appDelBorrador.current === appId ? (draft ?? document.data.content) : document.data.content;
 
   const openThreads = (threads.data?.threads ?? []).filter((t) => t.status === 'OPEN').length;
   const hasUnsavedChanges = content !== document.data.content;

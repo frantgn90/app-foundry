@@ -202,7 +202,16 @@ export function App() {
       {pantalla === 'workspace' && !current && <Screen text="Preparing your workspace…" />}
 
       {pantalla === 'workspace' && current && openApp && (
+        /*
+         * La `key` es el arreglo, no un detalle: sin ella, cambiar de app solo
+         * cambiaba la prop y la pantalla conservaba el estado de la anterior
+         * —el borrador, la versión elegida, el hilo abierto—, así que leer
+         * enseñaba un documento y editar otro, el de la app que se acababa de
+         * dejar. Con la clave, cada app estrena su pantalla; el borrador de
+         * verdad no se pierde, que vive en el almacenamiento local.
+         */
         <AppDetailPage
+          key={openApp}
           appId={openApp}
           workspaceId={current.id}
           initialThreadId={hiloDestino}
