@@ -129,8 +129,24 @@ export interface TokenCount {
  * se propaga cualquier otro en el lenguaje. Un error como evento se puede
  * ignorar sin querer y deja la operación pareciendo un éxito vacío.
  */
+/**
+ * Algo que el proveedor **no ha podido hacer**, y que cambia lo que vale la
+ * respuesta.
+ *
+ * No es un error: la generación sigue y termina bien. Es una merma, y quien la
+ * enseñe tiene que poder decirla. Sin esto, una respuesta escrita sin buscar es
+ * indistinguible de una escrita habiendo buscado, que es exactamente lo que
+ * RF-1305 prohíbe.
+ */
+export const GenerationLimit = {
+  /** Se pidió buscar en la web y el modelo no admite ninguna forma de hacerlo. */
+  NO_WEB_SEARCH: 'NO_WEB_SEARCH',
+} as const;
+export type GenerationLimit = (typeof GenerationLimit)[keyof typeof GenerationLimit];
+
 export type GenerationEvent<T = never> =
   | { readonly type: 'delta'; readonly text: string }
+  | { readonly type: 'limit'; readonly limit: GenerationLimit }
   | { readonly type: 'partial'; readonly value: unknown }
   | { readonly type: 'sources'; readonly sources: readonly WebSource[] }
   | { readonly type: 'usage'; readonly usage: TokenUsage }

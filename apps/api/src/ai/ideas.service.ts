@@ -4,6 +4,7 @@ import { and, eq } from 'drizzle-orm';
 import {
   AiTask,
   completeProposals,
+  GenerationLimit,
   IDEA_BATCH_SCHEMA,
   type IdeaConstraints,
   type IdeaProposal,
@@ -60,6 +61,13 @@ export type IdeaEvent =
       readonly grounded: boolean;
     }
   | { readonly type: 'sources'; readonly sources: readonly WebSource[] }
+  /**
+   * Algo que se ha tenido que hacer peor, dicho tal cual (RF-1305).
+   *
+   * No es un error: hay ideas y son utilizables. Pero salieron de un camino más
+   * pobre que el que se pidió, y callarlo haría que se leyeran como si no.
+   */
+  | { readonly type: 'notice'; readonly code: string; readonly message: string }
   | { readonly type: 'proposal'; readonly index: number; readonly proposal: IdeaProposal }
   | { readonly type: 'done'; readonly count: number }
   | {
@@ -116,13 +124,33 @@ export class AiIdeasService {
     let research: string | undefined;
     let sources: readonly WebSource[] = [];
     let fundamentado = grounded;
+    const avisos: { code: string; message: string }[] = [];
 
     if (grounded && !signal.aborted) {
       try {
         const investigado = await this.research(context, command.constraints, userId, signal);
         research = investigado.text;
         sources = investigado.sources;
+
+        /*
+         * Buscó de verdad solo si el proveedor no dijo lo contrario **y** trajo
+         * algo. Una investigación sin una sola fuente no fundamenta nada, y
+         * darla por buena sería presentar como respaldado lo que no lo está.
+         */
+        if (!investigado.buscó || sources.length === 0) {
+          fundamentado = false;
+          avisos.push({
+            code: 'NO_WEB_SEARCH',
+            message: investigado.buscó
+              ? 'The search came back empty, so these ideas rest on what the model already knew.'
+              : 'This model cannot search the web, so it was asked without searching.',
+          });
+        }
       } catch (error) {
+        avisos.push({
+          code: 'SEARCH_FAILED',
+          message: 'The web search did not go through, so these ideas come from the model alone.',
+        });
         /*
          * Buscar es **lo mejor que se puede hacer**, no un requisito.
          *
@@ -151,6 +179,7 @@ export class AiIdeasService {
       grounded: fundamentado,
     };
     if (sources.length > 0) yield { type: 'sources', sources };
+    for (const aviso of avisos) yield { type: 'notice', ...aviso };
 
     const mensajes = ideasMessages({
       constraints: command.constraints,
@@ -181,6 +210,18 @@ export class AiIdeasService {
     this.logger.warn(
       `${plan.provider} no admite salida con esquema en ${plan.modelId}: se describe la forma en el encargo`,
     );
+
+    /*
+     * Y se dice, porque cambia lo que vale el resultado: sin la forma
+     * garantizada, una propuesta malformada se descarta en silencio y la tanda
+     * puede salir más corta de lo pedido. Quien la lea merece saber por qué.
+     */
+    yield {
+      type: 'notice',
+      code: 'SHAPE_NOT_GUARANTEED',
+      message:
+        'This model cannot be held to a fixed answer shape, so it was asked in words. Some ideas may have been dropped if they came back malformed.',
+    };
 
     yield* this.darForma(
       context,
@@ -339,7 +380,7 @@ export class AiIdeasService {
     constraints: IdeaConstraints,
     userId: string,
     signal: AbortSignal,
-  ): Promise<{ text: string; sources: readonly WebSource[] }> {
+  ): Promise<{ text: string; sources: readonly WebSource[]; buscó: boolean }> {
     const empezada = await conIdentidad(this.db, userId, () =>
       this.invocations.begin(context, [
         {
@@ -357,6 +398,7 @@ export class AiIdeasService {
     let texto = '';
     let fuentes: readonly WebSource[] = [];
     let usage: TokenUsage | null = null;
+    let buscó = true;
 
     try {
       for await (const evento of proveedor.streamText(
@@ -366,6 +408,10 @@ export class AiIdeasService {
         if (evento.type === 'delta') texto += evento.text;
         else if (evento.type === 'sources') fuentes = evento.sources;
         else if (evento.type === 'usage') usage = evento.usage;
+        /* El proveedor avisa de que no ha podido buscar: la llamada sale bien igual. */
+        else if (evento.type === 'limit' && evento.limit === GenerationLimit.NO_WEB_SEARCH) {
+          buscó = false;
+        }
       }
     } catch (error) {
       const kind = error instanceof ProviderError ? error.kind : ProviderErrorKind.TRANSIENT;
@@ -379,7 +425,7 @@ export class AiIdeasService {
     await this.settle(context, empezada, usage ?? this.estimated(empezada, texto), userId, {
       outcome: 'COMPLETED',
     });
-    return { text: texto, sources: fuentes };
+    return { text: texto, sources: fuentes, buscó };
   }
 
   private async assertMember(workspaceId: string, userId: string): Promise<void> {

@@ -45,6 +45,8 @@ export interface IdeaHandlers {
   /** Si las propuestas se apoyan en algo buscado o solo en lo que el modelo sabe. */
   onMeta: (meta: { grounded: boolean; model: string }) => void;
   onSources: (sources: IdeaSource[]) => void;
+  /** Algo que se ha tenido que hacer peor, y que hay que decir (RF-1305). */
+  onNotice: (aviso: { code: string; message: string }) => void;
   onProposal: (proposal: IdeaProposal) => void;
   onDone: () => void;
   /**
@@ -110,6 +112,8 @@ function despachar(bloque: string, handlers: IdeaHandlers): void {
     handlers.onMeta({ grounded: evento['grounded'] as boolean, model: evento['model'] as string });
   } else if (evento.type === 'sources') {
     handlers.onSources(evento['sources'] as IdeaSource[]);
+  } else if (evento.type === 'notice') {
+    handlers.onNotice({ code: evento['code'] as string, message: evento['message'] as string });
   } else if (evento.type === 'proposal') {
     handlers.onProposal(evento['proposal'] as IdeaProposal);
   } else if (evento.type === 'done') {

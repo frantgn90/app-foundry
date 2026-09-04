@@ -80,6 +80,8 @@ export function IdeaGenerator({
   const [propuestas, setPropuestas] = useState<IdeaProposal[]>([]);
   const [sources, setSources] = useState<IdeaSource[]>([]);
   const [grounded, setGrounded] = useState<boolean | null>(null);
+  /** Lo que se ha tenido que hacer peor en esta tanda, si algo. */
+  const [avisos, setAvisos] = useState<{ code: string; message: string }[]>([]);
   const [generando, setGenerando] = useState(false);
   const [error, setError] = useState<{ mensaje: string; detalle?: string } | null>(null);
   const [eligiendo, setEligiendo] = useState<string | null>(null);
@@ -104,6 +106,7 @@ export function IdeaGenerator({
       setSources([]);
       setGrounded(null);
     }
+    setAvisos([]);
     setError(null);
     setGenerando(true);
 
@@ -118,6 +121,9 @@ export function IdeaGenerator({
         },
         onSources: (fuentes) => {
           if (vigente()) setSources((previas) => [...previas, ...fuentes]);
+        },
+        onNotice: (aviso) => {
+          if (vigente()) setAvisos((previos) => [...previos, aviso]);
         },
         onProposal: (propuesta) => {
           if (vigente()) setPropuestas((previas) => [...previas, propuesta]);
@@ -317,6 +323,17 @@ export function IdeaGenerator({
             : 'This model did not search the web, so these come from its own memory — not from what the market looks like today.'}
         </p>
       )}
+
+      {/*
+        Lo que se ha tenido que hacer peor, con el mismo tono que el resto: no
+        son errores —hay ideas y sirven—, pero salieron de un camino más pobre
+        que el que se pidió, y callarlo haría que se leyeran como si no.
+      */}
+      {avisos.map((aviso) => (
+        <p key={aviso.code} className="text-xs text-[var(--color-texto-suave)]">
+          {aviso.message}
+        </p>
+      ))}
 
       {sources.length > 0 && (
         <ul className="flex flex-wrap gap-2 text-xs">

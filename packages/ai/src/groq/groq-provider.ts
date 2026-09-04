@@ -2,6 +2,7 @@ import {
   AiProvider,
   type Credential,
   type GenerationEvent,
+  GenerationLimit,
   type LlmProvider,
   type ModelInfo,
   type ObjectRequest,
@@ -16,6 +17,7 @@ import Groq from 'groq-sdk';
 import type { ChatCompletionChunk } from 'groq-sdk/resources/chat/completions';
 
 import { toAbortSignal } from '../errors.js';
+import { ajustesDe, MEJOR, type Peldanos, renunciaABuscar, siguienteTras } from './tuning.js';
 import { translateGroqError } from './errors.js';
 
 export type GroqClientFactory = (credential: Credential) => Groq;
@@ -42,9 +44,27 @@ export class GroqProvider implements LlmProvider {
   readonly id = AiProvider.GROQ;
   readonly capabilities = CAPACIDADES;
 
+  /**
+   * Lo que se ha aprendido de cada modelo a fuerza de que rechace cosas.
+   *
+   * Vive en memoria y por proceso a propósito: es una caché de conveniencia, no
+   * un dato del producto. Perderla al reiniciar solo cuesta un tanteo más; y que
+   * se pierda es justo lo que hace que un cambio en el proveedor se aprenda
+   * solo, sin que nadie tenga que ir a invalidar nada.
+   */
+  private readonly aprendido = new Map<string, Peldanos>();
+
   constructor(
     private readonly createClient: GroqClientFactory = (credential) =>
-      new Groq({ apiKey: credential.apiKey }),
+      new Groq({
+        apiKey: credential.apiKey,
+        /*
+         * La última versión de los sistemas `compound`, que es donde salen
+         * primero sus herramientas nuevas. Sin esta cabecera se sirve una
+         * versión fijada, más estable pero congelada.
+         */
+        defaultHeaders: { 'Groq-Model-Version': 'latest' },
+      }),
   ) {}
 
   async verify(credential: Credential): Promise<void> {
@@ -106,98 +126,73 @@ export class GroqProvider implements LlmProvider {
     const client = this.createClient(credential);
     const signal = toAbortSignal(request.signal);
 
-    /* Con herramientas o con esquema, el razonamiento no puede venir en crudo. */
-    const sinRazonamientoEnCrudo = Boolean(schema ?? request.webSearch);
+    const contexto = {
+      controlarRazonamiento: Boolean(schema ?? request.webSearch),
+      webSearch: request.webSearch,
+    };
 
     let texto = '';
     let inputTokens = 0;
     let outputTokens = 0;
     const fuentes: WebSource[] = [];
 
+    /*
+     * Se pide lo mejor y, si lo rechazan, se pide menos.
+     *
+     * Lo que admite cada modelo no se puede consultar en ninguna parte, así que
+     * la única fuente de verdad es lo que conteste. Lo que funcionó se recuerda
+     * por modelo: así solo la primera llamada de cada proceso paga el tanteo, y
+     * el día que Groq cambie algo se vuelve a aprender solo.
+     */
+    let peldanos = this.aprendido.get(request.model) ?? MEJOR;
+    let flujo;
+
     try {
-      const flujo = await client.chat.completions.create(
-        {
-          model: request.model,
-          max_completion_tokens: request.maxOutputTokens,
-          stream: true,
-          messages: [
-            { role: 'system', content: request.system },
-            ...request.messages.map((m) => ({ role: m.role, content: m.content })),
-          ],
-          /*
-           * Cómo se entrega el razonamiento, cuando hay herramientas o esquema
-           * de por medio.
-           *
-           * Groq lo exige: con herramientas o con salida JSON, el razonamiento
-           * **no puede ir en crudo** dentro del texto. Sin decir nada se usaba el
-           * formato crudo, y la respuesta volvía con un «Parsing failed: the
-           * model generated output that could not be parsed» que no dice en
-           * ningún momento que el problema sea este.
-           *
-           * Se pide oculto porque en estas dos llamadas no se usa: interesa lo
-           * que el modelo concluye, no cómo llegó. En el asistente de escritura,
-           * que no lleva ni herramientas ni esquema, se sigue recibiendo en crudo
-           * y separándolo nosotros (`ReasoningSplitter`), que es lo que permite
-           * enseñarlo plegado.
-           */
-          ...(sinRazonamientoEnCrudo && controlDeRazonamiento(request.model)),
-          ...(schema && {
-            response_format: {
-              type: 'json_schema' as const,
-              json_schema: { name: 'respuesta', schema, strict: true },
+      for (;;) {
+        try {
+          flujo = await client.chat.completions.create(
+            {
+              model: request.model,
+              max_completion_tokens: request.maxOutputTokens,
+              stream: true,
+              messages: [
+                { role: 'system', content: request.system },
+                ...request.messages.map((m) => ({ role: m.role, content: m.content })),
+              ],
+              ...(schema && {
+                response_format: {
+                  type: 'json_schema' as const,
+                  json_schema: { name: 'respuesta', schema, strict: true },
+                },
+              }),
+              ...ajustesDe(peldanos, contexto),
             },
-          }),
+            signal ? { signal } : {},
+          );
+          break;
+        } catch (error) {
           /*
-           * Hay dos formas de buscar en Groq, y confundirlas es un 400.
-           *
-           * Los sistemas `compound` **ejecutan sus herramientas por su cuenta**:
-           * se les pregunta y deciden solos si buscan. Declarárselas es un error
-           * —«tools[0].type must be one of [function, mcp]»— porque su lista de
-           * herramientas solo admite las que ejecuta el cliente. Los `gpt-oss`
-           * son al revés: hay que pedirles la herramienta por su nombre.
-           *
-           * Los ajustes de búsqueda valen para los dos, así que van siempre.
+           * El esquema **no** se degrada aquí: quien lo pidió espera un objeto, y
+           * devolverle prosa en silencio sería peor que fallar. Esa decisión es
+           * de quien llama, que sabe si tiene otra forma de pedirlo.
            */
-          ...(request.webSearch &&
-            !seGestionaSolo(request.model) && {
-              tools: [{ type: 'browser_search' as const }],
-            }),
-          /*
-           * A los sistemas `compound` se les dice **qué herramientas puede usar**,
-           * no que las use: eso lo deciden ellos. Y decírselo importa por lo que
-           * deja fuera —ejecutar código y consultar Wolfram— más que por lo que
-           * deja dentro: aquí se viene a investigar un mercado, y una tarea que
-           * puede ejecutar código sin que nadie lo haya pedido es una tarea que
-           * hace más de lo que dice.
-           *
-           * Buscar y abrir lo encontrado van juntos: una búsqueda cuyos
-           * resultados no se pueden abrir da titulares, no hallazgos.
-           */
-          ...(request.webSearch &&
-            seGestionaSolo(request.model) && {
-              compound_custom: { tools: { enabled_tools: ['web_search', 'visit_website'] } },
-            }),
-          /*
-           * Los dominios permitidos o bloqueados solo se mandan a quien lleva la
-           * herramienta declarada: la documentación de los sistemas `compound`
-           * no combina `search_settings` con su propia configuración, y mandar
-           * de más a un modelo que ya rechazó dos parámetros distintos es
-           * tentar a la suerte.
-           */
-          ...(request.webSearch &&
-            !seGestionaSolo(request.model) && {
-              search_settings: {
-                ...(request.webSearch.allowedDomains && {
-                  include_domains: [...request.webSearch.allowedDomains],
-                }),
-                ...(request.webSearch.blockedDomains && {
-                  exclude_domains: [...request.webSearch.blockedDomains],
-                }),
-              },
-            }),
-        },
-        signal ? { signal } : {},
-      );
+          const siguiente = error instanceof Error ? siguienteTras(error.message, peldanos) : null;
+          if (!siguiente) throw error;
+          peldanos = siguiente;
+        }
+      }
+
+      this.aprendido.set(request.model, peldanos);
+
+      /*
+       * Si se pidió buscar y se acabó pidiendo nada, la respuesta no está
+       * fundamentada aunque la llamada haya salido bien. Se dice, porque una
+       * respuesta escrita sin buscar es indistinguible de una escrita habiendo
+       * buscado (RF-1305).
+       */
+      if (request.webSearch && renunciaABuscar(peldanos)) {
+        yield { type: 'limit', limit: GenerationLimit.NO_WEB_SEARCH };
+      }
 
       for await (const chunk of flujo) {
         const delta = chunk.choices[0]?.delta;
@@ -233,38 +228,6 @@ export class GroqProvider implements LlmProvider {
  * y el markdown sube la cuenta. Se elige el extremo caro a propósito: esta cifra
  * gobierna un techo, y un techo que se queda corto no es un techo.
  */
-/**
- * Si el modelo se gestiona solo.
- *
- * Los sistemas `compound` no son modelos sino agentes: deciden por su cuenta
- * cuándo buscar y cómo entregar lo que piensan. Declararles herramientas es un
- * error, y pedirles un formato de razonamiento, otro. **Con ellos se habla y ya
- * está**, que es justo lo que los hace cómodos y lo que hay que respetar.
- *
- * Es una regla por familia y no un dato del catálogo porque Groq no publica esto
- * en ninguna parte consultable: está escrito en su documentación y punto. Al
- * menos aquí está en un sitio, con su motivo, y es **un** concepto en vez de dos
- * excepciones sueltas.
- */
-function seGestionaSolo(model: string): boolean {
-  return model.startsWith('groq/compound');
-}
-
-/**
- * Cómo pedir que el razonamiento no venga en crudo, según quién conteste.
- *
- * Tres respuestas para lo mismo: los que se gestionan solos no admiten que se
- * les pida nada, los `gpt-oss` tienen su propio interruptor —mutuamente
- * excluyente con el común— y el resto usa el parámetro general.
- */
-function controlDeRazonamiento(
-  model: string,
-): { include_reasoning: boolean } | { reasoning_format: 'hidden' } | Record<string, never> {
-  if (seGestionaSolo(model)) return {};
-  if (model.includes('gpt-oss')) return { include_reasoning: false };
-  return { reasoning_format: 'hidden' };
-}
-
 export function approximateTokens(request: TextRequest): number {
   const partes = [request.system, ...request.messages.map((m) => m.content)];
   return partes.reduce((total, parte) => total + Math.ceil(parte.length / 3) + 8, 0);

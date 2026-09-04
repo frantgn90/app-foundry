@@ -168,6 +168,29 @@ describe('con un modelo que sabe buscar', () => {
     expect(eventos.some((e) => e.type === 'error')).toBe(false);
     /* Y la meta sale una sola vez, aunque se haya intentado dos veces. */
     expect(eventos.filter((e) => e.type === 'meta')).toHaveLength(1);
+
+    /*
+     * Y se dice: sin la forma garantizada, una propuesta malformada se descarta
+     * en silencio y la tanda puede salir más corta de lo pedido.
+     */
+    expect(eventos.some((e) => e.type === 'notice' && e['code'] === 'SHAPE_NOT_GUARANTEED')).toBe(
+      true,
+    );
+  });
+
+  /*
+   * Una investigación sin una sola fuente no fundamenta nada, y darla por buena
+   * sería presentar como respaldado lo que no lo está (RF-1305).
+   */
+  it('sin fuentes no se da por fundamentado, y se dice por qué', async () => {
+    conBusqueda.program({ object: tanda(3), sources: [] });
+
+    const { eventos } = await pedir(ana, {});
+    const aviso = eventos.find((e) => e.type === 'notice');
+
+    expect(meta(eventos)?.['grounded']).toBe(false);
+    expect(aviso?.['code']).toBe('NO_WEB_SEARCH');
+    expect(propuestasDe(eventos)).toHaveLength(3);
   });
 
   it('lo encontrado viaja con sus fuentes, y se dice que está fundamentado', async () => {

@@ -18,9 +18,10 @@ interface Stub {
   readonly options: Record<string, unknown>[];
 }
 
-function stub(chunks: Chunk[], modelos: unknown[] = []): Stub {
+function stub(chunks: Chunk[], modelos: unknown[] = [], rechazos: string[] = []): Stub {
   const params: Record<string, unknown>[] = [];
   const options: Record<string, unknown>[] = [];
+  const pendientes = [...rechazos];
 
   const client = {
     models: { list: () => Promise.resolve({ data: modelos }) },
@@ -29,6 +30,9 @@ function stub(chunks: Chunk[], modelos: unknown[] = []): Stub {
         create: (p: Record<string, unknown>, o: Record<string, unknown>) => {
           params.push(p);
           options.push(o);
+          /* Los rechazos que toque, en orden: es lo que hace bajar un peldaño. */
+          const rechazo = pendientes.shift();
+          if (rechazo) return Promise.reject(new Error(rechazo));
           return Promise.resolve({
             async *[Symbol.asyncIterator]() {
               for (const chunk of chunks) {
@@ -141,36 +145,6 @@ describe('el adaptador de Groq', () => {
       expect(params[0]?.['search_settings']).toEqual({ include_domains: ['example.com'] });
     });
 
-    /*
-     * A los sistemas `compound` no se les declara la herramienta —su lista solo
-     * admite las del cliente y declararla es un 400— sino que se les dice **qué
-     * pueden usar**, que es su propia forma de configurarse.
-     */
-    it('a los que se gestionan solos se les dice qué pueden usar, no que lo usen', async () => {
-      const { client, params } = stub([{ content: 'hola' }]);
-      const proveedor = new GroqProvider(() => client);
-
-      await recoger(
-        proveedor.streamText(
-          { ...peticion(), model: 'groq/compound', webSearch: { maxUses: 3 } },
-          credencial,
-        ),
-      );
-
-      expect(params[0]?.['tools']).toBeUndefined();
-      expect(params[0]?.['compound_custom']).toEqual({
-        tools: { enabled_tools: ['web_search', 'visit_website'] },
-      });
-      /*
-       * Y lo que importa de esa lista es lo que deja fuera: aquí se viene a
-       * investigar un mercado, no a ejecutar código.
-       */
-      const permitidas = (params[0]?.['compound_custom'] as { tools: { enabled_tools: string[] } })
-        .tools.enabled_tools;
-      expect(permitidas).not.toContain('code_interpreter');
-      expect(permitidas).not.toContain('wolfram_alpha');
-    });
-
     it('recoge las fuentes de las herramientas ejecutadas', async () => {
       const { client } = stub([
         {
@@ -200,68 +174,122 @@ describe('el adaptador de Groq', () => {
     });
   });
 
-  /*
-   * Groq lo exige: con herramientas o con salida JSON el razonamiento no puede
-   * ir en crudo dentro del texto. Sin decirlo, la respuesta volvía con un
-   * «Parsing failed» que no menciona en ningún momento que el problema sea este.
+  /**
+   * Lo que admite cada modelo no se puede consultar en ninguna parte: Groq lo
+   * tiene escrito en su documentación y punto. Así que se pide lo mejor y, si lo
+   * rechazan, se pide menos. La única fuente de verdad es lo que conteste.
    */
-  describe('el razonamiento cuando hay herramientas o esquema', () => {
-    it('se pide oculto, porque en esas dos llamadas no se usa', async () => {
-      const { client, params } = stub([{ content: 'hola' }]);
-      const proveedor = new GroqProvider(() => client);
+  describe('la escalera de lo que se le puede pedir', () => {
+    const conBusqueda = { ...peticion(), webSearch: { maxUses: 2 } };
 
-      await recoger(proveedor.streamText({ ...peticion(), webSearch: { maxUses: 2 } }, credencial));
+    it('de entrada se pide lo mejor que se sabe pedir', async () => {
+      const { client, params } = stub([{ content: 'hola' }]);
+
+      await recoger(new GroqProvider(() => client).streamText(conBusqueda, credencial));
 
       expect(params[0]?.['reasoning_format']).toBe('hidden');
+      expect(params[0]?.['tools']).toEqual([{ type: 'browser_search' }]);
     });
 
-    /* Los `gpt-oss` no admiten ese parámetro: tienen el suyo, y son excluyentes. */
-    it('los gpt-oss llevan el suyo', async () => {
-      const { client, params } = stub([{ content: 'hola' }]);
-      const proveedor = new GroqProvider(() => client);
-
-      await recoger(
-        proveedor.streamText(
-          { ...peticion(), model: 'openai/gpt-oss-120b', webSearch: { maxUses: 2 } },
-          credencial,
-        ),
+    /* «`reasoning_format` is not supported with this model»: hay otro interruptor. */
+    it('si rechaza el formato de razonamiento, se prueba el otro', async () => {
+      const { client, params } = stub(
+        [{ content: 'hola' }],
+        [],
+        ['`reasoning_format` is not supported with this model'],
       );
 
-      expect(params[0]?.['include_reasoning']).toBe(false);
-      expect(params[0]?.['reasoning_format']).toBeUndefined();
+      await recoger(new GroqProvider(() => client).streamText(conBusqueda, credencial));
+
+      expect(params).toHaveLength(2);
+      expect(params[1]?.['include_reasoning']).toBe(false);
+      expect(params[1]?.['reasoning_format']).toBeUndefined();
+      /* Y lo del otro eje no se toca: un rechazo baja su peldaño, no todos. */
+      expect(params[1]?.['tools']).toEqual([{ type: 'browser_search' }]);
     });
 
     /*
-     * Y a los que se gestionan solos no se les pide **nada**: pedirles el formato
-     * de razonamiento es otro 400, igual que declararles herramientas. Con ellos
-     * se habla y ya está.
+     * «tools[0].type must be one of [function, mcp]»: los sistemas `compound` no
+     * admiten herramientas declaradas, sino que se les diga qué pueden usar.
      */
-    it('a los que se gestionan solos no se les pide ningún formato', async () => {
-      const { client, params } = stub([{ content: 'hola' }]);
-      const proveedor = new GroqProvider(() => client);
-
-      await recoger(
-        proveedor.streamText(
-          { ...peticion(), model: 'groq/compound-mini', webSearch: { maxUses: 2 } },
-          credencial,
-        ),
+    it('si rechaza las herramientas, se pasa a configurarlas', async () => {
+      const { client, params } = stub(
+        [{ content: 'hola' }],
+        [],
+        ['tools[0].type must be one of [function, mcp]'],
       );
 
-      expect(params[0]?.['reasoning_format']).toBeUndefined();
-      expect(params[0]?.['include_reasoning']).toBeUndefined();
-      expect(params[0]?.['tools']).toBeUndefined();
+      await recoger(new GroqProvider(() => client).streamText(conBusqueda, credencial));
+
+      expect(params[1]?.['compound_custom']).toEqual({
+        tools: { enabled_tools: ['web_search', 'visit_website'] },
+      });
+      /*
+       * Y lo que importa de esa lista es lo que deja fuera: aquí se viene a
+       * investigar un mercado, no a ejecutar código.
+       */
+      const permitidas = (params[1]?.['compound_custom'] as { tools: { enabled_tools: string[] } })
+        .tools.enabled_tools;
+      expect(permitidas).not.toContain('code_interpreter');
     });
 
     /*
-     * Sin herramientas ni esquema no se toca: es lo que permite que el asistente
-     * de escritura reciba el razonamiento en crudo y lo separe él, para poder
-     * enseñarlo plegado.
+     * Cuando ya no queda forma de pedirlo, la respuesta llega igual pero **no
+     * está fundamentada**, y eso hay que decirlo: una escrita sin buscar es
+     * indistinguible de una escrita habiendo buscado (RF-1305).
+     */
+    it('agotada la escalera, se avisa de que no ha buscado', async () => {
+      const { client } = stub(
+        [{ content: 'hola' }],
+        [],
+        ['tools[0].type is invalid', 'compound_custom is not supported'],
+      );
+
+      const eventos = await recoger(
+        new GroqProvider(() => client).streamText(conBusqueda, credencial),
+      );
+
+      expect(eventos).toContainEqual({ type: 'limit', limit: 'NO_WEB_SEARCH' });
+    });
+
+    /* Solo la primera llamada paga el tanteo: lo que funcionó se recuerda. */
+    it('lo aprendido se recuerda para la siguiente', async () => {
+      const { client, params } = stub(
+        [{ content: 'hola' }],
+        [],
+        ['`reasoning_format` is not supported with this model'],
+      );
+      const proveedor = new GroqProvider(() => client);
+
+      await recoger(proveedor.streamText(conBusqueda, credencial));
+      await recoger(proveedor.streamText(conBusqueda, credencial));
+
+      expect(params).toHaveLength(3);
+      expect(params[2]?.['include_reasoning']).toBe(false);
+    });
+
+    /*
+     * Un fallo que no nombra ningún ajuste no degrada nada: bajar a ciegas
+     * convertiría una clave mala en una ronda de reintentos que acaban igual
+     * pero pidiendo menos.
+     */
+    it('un fallo que no nombra un ajuste no baja ningún peldaño', async () => {
+      const { client, params } = stub([{ content: 'hola' }], [], ['invalid api key']);
+      const proveedor = new GroqProvider(() => client);
+
+      await expect(recoger(proveedor.streamText(conBusqueda, credencial))).rejects.toThrow();
+      expect(params).toHaveLength(1);
+    });
+
+    /*
+     * Sin herramientas ni esquema no se pide ningún formato: es lo que permite
+     * que el asistente de escritura reciba el razonamiento en crudo y lo separe
+     * él, para poder enseñarlo plegado.
      */
     it('sin herramientas ni esquema, no se pide nada', async () => {
       const { client, params } = stub([{ content: 'hola' }]);
-      const proveedor = new GroqProvider(() => client);
 
-      await recoger(proveedor.streamText(peticion(), credencial));
+      await recoger(new GroqProvider(() => client).streamText(peticion(), credencial));
 
       expect(params[0]?.['reasoning_format']).toBeUndefined();
       expect(params[0]?.['include_reasoning']).toBeUndefined();
