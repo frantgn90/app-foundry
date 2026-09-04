@@ -62,11 +62,18 @@ export function LoginPage() {
           window.location.href = '/api/v1/auth/github';
         }}
         /*
-         * Ocupado, pero no deshabilitado: apagar el botón lo aleja justo cuando
-         * se acaba de pulsar, y el barrido ya dice que está en curso.
+         * Ocupado y sin más que pedirle, pero no deshabilitado: `disabled` lo
+         * apagaría a media opacidad —justo el rótulo que está barriendo—, y al
+         * quitarle la condición de pulsable tiraría el foco al cuerpo de la
+         * página, dejando a quien entró con el teclado sin sitio y sin nada que
+         * anunciar. Dicho así, en cambio, el estado se cuenta entero y el botón
+         * sigue siendo un botón.
          */
         aria-busy={entrando}
-        className="w-full py-2.5"
+        aria-disabled={entrando}
+        // Y el puntero lo dice antes de leer nada: esto está en marcha, no se
+        // pulsa otra vez.
+        className="w-full py-2.5 aria-disabled:cursor-wait"
       >
         {/* El icono se queda entero: el recorte del barrido lo dejaría en blanco,
             porque se dibuja con el color del texto. */}
