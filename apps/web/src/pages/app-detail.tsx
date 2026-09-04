@@ -58,12 +58,21 @@ export function AppDetailPage({
   appId,
   workspaceId,
   initialThreadId = null,
+  irAlDocumento = 0,
   onBack,
 }: {
   appId: string;
   workspaceId: string;
   /** Hilo al que ir nada más abrir, cuando se llega desde un aviso (RF-904). */
   initialThreadId?: string | null;
+  /**
+   * Sube cada vez que se pide volver al documento desde la ruta de arriba.
+   *
+   * Es un contador y no una bandera porque el gesto se repite: pulsar el nombre
+   * de la app estando en sus ajustes tiene que devolver al documento tantas
+   * veces como haga falta.
+   */
+  irAlDocumento?: number;
   onBack: () => void;
 }) {
   const app = useApp(appId);
@@ -118,6 +127,12 @@ export function AppDetailPage({
     setScrollToThread(true);
     setTab('vision');
   }, [initialThreadId]);
+
+  /* Cero es el valor inicial: al montar no hay nada que devolver a su sitio. */
+  useEffect(() => {
+    if (irAlDocumento === 0) return;
+    setTab('vision');
+  }, [irAlDocumento]);
 
   // La selección pendiente se guarda al soltar el ratón, pero el formulario no
   // se abre hasta que se pulsa el botón del menú: seleccionar texto no es

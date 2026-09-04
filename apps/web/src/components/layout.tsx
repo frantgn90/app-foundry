@@ -122,6 +122,15 @@ export function Layout({
                 }))}
                 selectedId={currentApp.id}
                 onSelect={onSelectApp}
+                /*
+                  Igual que el tramo del workspace: el nombre lleva a su sitio y
+                  la flecha abre la lista. «Su sitio» aquí es el documento, así
+                  que desde los ajustes de la app el nombre devuelve a lo que se
+                  vino a hacer, sin pasar por la pestaña.
+                */
+                onPrimary={() => {
+                  onSelectApp(currentApp.id);
+                }}
                 empty="No other apps here yet"
               />
             </>

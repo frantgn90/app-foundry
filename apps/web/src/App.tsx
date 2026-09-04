@@ -61,6 +61,15 @@ export function App() {
   const [pantalla, setPantalla] = useState<Pantalla>('workspace');
   /** Hilo al que hay que ir tras abrir una app desde un aviso (RF-904). */
   const [hiloDestino, setHiloDestino] = useState<string | null>(null);
+  /*
+   * Cuántas veces se ha pedido «llévame al documento de esta app».
+   *
+   * Un contador y no una bandera porque el gesto se puede repetir: pulsar el
+   * nombre de la app estando ya en su documento no cambia nada, pero estando en
+   * sus ajustes tiene que devolver ahí, y una bandera solo serviría la primera
+   * vez.
+   */
+  const [irAlDocumento, setIrAlDocumento] = useState(0);
   const [filtros, setFiltros] = useState<AppFilters>(filtrosGuardados);
   const [buscando, setBuscando] = useState(false);
   const [ayuda, setAyuda] = useState(false);
@@ -153,6 +162,12 @@ export function App() {
         setPantalla('workspace');
         setHiloDestino(null);
         setOpenApp(id);
+        /*
+         * Elegir una app —la misma u otra— aterriza en su documento. Sin esto,
+         * saltar de una app a otra desde los ajustes de la primera abría los
+         * ajustes de la segunda, que no es donde nadie quería ir.
+         */
+        setIrAlDocumento((n) => n + 1);
       }}
       pantalla={pantalla}
       onPantalla={setPantalla}
@@ -191,6 +206,7 @@ export function App() {
           appId={openApp}
           workspaceId={current.id}
           initialThreadId={hiloDestino}
+          irAlDocumento={irAlDocumento}
           onBack={() => {
             setHiloDestino(null);
             setOpenApp(null);

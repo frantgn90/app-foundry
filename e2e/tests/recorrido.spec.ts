@@ -39,7 +39,7 @@ test('de crear una app a encontrarla por su contenido', async ({ page, context }
     // trabajo a medias. El nombre se lee en la ruta de arriba; el encabezado
     // existe pero no se dibuja, así que se comprueba que está, no que se vea.
     await expect(page.getByRole('heading', { name: 'Telescopio' })).toHaveCount(1);
-    await expect(page.getByRole('button', { name: /Telescopio/ })).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Telescopio', exact: true })).toBeVisible();
   });
 
   await test.step('escribir la visión', async () => {
@@ -126,7 +126,26 @@ test('de crear una app a encontrarla por su contenido', async ({ page, context }
     await expect(resultado).toBeVisible();
 
     await resultado.click();
-    await expect(page.getByRole('button', { name: /Telescopio/ })).toBeVisible();
+    /*
+     * Exacto: el tramo de la app son dos botones —el nombre y la flecha que
+     * despliega la lista—, así que «Telescopio» a secas ya no lo identifica.
+     */
+    await expect(page.getByRole('button', { name: 'Telescopio', exact: true })).toBeVisible();
+  });
+
+  /*
+   * La ruta de arriba no solo dice dónde estás: cada tramo lleva a su sitio. El
+   * de la app lleva a su documento, que es lo que se vino a hacer, sin tener que
+   * buscar la pestaña.
+   */
+  await test.step('el nombre de la app devuelve a su documento', async () => {
+    await page.getByRole('button', { name: 'settings' }).click();
+    await expect(page.getByRole('heading', { name: 'Archive or delete' })).toBeVisible();
+
+    await page.getByRole('button', { name: /^Telescopio/ }).click();
+
+    await expect(page.getByRole('button', { name: /Stop editing|^Edit$/ })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Archive or delete' })).toHaveCount(0);
   });
 
   expect(erroresDePagina, 'nada debe romperse durante el recorrido').toEqual([]);
