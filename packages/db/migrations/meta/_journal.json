@@ -337,6 +337,13 @@
       "when": 1788560186152,
       "tag": "0047_agent_prompt_revisions",
       "breakpoints": true
+    },
+    {
+      "idx": 48,
+      "version": "7",
+      "when": 1788560302529,
+      "tag": "0048_agents_retired_inactive",
+      "breakpoints": true
     }
   ]
 }

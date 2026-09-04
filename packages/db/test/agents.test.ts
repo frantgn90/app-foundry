@@ -179,7 +179,7 @@ describe('el handle de un agente', () => {
   it('se libera al retirarlo, en vez de quedar quemado para siempre', async () => {
     await db.db
       .update(agents)
-      .set({ removedAt: new Date() })
+      .set({ removedAt: new Date(), active: false })
       .where(and(eq(agents.appId, appAna), eq(agents.handle, 'po')));
 
     await expect(db.db.insert(agents).values(agente(appAna, 'po'))).resolves.not.toThrow();
@@ -245,6 +245,59 @@ describe('de qué plantilla desciende', () => {
       .where(and(eq(agents.appId, appAna), eq(agents.handle, 'huerfano')));
     expect(sobrevive).toBeDefined();
     expect(sobrevive!.templateId).toBeNull();
+  });
+});
+
+describe('las dos formas de callar', () => {
+  it('desactivar es reversible y no retira a nadie', async () => {
+    const [creado] = await db.db
+      .insert(agents)
+      .values(agente(appAna, 'en-pausa'))
+      .returning({ id: agents.id });
+
+    await db.db.update(agents).set({ active: false }).where(eq(agents.id, creado!.id));
+    await db.db.update(agents).set({ active: true }).where(eq(agents.id, creado!.id));
+
+    const [vuelto] = await db.db.select().from(agents).where(eq(agents.id, creado!.id));
+    expect(vuelto!.active).toBe(true);
+    expect(vuelto!.removedAt).toBeNull();
+  });
+
+  it('retirar sin apagar no se admite: sería un retirado que sigue contestando', async () => {
+    const [creado] = await db.db
+      .insert(agents)
+      .values(agente(appAna, 'retirada-a-medias'))
+      .returning({ id: agents.id });
+
+    const error = await fallo(() =>
+      db.db.update(agents).set({ removedAt: new Date() }).where(eq(agents.id, creado!.id)),
+    );
+    expect(mensajeDe(error)).toContain('agents_retired_is_inactive_check');
+  });
+
+  it('ni nacer retirado y activo a la vez', async () => {
+    const error = await fallo(() =>
+      db.db.insert(agents).values({ ...agente(appAna, 'imposible'), removedAt: new Date() }),
+    );
+    expect(mensajeDe(error)).toContain('agents_retired_is_inactive_check');
+  });
+
+  it('retirar es un solo movimiento: fecha y bandera juntas', async () => {
+    const [creado] = await db.db
+      .insert(agents)
+      .values(agente(appAna, 'despedido'))
+      .returning({ id: agents.id });
+
+    await db.db
+      .update(agents)
+      .set({ removedAt: new Date(), active: false })
+      .where(eq(agents.id, creado!.id));
+
+    const [retirado] = await db.db.select().from(agents).where(eq(agents.id, creado!.id));
+    expect(retirado!.removedAt).not.toBeNull();
+    expect(retirado!.active).toBe(false);
+    /* Y sigue ahí: retirar no borra (RF-1509). */
+    expect(retirado!.name).toBe('Product Owner');
   });
 });
 

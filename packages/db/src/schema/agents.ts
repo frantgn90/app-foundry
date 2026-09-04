@@ -132,6 +132,11 @@ export const agents = pgTable(
      * Lógico y no físico por lo mismo que con una persona (RF-813): borrar la
      * fila dejaría sus comentarios sin autoría, y la conversación en la que
      * participó dejaría de entenderse.
+     *
+     * Retirar implica apagar: un `CHECK` del motor impide que esta fecha y un
+     * `active` verdadero convivan, porque de `active` cuelga el disparo y un
+     * retirado «activo» seguiría contestando en una app de la que ya se le
+     * sacó. Se ponen las dos cosas en el mismo movimiento.
      */
     removedAt: timestamp('removed_at', { withTimezone: true }),
     addedBy: uuid('added_by').references(() => users.id, { onDelete: 'set null' }),
