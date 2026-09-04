@@ -23,7 +23,11 @@ export function Button({
         'inline-flex items-center justify-center gap-2 rounded-lg px-3.5 py-2 text-sm font-medium',
         'transition focus-visible:outline-2 focus-visible:outline-offset-2',
         'focus-visible:outline-[var(--color-acento)]',
-        'disabled:cursor-not-allowed disabled:opacity-50',
+        // El navegador le pone a `<button>` la flecha de siempre, que es la del
+        // texto de al lado: nada en el puntero dice que esto se puede pulsar.
+        // La mano lo dice antes de leer nada. Deshabilitado manda sobre esto:
+        // `:disabled` gana por especificidad, sin depender del orden.
+        'cursor-pointer disabled:cursor-not-allowed disabled:opacity-50',
         variants[variant],
         className,
       )}
