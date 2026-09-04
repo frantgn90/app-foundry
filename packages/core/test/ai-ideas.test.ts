@@ -8,6 +8,7 @@ import {
   IDEAS_MAX,
   IDEAS_MIN,
   ideasMessages,
+  ideasJsonSystemPrompt,
   ideasSystemPrompt,
   Monetisation,
   seedVision,
@@ -228,5 +229,26 @@ describe('las propuestas conforme llegan', () => {
 
   it('sin la lista todavía, no hay nada que enseñar', () => {
     expect(completeProposals('{"prop')).toEqual([]);
+  });
+});
+
+describe('cuando el modelo no sabe ceñirse a un esquema', () => {
+  /*
+   * Groq garantiza la forma solo en algunos modelos y el resto rechaza el
+   * formato de plano. Sin esta salida, «no sé qué construir» dejaba de existir
+   * para quien tuviera asignado cualquiera de ellos.
+   */
+  it('la forma se describe en el encargo, con el esquema dentro', () => {
+    const sistema = ideasJsonSystemPrompt(false);
+
+    expect(sistema).toContain('valueProposition');
+    expect(sistema).toContain('SUBSCRIPTION');
+    expect(sistema).toMatch(/single JSON object and nothing else/i);
+  });
+
+  it('sigue siendo el mismo encargo: lo que cambia es dónde va la forma', () => {
+    expect(ideasJsonSystemPrompt(true)).toContain(ideasSystemPrompt(true));
+    /* Y la regla de no fingir fundamento viaja igual. */
+    expect(ideasJsonSystemPrompt(false)).toMatch(/do not claim/i);
   });
 });

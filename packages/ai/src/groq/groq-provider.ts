@@ -127,8 +127,22 @@ export class GroqProvider implements LlmProvider {
               json_schema: { name: 'respuesta', schema, strict: true },
             },
           }),
+          /*
+           * Hay dos formas de buscar en Groq, y confundirlas es un 400.
+           *
+           * Los modelos `compound` **ejecutan sus herramientas por su cuenta**:
+           * se les pregunta y deciden solos si buscan. Declarárselas es un error
+           * —«tools[0].type must be one of [function, mcp]»— porque su lista de
+           * herramientas solo admite las que ejecuta el cliente. Los `gpt-oss`
+           * son al revés: hay que pedirles la herramienta por su nombre.
+           *
+           * Los ajustes de búsqueda valen para los dos, así que van siempre.
+           */
+          ...(request.webSearch &&
+            !buscaPorSuCuenta(request.model) && {
+              tools: [{ type: 'browser_search' as const }],
+            }),
           ...(request.webSearch && {
-            tools: [{ type: 'browser_search' as const }],
             search_settings: {
               ...(request.webSearch.allowedDomains && {
                 include_domains: [...request.webSearch.allowedDomains],
@@ -176,6 +190,17 @@ export class GroqProvider implements LlmProvider {
  * y el markdown sube la cuenta. Se elige el extremo caro a propósito: esta cifra
  * gobierna un techo, y un techo que se queda corto no es un techo.
  */
+/**
+ * Si el modelo se encarga solo de sus herramientas.
+ *
+ * Es una regla por familia y no un dato del catálogo porque Groq no publica esto
+ * en ninguna parte consultable: está escrito en su documentación y punto. Al
+ * menos aquí está en un sitio, con su motivo, en vez de repartida por el código.
+ */
+function buscaPorSuCuenta(model: string): boolean {
+  return model.startsWith('groq/compound');
+}
+
 export function approximateTokens(request: TextRequest): number {
   const partes = [request.system, ...request.messages.map((m) => m.content)];
   return partes.reduce((total, parte) => total + Math.ceil(parte.length / 3) + 8, 0);

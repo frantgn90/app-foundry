@@ -7,8 +7,10 @@ import {
   IDEA_BATCH_SCHEMA,
   type IdeaConstraints,
   type IdeaProposal,
+  ideasJsonSystemPrompt,
   ideasMessages,
   ideasSystemPrompt,
+  type JsonSchema,
   ProviderError,
   ProviderErrorKind,
   researchMessages,
@@ -55,7 +57,6 @@ export type IdeaEvent =
        * está.
        */
       readonly grounded: boolean;
-      readonly estimatedTokens: number;
     }
   | { readonly type: 'sources'; readonly sources: readonly WebSource[] }
   | { readonly type: 'proposal'; readonly index: number; readonly proposal: IdeaProposal }
@@ -136,32 +137,77 @@ export class AiIdeasService {
       }
     }
 
-    const candidatos: InvocationCandidate[] = [
-      {
-        label: fundamentado ? 'con-hallazgos' : 'sin-hallazgos',
-        request: {
-          system: ideasSystemPrompt(fundamentado),
-          messages: ideasMessages({
-            constraints: command.constraints,
-            ...(research !== undefined && { research }),
-            ...(command.exclude !== undefined && { exclude: command.exclude }),
-          }),
-        },
-      },
-    ];
-
-    const empezada = await conIdentidad(this.db, userId, () =>
-      this.invocations.begin(context, candidatos),
-    );
-
     yield {
       type: 'meta',
-      provider: empezada.plan.provider,
-      model: empezada.plan.modelId,
+      provider: plan.provider,
+      model: plan.modelId,
       grounded: fundamentado,
-      estimatedTokens: empezada.estimatedTokens,
     };
     if (sources.length > 0) yield { type: 'sources', sources };
+
+    const mensajes = ideasMessages({
+      constraints: command.constraints,
+      ...(research !== undefined && { research }),
+      ...(command.exclude !== undefined && { exclude: command.exclude }),
+    });
+
+    /*
+     * Primero con el esquema, que es lo que garantiza la forma. Si el modelo no
+     * admite ese formato —Groq solo lo ofrece en algunos—, se vuelve a intentar
+     * describiendo la forma en el encargo. Es más débil, y por eso es lo
+     * segundo; lo que lo hace admisible es que cada propuesta se valida una a
+     * una y la que no cuadre se descarta.
+     */
+    const resultado = yield* this.darForma(
+      context,
+      {
+        label: fundamentado ? 'con-hallazgos' : 'sin-hallazgos',
+        request: { system: ideasSystemPrompt(fundamentado), messages: mensajes },
+      },
+      IDEA_BATCH_SCHEMA,
+      userId,
+      signal,
+    );
+
+    if (resultado !== 'sin-esquema') return;
+
+    this.logger.warn(
+      `${plan.provider} no admite salida con esquema en ${plan.modelId}: se describe la forma en el encargo`,
+    );
+
+    yield* this.darForma(
+      context,
+      {
+        label: 'forma-descrita',
+        request: { system: ideasJsonSystemPrompt(fundamentado), messages: mensajes },
+      },
+      undefined,
+      userId,
+      signal,
+    );
+  }
+
+  /**
+   * Pide las propuestas y las va soltando conforme se cierran.
+   *
+   * Con esquema o sin él: la diferencia es quién garantiza la forma, el proveedor
+   * o el encargo. Lo demás —cupo, registro, troceado, validación— es idéntico,
+   * y por eso es un solo sitio.
+   *
+   * Devuelve `sin-esquema` cuando el proveedor rechaza el formato con esquema,
+   * que es lo único que quien llama necesita distinguir para volver a intentarlo
+   * de otra manera.
+   */
+  private async *darForma(
+    context: { workspaceId: string; task: AiTask; userId: string },
+    candidato: InvocationCandidate,
+    schema: JsonSchema | undefined,
+    userId: string,
+    signal: AbortSignal,
+  ): AsyncGenerator<IdeaEvent, 'ok' | 'sin-esquema' | 'fallo'> {
+    const empezada = await conIdentidad(this.db, userId, () =>
+      this.invocations.begin(context, [candidato]),
+    );
 
     const proveedor = this.registry.get(empezada.plan.provider);
     let crudo = '';
@@ -170,10 +216,11 @@ export class AiIdeasService {
     let ttftMs: number | undefined;
 
     try {
-      for await (const evento of proveedor.streamObject(
-        { ...empezada.request, schema: IDEA_BATCH_SCHEMA, signal },
-        empezada.credential,
-      )) {
+      const flujo = schema
+        ? proveedor.streamObject({ ...empezada.request, schema, signal }, empezada.credential)
+        : proveedor.streamText({ ...empezada.request, signal }, empezada.credential);
+
+      for await (const evento of flujo) {
         if (evento.type === 'delta') {
           ttftMs ??= Date.now() - empezada.startedAt;
           crudo += evento.text;
@@ -197,6 +244,7 @@ export class AiIdeasService {
         ...(ttftMs !== undefined && { ttftMs }),
       });
       yield { type: 'done', count: enviadas };
+      return 'ok';
     } catch (error) {
       const kind = error instanceof ProviderError ? error.kind : ProviderErrorKind.TRANSIENT;
       const cancelado = signal.aborted || kind === ProviderErrorKind.CANCELLED;
@@ -207,8 +255,7 @@ export class AiIdeasService {
        * Al cliente le llega la taxonomía —«algo iba mal en la petición»—, que es
        * lo que se puede enseñar sin arriesgarse a filtrar la clave (RNF-602).
        * Pero eso no basta para arreglar nada: cuál de las dos llamadas falló y
-       * qué dijo exactamente el proveedor solo se sabe si consta aquí. Sin esta
-       * línea hubo que deducirlo cruzando filas de la tabla de invocaciones.
+       * qué dijo exactamente el proveedor solo se sabe si consta aquí.
        */
       if (!cancelado) {
         this.logger.warn(
@@ -224,8 +271,17 @@ export class AiIdeasService {
         ...(ttftMs !== undefined && { ttftMs }),
       });
 
-      if (cancelado) return;
+      if (cancelado) return 'fallo';
+
+      /*
+       * Rechazar el formato antes de escribir nada es distinto de fallar a
+       * mitad: lo primero se puede volver a intentar de otra forma, lo segundo
+       * dejaría la lista con propuestas repetidas.
+       */
+      if (schema && kind === ProviderErrorKind.SCHEMA && enviadas === 0) return 'sin-esquema';
+
       yield { type: 'error', kind, message: providerMessage(kind) };
+      return 'fallo';
     }
   }
 

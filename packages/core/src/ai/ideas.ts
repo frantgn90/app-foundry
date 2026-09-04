@@ -373,3 +373,29 @@ export function isIdeaProposal(value: unknown): value is IdeaProposal {
   if (!MONETISATIONS.includes(v['monetisation'] as Monetisation)) return false;
   return Array.isArray(v['tags']) && v['tags'].every((t) => typeof t === 'string');
 }
+
+/**
+ * El mismo encargo, pero para un modelo que no sabe ceñirse a un esquema.
+ *
+ * Groq garantiza la forma solo en algunos modelos; el resto rechaza el formato
+ * con esquema de plano. Sin esta salida, «no sé qué construir» dejaba de existir
+ * para quien tuviera asignado cualquiera de ellos.
+ *
+ * Lo que cambia es dónde va la forma: en vez de imponerla el proveedor, se
+ * **describe en el encargo** y se comprueba al recibirla. Es más débil, y por eso
+ * no es lo primero que se intenta; lo que lo hace admisible es que cada propuesta
+ * se valida una a una y la que no cuadre se descarta en vez de enseñarse a
+ * medias.
+ */
+export function ideasJsonSystemPrompt(grounded: boolean): string {
+  return [
+    ideasSystemPrompt(grounded),
+    '',
+    'Reply with a single JSON object and nothing else — no prose before or after it, no code fence.',
+    'It must have exactly this shape:',
+    '',
+    JSON.stringify(IDEA_BATCH_SCHEMA, null, 2),
+    '',
+    `Every field is required for every idea. "monetisation" must be one of: ${MONETISATIONS.join(', ')}.`,
+  ].join('\n');
+}

@@ -139,6 +139,37 @@ describe('con un modelo que sabe buscar', () => {
     expect(dos.every((f) => f.task === 'IDEA_GENERATION' && f.outcome === 'COMPLETED')).toBe(true);
   });
 
+  /*
+   * Groq garantiza la forma solo en algunos modelos; el resto rechaza el formato
+   * de plano. Sin esta salida, «no sé qué construir» dejaba de existir para quien
+   * tuviera asignado cualquiera de ellos.
+   */
+  it('si el modelo no admite esquema, se describe la forma y hay ideas igual', async () => {
+    /*
+     * Falla la primera vez que se le pide con esquema —la investigación va sin
+     * él— y responde a la siguiente, que es la que lleva la forma descrita.
+     */
+    conBusqueda.program({
+      /*
+       * Sin esquema, la respuesta llega como texto: es el propio modelo quien
+       * escribe el JSON porque se lo pide el encargo, no el proveedor quien lo
+       * garantiza. El de mentira devuelve lo mismo por los dos caminos.
+       */
+      object: tanda(3),
+      text: JSON.stringify(tanda(3)),
+      failWith: 'SCHEMA',
+      failTimes: 2,
+    });
+
+    const { status, eventos } = await pedir(ana, { topic: 'algo' });
+
+    expect(status).toBe(200);
+    expect(propuestasDe(eventos)).toHaveLength(3);
+    expect(eventos.some((e) => e.type === 'error')).toBe(false);
+    /* Y la meta sale una sola vez, aunque se haya intentado dos veces. */
+    expect(eventos.filter((e) => e.type === 'meta')).toHaveLength(1);
+  });
+
   it('lo encontrado viaja con sus fuentes, y se dice que está fundamentado', async () => {
     conBusqueda.program({
       object: tanda(3),
