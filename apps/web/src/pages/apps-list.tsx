@@ -1,6 +1,14 @@
 import { type FormEvent, useEffect, useRef, useState } from 'react';
 
-import { type App, type AppFilters, useApps, useCreateApp, type Workspace } from '../lib/api.js';
+import {
+  type App,
+  type AppFilters,
+  useAiTaskAvailable,
+  useApps,
+  useCreateApp,
+  type Workspace,
+} from '../lib/api.js';
+import { IdeaGenerator } from '../components/idea-generator.js';
 import { AppFiltersBar } from '../components/app-filters.js';
 import { StatusPill, TagList, VisibilityMark } from '../components/app-status.js';
 import { Button } from '../components/ui/button.js';
@@ -25,6 +33,8 @@ export function AppsListPage({
 }) {
   const apps = useApps(workspace.id, filtros);
   const create = useCreateApp(workspace.id);
+  /* Sin IA disponible aquí, la vía no aparece: igual que el asistente (RF-1010). */
+  const puedeGenerar = useAiTaskAvailable(workspace.id, 'IDEA_GENERATION');
   const [name, setName] = useState('');
   const campoNombre = useRef<HTMLInputElement>(null);
 
@@ -85,6 +95,15 @@ export function AppsListPage({
               {create.isPending ? 'Creating…' : 'Create'}
             </Button>
           </div>
+
+          {/*
+            La otra forma de empezar, en el mismo sitio y no en otra pantalla:
+            son las dos maneras de hacer lo mismo, y quien llega sin idea no
+            tiene por qué saber que hay un rincón aparte donde se le ayuda
+            (RF-1301). Discreta a propósito: quien ya sabe qué construir tiene el
+            campo delante y no necesita esquivar nada.
+          */}
+          {puedeGenerar && <IdeaGenerator workspaceId={workspace.id} onCreated={onOpen} />}
 
           {workspace.role !== 'OWNER' && (
             /*

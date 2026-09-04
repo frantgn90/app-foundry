@@ -179,7 +179,16 @@ export class FakeProvider implements LlmProvider {
       model: request.model,
       inputChars: charsOf(request),
     });
-    const value = (this.script.object ?? {}) as T;
+    /*
+     * Sin guion, se responde **lo que el esquema pide**.
+     *
+     * Un `{}` obligaría a cada test y a cada recorrido a escribir a mano una
+     * respuesta con la forma exacta de su esquema, y esa copia envejecería mal:
+     * cambiar el esquema dejaría los guiones antiguos pasando por buenos algo
+     * que ya no vale. Fabricándola aquí, el proveedor de mentira sigue siendo
+     * útil para cualquier esquema que venga después sin saber nada de él.
+     */
+    const value = (this.script.object ?? stubFromSchema(request.schema)) as T;
     return this.generate<T>(request, JSON.stringify(value), value);
   }
 
@@ -227,6 +236,44 @@ export class FakeProvider implements LlmProvider {
       throw new ProviderError(ProviderErrorKind.CANCELLED, 'cancelado');
     }
   }
+}
+
+/**
+ * Un valor cualquiera que cumpla un esquema.
+ *
+ * Lo justo para que el otro lado tenga algo con la forma correcta: textos
+ * reconocibles, la primera opción de cada enumerado y tantos elementos como
+ * exija `minItems`. No pretende parecerse a una respuesta buena, sino a una
+ * respuesta **válida**.
+ */
+export function stubFromSchema(schema: Readonly<Record<string, unknown>>, campo = ''): unknown {
+  const enumerado: unknown[] = Array.isArray(schema['enum']) ? schema['enum'] : [];
+  if (enumerado.length > 0) return enumerado[0];
+
+  const tipos: unknown[] = Array.isArray(schema['type']) ? schema['type'] : [];
+  const tipo = tipos.length > 0 ? tipos.find((t) => t !== 'null') : schema['type'];
+
+  if (tipo === 'object') {
+    const propiedades = (schema['properties'] ?? {}) as Record<
+      string,
+      Readonly<Record<string, unknown>>
+    >;
+    return Object.fromEntries(
+      Object.entries(propiedades).map(([clave, sub]) => [clave, stubFromSchema(sub, clave)]),
+    );
+  }
+
+  if (tipo === 'array') {
+    const items = (schema['items'] ?? { type: 'string' }) as Readonly<Record<string, unknown>>;
+    const cuantos = typeof schema['minItems'] === 'number' ? schema['minItems'] : 1;
+    return Array.from({ length: cuantos }, (_, i) =>
+      stubFromSchema(items, `${campo} ${String(i + 1)}`),
+    );
+  }
+
+  if (tipo === 'number' || tipo === 'integer') return 1;
+  if (tipo === 'boolean') return true;
+  return campo === '' ? 'texto de mentira' : `${campo} de mentira`;
 }
 
 function textOf(request: TextRequest): string {

@@ -851,16 +851,31 @@ Solo se desglosa el hito en curso. H9 y H10 están cerradas; H11 está desglosad
 
 | # | Tarea | Verificación | Traza | Estado |
 |---|---|---|---|---|
-| BA1 | La vía «no sé qué construir», junto a crear a mano | En el mismo panel de creación de la home del workspace | RF-1301 | ⬜ |
-| BA2 | El formulario de restricciones, todo opcional | Se genera sin rellenar nada | RF-1302 | ⬜ |
-| BA3 | Las fichas aparecen conforme llegan | Sin esperar al lote completo | RF-1306 | ⬜ |
-| BA4 | Fuentes con enlace, o el aviso de que no las hay | Nunca se presenta como fundamentado lo que no lo está | RF-1304, RF-1305 | ⬜ |
-| BA5 | Otra tanda conservando las entradas | Y sin repetir lo que ya se enseñó | RF-1307 | ⬜ |
-| BA6 | Elegir aterriza en el editor con el borrador delante | Y con el aviso de cambios sin commitear | RF-1309 | ⬜ |
-| BA7 | Sin disponibilidad, la vía no aparece | Ni con la IA apagada, ni sin modelo asignado | RF-1010 | ⬜ |
+| BA1 | La vía «no sé qué construir», junto a crear a mano | En el mismo panel de creación de la home del workspace | RF-1301 | ✅ |
+| BA2 | El formulario de restricciones, todo opcional | Se genera sin rellenar nada | RF-1302 | ✅ |
+| BA3 | Las fichas aparecen conforme llegan | Sin esperar al lote completo | RF-1306 | ✅ |
+| BA4 | Fuentes con enlace, o el aviso de que no las hay | Nunca se presenta como fundamentado lo que no lo está | RF-1304, RF-1305 | ✅ |
+| BA5 | Otra tanda conservando las entradas | Y sin repetir lo que ya se enseñó | RF-1307 | ✅ |
+| BA6 | Elegir aterriza en el editor con el borrador delante | Y con el aviso de cambios sin commitear | RF-1309 | ✅ |
+| BA7 | Sin disponibilidad, la vía no aparece | Ni con la IA apagada, ni sin modelo asignado | RF-1010 | ✅ |
 
 ### Bloque BB — Cerrar H11
 
 | # | Tarea | Verificación | Traza | Estado |
 |---|---|---|---|---|
-| BB1 | Recorrido completo con el proveedor de mentira | De «no tengo ideas» a la app con su borrador delante | RNF-905 | ⬜ |
+| BB1 | Recorrido completo con el proveedor de mentira | De «no tengo ideas» a la app con su borrador delante | RNF-905 | ✅ |
+
+> **Sobre BA y BB, y dos fallos que encontró el recorrido.**
+>
+> 1. **Configurar la IA no hacía aparecer nada hasta recargar.** La invalidación de caché al configurar un
+>    proveedor tocaba proveedores, ajustes, modelos, tareas y consumo, pero **no la disponibilidad**, que es
+>    justo de lo que dependen los puntos de uso. Solo se notaba si la pantalla que los ofrece ya se había
+>    pintado antes de configurar, que es lo que hace cualquiera. Afectaba también al asistente.
+> 2. **Un `<form>` dentro de otro `<form>`.** El panel de ideas vive dentro del formulario de crear a mano, y
+>    anidarlos es HTML inválido: el navegador se lo tomaba como quería y el panel se reiniciaba al pedir ideas.
+>    Los campos no necesitaban formulario propio.
+>
+> Y el proveedor de mentira aprende a responder **lo que el esquema pide** cuando no lleva guion. Un `{}`
+> obligaba a cada recorrido a escribir a mano una respuesta con la forma exacta de su esquema, y esa copia
+> envejece mal: cambiar el esquema dejaría los guiones antiguos dando por buena una forma que ya no vale. Sirve
+> igual para los esquemas de H12 y H13 sin saber nada de ellos.

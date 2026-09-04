@@ -233,6 +233,8 @@ export interface VisionDocument {
   /** Lo que hay que devolver al guardar, commitear o descartar (RF-511). */
   revision: number;
   uncommittedChanges: boolean;
+  /** La visión nació de una propuesta generada (RF-1311). */
+  aiSeeded: boolean;
   workingAuthors: { handle: string; displayName: string }[];
   canEdit: boolean;
   updatedAt: string;
@@ -1028,6 +1030,15 @@ function invalidarIa(client: ReturnType<typeof useQueryClient>, workspaceId: str
     client.invalidateQueries({ queryKey: ['ia-modelos', workspaceId] }),
     client.invalidateQueries({ queryKey: ['ia-tareas', workspaceId] }),
     client.invalidateQueries({ queryKey: ['ia-consumo', workspaceId] }),
+    /*
+     * Y la disponibilidad, que es de lo que dependen los puntos de uso.
+     *
+     * Faltaba, y el efecto era este: configurar un proveedor no hacía aparecer
+     * ni el asistente ni la vía de ideas hasta recargar la página. Se notaba
+     * solo si la pantalla que los ofrece ya se había pintado antes de
+     * configurar, que es justo lo que hace cualquiera.
+     */
+    client.invalidateQueries({ queryKey: ['ia-disponible', workspaceId] }),
   ]);
 }
 

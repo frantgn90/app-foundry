@@ -810,6 +810,23 @@ export function AppDetailPage({
               )}
             </div>
 
+            {/*
+              De dónde salió esta visión, mientras todavía no la haya firmado
+              nadie (RF-1311). Deja de enseñarse en cuanto hay una versión: a
+              partir de ahí el documento es de quien lo commiteó, y recordar quién
+              escribió el primer borrador sería discutir una autoría que ya no
+              está en disputa.
+            */}
+            {document.data.aiSeeded && document.data.versionNo === 0 && (
+              <Card className="flex flex-wrap items-center gap-2 border-[var(--color-acento)]/40 p-3 text-sm">
+                <span aria-hidden>✨</span>
+                <span>
+                  This vision was drafted from a generated idea. Nothing is committed yet — edit it
+                  and commit when it says what you mean.
+                </span>
+              </Card>
+            )}
+
             {!mirandoCopiaDeTrabajo ? (
               /*
                 Una versión pasada: o su texto, o lo que cambió desde ella hasta
