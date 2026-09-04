@@ -36,6 +36,20 @@ export interface ListOptions {
   perPage?: number;
 }
 
+/**
+ * Una visión que llega escrita, en vez de la plantilla en blanco (RF-1308).
+ *
+ * Va como parámetro de `create` y no como un método aparte para que el alta de
+ * la app —slug único, icono, nivel de acceso, precursor, auditoría— sea
+ * exactamente la misma en los dos caminos. Crear una app con ayuda de la IA no
+ * cambia de quién es ni quién la ve (RF-1310, D-9), y la forma de garantizarlo
+ * es que no haya un segundo sitio donde eso se decida.
+ */
+export interface AppSeed {
+  readonly vision: string;
+  readonly tags: readonly string[];
+}
+
 @Injectable()
 export class AppsService {
   constructor(
@@ -52,7 +66,12 @@ export class AppsService {
    * quien crea no es el dueño del workspace —la base de datos lo rechazaría de
    * todas formas (D-9)— y aquí se traduce a algo que no falla.
    */
-  async create(workspaceId: string, body: CreateAppDto, userId: string): Promise<AppSummaryDto> {
+  async create(
+    workspaceId: string,
+    body: CreateAppDto,
+    userId: string,
+    semilla?: AppSeed,
+  ): Promise<AppSummaryDto> {
     const tx = currentTx();
 
     const role = await this.roleIn(workspaceId, userId);
@@ -93,7 +112,12 @@ export class AppsService {
       .set({ iconEmoji: icon.emoji, iconColor: icon.color })
       .where(eq(apps.id, created.id));
 
-    await this.createVisionDocument(created.id, userId);
+    await this.createVisionDocument(created.id, userId, semilla);
+
+    if (semilla && semilla.tags.length > 0) {
+      await tx.insert(appTags).values(semilla.tags.map((tag) => ({ appId: created.id, tag })));
+    }
+
     this.metrics.appCreada();
 
     await this.audit.record({
@@ -108,15 +132,34 @@ export class AppsService {
     return this.get(created.id, userId);
   }
 
-  /** El documento nace con la plantilla y su primera versión (RF-503, RF-505). */
-  private async createVisionDocument(appId: string, userId: string): Promise<void> {
+  /**
+   * El documento nace con la plantilla y su primera versión (RF-503, RF-505).
+   *
+   * Salvo cuando viene sembrado de una propuesta: entonces nace **sin versión**
+   * y con la visión en la copia de trabajo (RF-1308). La diferencia es
+   * deliberada y se nota en la ficha: lo que ha escrito un modelo llega como
+   * borrador con cambios sin commitear, no como una versión que alguien haya
+   * dado por buena. Commitear sigue siendo un acto humano (RF-505).
+   */
+  private async createVisionDocument(
+    appId: string,
+    userId: string,
+    semilla?: AppSeed,
+  ): Promise<void> {
     const tx = currentTx();
 
     const [document] = await tx
       .insert(documents)
-      .values({ appId, type: 'VISION', currentContent: VISION_TEMPLATE })
+      .values({
+        appId,
+        type: 'VISION',
+        currentContent: semilla?.vision ?? VISION_TEMPLATE,
+        ...(semilla && { aiSeeded: true }),
+      })
       .returning({ id: documents.id });
     if (!document) throw new NotFoundException('The document could not be created');
+
+    if (semilla) return;
 
     const [version] = await tx
       .insert(documentVersions)

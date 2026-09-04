@@ -309,6 +309,13 @@
       "when": 1788212400397,
       "tag": "0043_ai_system_notices",
       "breakpoints": true
+    },
+    {
+      "idx": 44,
+      "version": "7",
+      "when": 1788528077405,
+      "tag": "0044_ai_seeded_vision",
+      "breakpoints": true
     }
   ]
 }

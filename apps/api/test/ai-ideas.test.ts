@@ -224,3 +224,119 @@ describe('sin restricciones y sin permiso', () => {
     expect(status).toBe(403);
   });
 });
+
+describe('elegir una propuesta', () => {
+  const elegir = (quien: TestUser, extra: Record<string, unknown> = {}) =>
+    h.as(quien).post(`/api/v1/workspaces/${ana.workspaceId}/ai/ideas/choose`, {
+      ...PROPUESTA,
+      ...extra,
+    });
+
+  it('crea la app con su nombre, su descripción y sus etiquetas', async () => {
+    const response = await elegir(ana);
+    const app = (await response.json()) as {
+      id: string;
+      name: string;
+      shortDescription: string;
+      status: string;
+      tags: string[];
+    };
+
+    expect(response.status).toBe(201);
+    expect(app.name).toBe('Rutas');
+    expect(app.shortDescription).toBe(PROPUESTA.shortDescription);
+    expect(app.status).toBe('IDEA');
+    expect(app.tags).toEqual(['transporte']);
+  });
+
+  /*
+   * Lo que ha escrito un modelo llega como **borrador**, no como una versión que
+   * alguien haya dado por buena: darlo por commiteado sería firmar en nombre de
+   * quien todavía no lo ha leído (RF-1308, RF-505).
+   */
+  it('la visión llega a la copia de trabajo, sin versión y sin commitear', async () => {
+    const app = (await (await elegir(ana)).json()) as { id: string };
+    const doc = (await (await h.as(ana).get(`/api/v1/apps/${app.id}/document`)).json()) as {
+      content: string;
+      versionNo: number;
+      currentVersionId: string | null;
+      uncommittedChanges: boolean;
+      aiSeeded: boolean;
+    };
+
+    expect(doc.currentVersionId).toBeNull();
+    expect(doc.versionNo).toBe(0);
+    expect(doc.uncommittedChanges).toBe(true);
+    /* Y con la estructura de la plantilla de la v1, con lo suyo contestado. */
+    expect(doc.content).toContain('# The problem');
+    expect(doc.content).toContain('Nadie sabe cuando pasa el autobus');
+    /* Constancia de dónde salió (RF-1311). */
+    expect(doc.aiSeeded).toBe(true);
+  });
+
+  it('las fuentes, si las hubo, quedan dentro del documento', async () => {
+    const app = (await (
+      await elegir(ana, { sources: [{ url: 'https://fuente.test/x', title: 'Un informe' }] })
+    ).json()) as { id: string };
+    const doc = (await (await h.as(ana).get(`/api/v1/apps/${app.id}/document`)).json()) as {
+      content: string;
+    };
+
+    expect(doc.content).toContain('[Un informe](https://fuente.test/x)');
+  });
+
+  /*
+   * Crear una app con ayuda de la IA no cambia de quién es ni quién la ve
+   * (RF-1310, D-9): pasa por el mismo alta que crearla a mano.
+   */
+  it('el precursor y el acceso son los de siempre', async () => {
+    const app = (await (await elegir(ana)).json()) as { id: string; precursorHandle: string };
+    const detalle = (await (await h.as(ana).get(`/api/v1/apps/${app.id}`)).json()) as {
+      accessLevel: string;
+      precursorHandle: string;
+      isPrecursor: boolean;
+    };
+
+    expect(detalle.precursorHandle).toBe(ana.handle);
+    expect(detalle.isPrecursor).toBe(true);
+    expect(detalle.accessLevel).toBe('PRIVATE');
+  });
+
+  it('una app creada a mano no dice haber salido de una propuesta', async () => {
+    const app = (await (
+      await h.as(ana).post(`/api/v1/workspaces/${ana.workspaceId}/apps`, { name: 'A mano' })
+    ).json()) as { id: string };
+    const doc = (await (await h.as(ana).get(`/api/v1/apps/${app.id}/document`)).json()) as {
+      aiSeeded: boolean;
+      versionNo: number;
+    };
+
+    expect(doc.aiSeeded).toBe(false);
+    expect(doc.versionNo).toBe(1);
+  });
+
+  /*
+   * Lo descartado no deja rastro (RF-1312): generar una tanda y no elegir nada
+   * no crea apps ni guarda propuestas. Lo único que queda es el registro de la
+   * invocación, que es lo que responde «¿en qué se fue la cuota?».
+   */
+  it('generar sin elegir no deja nada detrás', async () => {
+    sinBusqueda.program({ object: tanda(4) });
+    const antes = (await (
+      await h.as(ana).get(`/api/v1/workspaces/${ana.workspaceId}/apps`)
+    ).json()) as { items: unknown[] };
+
+    await pedir(ana, { topic: 'algo que no voy a elegir' });
+
+    const despues = (await (
+      await h.as(ana).get(`/api/v1/workspaces/${ana.workspaceId}/apps`)
+    ).json()) as { items: unknown[] };
+    expect(despues.items).toHaveLength(antes.items.length);
+    /* Pero la invocación sí queda: es lo que explica en qué se fue la cuota. */
+    expect((await invocaciones(1))[0]?.task).toBe('IDEA_GENERATION');
+  });
+
+  it('quien no es del workspace no crea nada', async () => {
+    expect((await elegir(bruno)).status).toBe(404);
+  });
+});

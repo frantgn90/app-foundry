@@ -1,9 +1,11 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import { Type } from 'class-transformer';
 import {
   ArrayMaxSize,
   IsArray,
   IsBoolean,
   IsIn,
+  ValidateNested,
   IsInt,
   IsOptional,
   IsPositive,
@@ -385,4 +387,80 @@ export class GenerateIdeasDto {
   @IsString({ each: true })
   @ArrayMaxSize(30)
   exclude?: string[];
+}
+
+/** Una fuente citada por la búsqueda, que se conserva en la visión sembrada. */
+export class IdeaSourceDto {
+  @ApiProperty()
+  @IsString()
+  @Length(1, 500)
+  url!: string;
+
+  @ApiProperty()
+  @IsString()
+  @Length(1, 300)
+  title!: string;
+}
+
+/**
+ * La propuesta elegida, tal cual la vio quien la eligió (RF-1308).
+ *
+ * Viaja de vuelta entera porque las propuestas **no se guardan**: si nadie
+ * elige, no queda rastro más allá del registro de la invocación (RF-1312).
+ * Guardarlas «por si acaso» dejaría en la base de datos cuatro ideas
+ * descartadas por cada una elegida, y ninguna de ellas es de nadie.
+ */
+export class ChooseIdeaDto {
+  @ApiProperty()
+  @IsString()
+  @Length(1, 120)
+  name!: string;
+
+  @ApiProperty()
+  @IsString()
+  @Length(1, 2000)
+  problem!: string;
+
+  @ApiProperty()
+  @IsString()
+  @Length(1, 1000)
+  audience!: string;
+
+  @ApiProperty()
+  @IsString()
+  @Length(1, 2000)
+  valueProposition!: string;
+
+  @ApiProperty({ enum: MONETISATIONS })
+  @IsIn(MONETISATIONS)
+  monetisation!: Monetisation;
+
+  @ApiProperty()
+  @IsString()
+  @Length(1, 200)
+  effort!: string;
+
+  @ApiProperty()
+  @IsString()
+  @Length(1, 1000)
+  mainRisk!: string;
+
+  @ApiProperty({ type: [String], maxItems: 8 })
+  @IsArray()
+  @ArrayMaxSize(8)
+  @IsString({ each: true })
+  tags!: string[];
+
+  @ApiProperty()
+  @IsString()
+  @Length(1, 300)
+  shortDescription!: string;
+
+  @ApiPropertyOptional({ type: [IdeaSourceDto], maxItems: 20 })
+  @IsOptional()
+  @IsArray()
+  @ArrayMaxSize(20)
+  @ValidateNested({ each: true })
+  @Type(() => IdeaSourceDto)
+  sources?: IdeaSourceDto[];
 }

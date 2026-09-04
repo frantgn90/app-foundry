@@ -825,11 +825,27 @@ Solo se desglosa el hito en curso. H9 y H10 están cerradas; H11 está desglosad
 
 | # | Tarea | Verificación | Traza | Estado |
 |---|---|---|---|---|
-| AZ1 | Elegir crea la app en una sola transacción | Nombre, descripción, estado `IDEA` y etiquetas sugeridas | RF-1308 | ⬜ |
-| AZ2 | La visión sembrada como copia de trabajo, sin versión | Nace con cambios sin commitear, sobre la plantilla de la v1 | RF-1308, RF-503, RF-505 | ⬜ |
-| AZ3 | Constancia de que la visión nació de una propuesta | Visible en la ficha mientras nadie haya commiteado | RF-1311 | ⬜ |
-| AZ4 | Acceso y precursor, por las reglas de la v1 sin excepción | Crearla con ayuda de la IA no cambia de quién es | RF-1310, D-9 | ⬜ |
-| AZ5 | Lo descartado no deja rastro | Sin elegir, solo queda el registro de la invocación | RF-1312 | ⬜ |
+| AZ1 | Elegir crea la app en una sola transacción | Nombre, descripción, estado `IDEA` y etiquetas sugeridas | RF-1308 | ✅ |
+| AZ2 | La visión sembrada como copia de trabajo, sin versión | Nace con cambios sin commitear, sobre la plantilla de la v1 | RF-1308, RF-503, RF-505 | ✅ |
+| AZ3 | Constancia de que la visión nació de una propuesta | Visible en la ficha mientras nadie haya commiteado | RF-1311 | ✅ |
+| AZ4 | Acceso y precursor, por las reglas de la v1 sin excepción | Crearla con ayuda de la IA no cambia de quién es | RF-1310, D-9 | ✅ |
+| AZ5 | Lo descartado no deja rastro | Sin elegir, solo queda el registro de la invocación | RF-1312 | ✅ |
+
+
+> **Sobre AZ.** Elegir una propuesta pasa por el **mismo alta** que crear una app a mano: slug, icono, nivel de
+> acceso, precursor y auditoría se deciden en un único sitio. Es la forma de garantizar RF-1310 —crear una app
+> con ayuda de la IA no cambia de quién es— sin confiar en que dos caminos se mantengan sincronizados.
+>
+> Lo único que cambia es el documento: nace **sin versión**, con la visión en la copia de trabajo. Lo que ha
+> escrito un modelo llega como borrador y no como algo que alguien haya dado por bueno; darlo por commiteado
+> sería firmar en nombre de quien todavía no lo ha leído.
+>
+> La propuesta viaja de vuelta entera al elegirla, y eso es deliberado: **no se guarda ninguna**. Guardarlas «por
+> si acaso» dejaría cuatro ideas descartadas por cada una elegida, y ninguna de ellas es de nadie (RF-1312).
+>
+> Una consecuencia que conviene conocer: hasta el primer commit, una app así **no admite comentarios inline**,
+> porque un hilo pertenece a una versión y todavía no hay ninguna. Es coherente con la v1 y se resuelve
+> commiteando, que es un clic, pero no es evidente.
 
 ### Bloque BA — Las ideas en la interfaz
 

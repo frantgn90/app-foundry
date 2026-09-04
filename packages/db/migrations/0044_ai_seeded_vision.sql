@@ -1,0 +1,1 @@
+ALTER TABLE "documents" ADD COLUMN "ai_seeded" boolean DEFAULT false NOT NULL;

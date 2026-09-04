@@ -27,6 +27,10 @@ import { AI_REGISTRY } from './ai.tokens.js';
 import { AiInvocationService, type InvocationCandidate } from './invocation.service.js';
 import { providerMessage } from './provider-http.js';
 import { AiTasksService } from './tasks.service.js';
+import type { AppSummaryDto } from '../apps/apps.dto.js';
+import { AppsService } from '../apps/apps.service.js';
+import type { ChooseIdeaDto } from './ai.dto.js';
+import { seedVision } from '@app-foundry/core';
 
 /** Cuántas búsquedas puede hacer el modelo al investigar. */
 const BUSQUEDAS = 5;
@@ -77,6 +81,7 @@ export class AiIdeasService {
   constructor(
     private readonly invocations: AiInvocationService,
     private readonly tasks: AiTasksService,
+    private readonly apps: AppsService,
     @Inject(AI_REGISTRY) private readonly registry: ProviderRegistry,
     @Inject(DATABASE) private readonly db: Database,
   ) {}
@@ -188,6 +193,34 @@ export class AiIdeasService {
       if (cancelado) return;
       yield { type: 'error', kind, message: providerMessage(kind) };
     }
+  }
+
+  /**
+   * Convierte una propuesta en una app (RF-1308, RF-1310).
+   *
+   * Pasa por el mismo alta que crear una a mano: slug, icono, nivel de acceso,
+   * precursor y auditoría se deciden en un único sitio. Crear una app con ayuda
+   * de la IA no cambia de quién es ni quién la ve, y la manera de garantizarlo es
+   * que no exista un segundo camino donde eso se decida (D-9).
+   *
+   * Lo único que cambia es el documento: nace **sin versión**, con la visión en
+   * la copia de trabajo. Lo que ha escrito un modelo llega como borrador y no
+   * como algo que alguien haya dado por bueno; darlo por commiteado sería firmar
+   * en nombre de quien todavía no lo ha leído (RF-505).
+   */
+  async choose(
+    workspaceId: string,
+    proposal: ChooseIdeaDto,
+    userId: string,
+  ): Promise<AppSummaryDto> {
+    const { sources, ...propuesta } = proposal;
+
+    return this.apps.create(
+      workspaceId,
+      { name: propuesta.name, shortDescription: propuesta.shortDescription },
+      userId,
+      { vision: seedVision(propuesta, sources ?? []), tags: propuesta.tags },
+    );
   }
 
   /**

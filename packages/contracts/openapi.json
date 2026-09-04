@@ -1612,6 +1612,48 @@
         ]
       }
     },
+    "/api/v1/workspaces/{workspaceId}/ai/ideas/choose": {
+      "post": {
+        "description": "La app nace con su nombre, descripción y etiquetas, y su visión sembrada en la copia de trabajo, sin commitear: lo que ha escrito un modelo llega como borrador, no como una versión que alguien haya dado por buena.",
+        "operationId": "AiIdeasController_choose",
+        "parameters": [
+          {
+            "name": "workspaceId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ChooseIdeaDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AppSummaryDto"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Crear una app a partir de una propuesta",
+        "tags": [
+          "ai"
+        ]
+      }
+    },
     "/api/v1/apps/{appId}/document": {
       "get": {
         "operationId": "DocumentsController_get",
@@ -3781,6 +3823,81 @@
           "estimatedTokens"
         ]
       },
+      "IdeaSourceDto": {
+        "type": "object",
+        "properties": {
+          "url": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "url",
+          "title"
+        ]
+      },
+      "ChooseIdeaDto": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "problem": {
+            "type": "string"
+          },
+          "audience": {
+            "type": "string"
+          },
+          "valueProposition": {
+            "type": "string"
+          },
+          "monetisation": {
+            "type": "string",
+            "enum": [
+              "FREE",
+              "ONE_OFF",
+              "SUBSCRIPTION",
+              "FREEMIUM"
+            ]
+          },
+          "effort": {
+            "type": "string"
+          },
+          "mainRisk": {
+            "type": "string"
+          },
+          "tags": {
+            "maxItems": 8,
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "shortDescription": {
+            "type": "string"
+          },
+          "sources": {
+            "maxItems": 20,
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/IdeaSourceDto"
+            }
+          }
+        },
+        "required": [
+          "name",
+          "problem",
+          "audience",
+          "valueProposition",
+          "monetisation",
+          "effort",
+          "mainRisk",
+          "tags",
+          "shortDescription"
+        ]
+      },
       "WorkingAuthorDto": {
         "type": "object",
         "properties": {
@@ -3832,6 +3949,10 @@
             "type": "boolean",
             "description": "Si la copia de trabajo va por delante de la versión"
           },
+          "aiSeeded": {
+            "type": "boolean",
+            "description": "La visión nació de una propuesta generada"
+          },
           "workingAuthors": {
             "description": "Quién ha guardado desde el último commit (RF-515, RF-516)",
             "type": "array",
@@ -3855,6 +3976,7 @@
           "versionNo",
           "revision",
           "uncommittedChanges",
+          "aiSeeded",
           "workingAuthors",
           "canEdit",
           "updatedAt"

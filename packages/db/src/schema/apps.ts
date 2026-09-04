@@ -1,6 +1,7 @@
 import { sql } from 'drizzle-orm';
 import {
   type AnyPgColumn,
+  boolean,
   customType,
   index,
   integer,
@@ -130,6 +131,15 @@ export const documents = pgTable(
      * guardados seguidos la comparten.
      */
     revision: integer('revision').notNull().default(0),
+    /**
+     * Que esta visión nació de una propuesta generada (RF-1311).
+     *
+     * Se guarda en el documento y no en la app porque es de la visión: lo que
+     * salió de un modelo es el texto, no la idea de tener la app. Y se conserva
+     * después de commitear aunque deje de enseñarse: es historia de cómo empezó
+     * esto, y borrarla al primer commit la haría irrecuperable.
+     */
+    aiSeeded: boolean('ai_seeded').notNull().default(false),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
   },

@@ -665,6 +665,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/workspaces/{workspaceId}/ai/ideas/choose": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Crear una app a partir de una propuesta
+         * @description La app nace con su nombre, descripción y etiquetas, y su visión sembrada en la copia de trabajo, sin commitear: lo que ha escrito un modelo llega como borrador, no como una versión que alguien haya dado por buena.
+         */
+        post: operations["AiIdeasController_choose"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/apps/{appId}/document": {
         parameters: {
             query?: never;
@@ -1409,6 +1429,23 @@ export interface components {
             /** @description Techo: entrada contada más salida al máximo */
             estimatedTokens: number;
         };
+        IdeaSourceDto: {
+            url: string;
+            title: string;
+        };
+        ChooseIdeaDto: {
+            name: string;
+            problem: string;
+            audience: string;
+            valueProposition: string;
+            /** @enum {string} */
+            monetisation: "FREE" | "ONE_OFF" | "SUBSCRIPTION" | "FREEMIUM";
+            effort: string;
+            mainRisk: string;
+            tags: string[];
+            shortDescription: string;
+            sources?: components["schemas"]["IdeaSourceDto"][];
+        };
         WorkingAuthorDto: {
             handle: string;
             displayName: string;
@@ -1430,6 +1467,8 @@ export interface components {
             revision: number;
             /** @description Si la copia de trabajo va por delante de la versión */
             uncommittedChanges: boolean;
+            /** @description La visión nació de una propuesta generada */
+            aiSeeded: boolean;
             /** @description Quién ha guardado desde el último commit (RF-515, RF-516) */
             workingAuthors: components["schemas"]["WorkingAuthorDto"][];
             canEdit: boolean;
@@ -2647,6 +2686,31 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["AssistEstimateDto"];
+                };
+            };
+        };
+    };
+    AiIdeasController_choose: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                workspaceId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ChooseIdeaDto"];
+            };
+        };
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AppSummaryDto"];
                 };
             };
         };

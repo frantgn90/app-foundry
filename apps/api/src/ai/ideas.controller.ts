@@ -1,16 +1,40 @@
 import { Body, Controller, HttpException, Param, ParseUUIDPipe, Post, Res } from '@nestjs/common';
-import { ApiExcludeEndpoint, ApiTags } from '@nestjs/swagger';
+import { ApiCreatedResponse, ApiExcludeEndpoint, ApiOperation, ApiTags } from '@nestjs/swagger';
 import type { Response } from 'express';
 
 import { CurrentUserId } from '../auth/current-user.decorator.js';
 import { SinTransaccion } from '../database/sin-transaccion.decorator.js';
-import { GenerateIdeasDto } from './ai.dto.js';
+import { ChooseIdeaDto, GenerateIdeasDto } from './ai.dto.js';
+import { AppSummaryDto } from '../apps/apps.dto.js';
 import { AiIdeasService, type IdeaEvent } from './ideas.service.js';
 
 @ApiTags('ai')
 @Controller('workspaces/:workspaceId/ai')
 export class AiIdeasController {
   constructor(private readonly ideas: AiIdeasService) {}
+
+  /**
+   * Convierte una propuesta en una app (RF-1308, RF-1309).
+   *
+   * La propuesta viaja de vuelta entera porque no se guarda ninguna: si nadie
+   * elige, no queda rastro más allá del registro de la invocación (RF-1312).
+   */
+  @Post('ideas/choose')
+  @ApiOperation({
+    summary: 'Crear una app a partir de una propuesta',
+    description:
+      'La app nace con su nombre, descripción y etiquetas, y su visión sembrada en la ' +
+      'copia de trabajo, sin commitear: lo que ha escrito un modelo llega como borrador, ' +
+      'no como una versión que alguien haya dado por buena.',
+  })
+  @ApiCreatedResponse({ type: AppSummaryDto })
+  choose(
+    @Param('workspaceId', ParseUUIDPipe) workspaceId: string,
+    @Body() body: ChooseIdeaDto,
+    @CurrentUserId() userId: string,
+  ): Promise<AppSummaryDto> {
+    return this.ideas.choose(workspaceId, body, userId);
+  }
 
   /**
    * Ideas de app, en streaming (RF-1301, RF-1306).

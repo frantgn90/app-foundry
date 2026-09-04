@@ -78,6 +78,7 @@ export class DocumentsService {
       versionNo: row.versionNo ?? 0,
       revision: row.document.revision,
       uncommittedChanges: row.document.currentContent !== (row.versionContent ?? ''),
+      aiSeeded: row.document.aiSeeded,
       workingAuthors: escritores,
       canEdit:
         row.app.archivedAt === null &&

@@ -24,6 +24,16 @@ export class DocumentDto {
   revision!: number;
   @ApiProperty({ description: 'Si la copia de trabajo va por delante de la versión' })
   uncommittedChanges!: boolean;
+
+  /**
+   * Que esta visión nació de una propuesta generada (RF-1311).
+   *
+   * Se conserva aunque después se commitee: es historia de cómo empezó esto.
+   * Quien decide hasta cuándo enseñarlo es la interfaz —mientras no haya
+   * versión—, no el dato.
+   */
+  @ApiProperty({ description: 'La visión nació de una propuesta generada' })
+  aiSeeded!: boolean;
   @ApiProperty({
     type: [WorkingAuthorDto],
     description: 'Quién ha guardado desde el último commit (RF-515, RF-516)',
