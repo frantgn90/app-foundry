@@ -480,9 +480,16 @@ export function AppDetailPage({
         onDone: () => {
           setAssist((previo) => (previo && vigente() ? { ...previo, generando: false } : previo));
         },
-        onError: (message) => {
+        onError: (message, detalle) => {
           setAssist((previo) =>
-            previo && vigente() ? { ...previo, generando: false, error: message } : previo,
+            previo && vigente()
+              ? {
+                  ...previo,
+                  generando: false,
+                  error: message,
+                  ...(detalle ? { errorDetalle: detalle } : {}),
+                }
+              : previo,
           );
         },
       },

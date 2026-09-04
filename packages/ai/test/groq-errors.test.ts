@@ -31,6 +31,26 @@ describe('de un error de Groq a la taxonomía común', () => {
     }
   });
 
+  /*
+   * Un modelo apagado en los ajustes del proyecto llega como 400, y contarlo
+   * como «algo iba mal en la petición» manda a mirar donde no es: la petición
+   * está bien y lo que falta es permiso para ese modelo. Pasa sobre todo con los
+   * sistemas `compound`, que por dentro enrutan a otros: basta con que uno de
+   * ellos esté bloqueado para que falle entero.
+   */
+  it('un modelo bloqueado en la cuenta no es una petición mal hecha', () => {
+    const traducido = translateGroqError(
+      apiError(
+        400,
+        'The model `meta-llama/llama-4-scout-17b-16e-instruct` is blocked at the project level.',
+      ),
+    );
+
+    expect(traducido.kind).toBe(ProviderErrorKind.MODEL_UNAVAILABLE);
+    /* Y no se reintenta: seguirá bloqueado por muchas vueltas que se den. */
+    expect(isRetryable(traducido.kind)).toBe(false);
+  });
+
   it('un esquema que no admite se reintenta una vez', () => {
     const traducido = translateGroqError(apiError(400, 'response_format json_schema is invalid'));
 

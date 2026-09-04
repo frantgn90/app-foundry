@@ -13,6 +13,7 @@ import {
   type JsonSchema,
   ProviderError,
   ProviderErrorKind,
+  redactSecrets,
   researchMessages,
   researchSystemPrompt,
   roughTokenCount,
@@ -61,7 +62,13 @@ export type IdeaEvent =
   | { readonly type: 'sources'; readonly sources: readonly WebSource[] }
   | { readonly type: 'proposal'; readonly index: number; readonly proposal: IdeaProposal }
   | { readonly type: 'done'; readonly count: number }
-  | { readonly type: 'error'; readonly kind: string; readonly message: string };
+  | {
+      readonly type: 'error';
+      readonly kind: string;
+      readonly message: string;
+      /** Lo que dijo el proveedor, redactado: trae el motivo y a veces el enlace. */
+      readonly detail: string;
+    };
 
 /**
  * Generación de ideas de app (RF-1301..1307, TRD v2 §12.1).
@@ -280,7 +287,14 @@ export class AiIdeasService {
        */
       if (schema && kind === ProviderErrorKind.SCHEMA && enviadas === 0) return 'sin-esquema';
 
-      yield { type: 'error', kind, message: providerMessage(kind) };
+      yield {
+        type: 'error',
+        kind,
+        message: providerMessage(kind),
+        detail: redactSecrets(error instanceof Error ? error.message : String(error), [
+          empezada.credential.apiKey,
+        ]),
+      };
       return 'fallo';
     }
   }

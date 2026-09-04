@@ -218,7 +218,8 @@ export class AiInvocationService {
        */
       if (error instanceof ProviderError) {
         await this.failed(context, plan, error.kind);
-        throw toProviderHttpException(error);
+        /* Con la clave a mano, taparla por su valor exacto y no por su forma. */
+        throw toProviderHttpException(error, [credential.apiKey]);
       }
       throw error;
     }

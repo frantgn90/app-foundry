@@ -36,6 +36,8 @@ export interface AssistState {
   meta: AssistMeta | null;
   generando: boolean;
   error: string | null;
+  /** Lo que dijo el proveedor, ya redactado: el motivo de verdad. */
+  errorDetalle?: string;
 }
 
 /**
@@ -133,9 +135,17 @@ export function AssistProposal({
       )}
 
       {estado.error ? (
-        <p className="text-sm" style={{ color: 'var(--color-fallo)' }}>
-          {estado.error}
-        </p>
+        <div className="flex flex-col gap-1">
+          <p className="text-sm" style={{ color: 'var(--color-fallo)' }}>
+            {estado.error}
+          </p>
+          {/* Nuestro mensaje dice qué hacer; el del proveedor, qué ha pasado. */}
+          {estado.errorDetalle && (
+            <p className="whitespace-pre-wrap text-xs text-[var(--color-texto-suave)]">
+              {estado.errorDetalle}
+            </p>
+          )}
+        </div>
       ) : vacia ? (
         <p className="text-sm text-[var(--color-texto-suave)]">
           {/*

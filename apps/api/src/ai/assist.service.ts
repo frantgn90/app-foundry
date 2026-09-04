@@ -19,6 +19,7 @@ import {
   ProviderError,
   ProviderErrorKind,
   ReasoningSplitter,
+  redactSecrets,
   retryPolicyFor,
   roughTokenCount,
   surroundingsOf,
@@ -94,7 +95,13 @@ export type AssistEvent =
    */
   | { readonly type: 'thinking'; readonly active: boolean }
   | { readonly type: 'done'; readonly inputTokens: number; readonly outputTokens: number }
-  | { readonly type: 'error'; readonly kind: string; readonly message: string };
+  | {
+      readonly type: 'error';
+      readonly kind: string;
+      readonly message: string;
+      /** Lo que dijo el proveedor, redactado: trae el motivo y a veces el enlace. */
+      readonly detail: string;
+    };
 
 /**
  * El asistente de escritura (RF-1401..1411, TRD §12.2).
@@ -395,7 +402,14 @@ export class AiAssistService {
         );
 
         if (cancelado) return;
-        yield { type: 'error', kind, message: providerMessage(kind) };
+        yield {
+          type: 'error',
+          kind,
+          message: providerMessage(kind),
+          detail: redactSecrets(error instanceof Error ? error.message : String(error), [
+            empezada.credential.apiKey,
+          ]),
+        };
         return;
       }
     }

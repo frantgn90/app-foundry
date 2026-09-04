@@ -47,7 +47,14 @@ export interface IdeaHandlers {
   onSources: (sources: IdeaSource[]) => void;
   onProposal: (proposal: IdeaProposal) => void;
   onDone: () => void;
-  onError: (message: string) => void;
+  /**
+   * `detalle` es lo que dijo el proveedor, ya redactado.
+   *
+   * Viaja aparte del mensaje porque son cosas distintas: el mensaje es nuestro y
+   * está escrito para leerse; el detalle es de un tercero, puede venir en
+   * cualquier idioma, y es el que trae el motivo de verdad.
+   */
+  onError: (message: string, detalle?: string) => void;
 }
 
 /** Pide una tanda de ideas y va entregando las que se cierran. */
@@ -108,7 +115,7 @@ function despachar(bloque: string, handlers: IdeaHandlers): void {
   } else if (evento.type === 'done') {
     handlers.onDone();
   } else if (evento.type === 'error') {
-    handlers.onError(evento['message'] as string);
+    handlers.onError(evento['message'] as string, evento['detail'] as string);
   }
 }
 
@@ -141,12 +148,15 @@ async function motivoDe(response: Response): Promise<string> {
   const cuerpo = (await response.json().catch(() => null)) as {
     reason?: string;
     message?: string;
+    detail?: string;
     provider?: string;
     quota?: number;
     retryAfterSeconds?: number;
   } | null;
 
-  if (cuerpo?.reason === 'PROVIDER_ERROR' && cuerpo.message) return cuerpo.message;
+  if (cuerpo?.reason === 'PROVIDER_ERROR' && cuerpo.message) {
+    return cuerpo.detail ? `${cuerpo.message}\n${cuerpo.detail}` : cuerpo.message;
+  }
   if (cuerpo?.reason === 'QUOTA_EXCEEDED') {
     return `This workspace has used up its monthly ${cuerpo.provider ?? 'provider'} token quota. Its owner can raise it in the workspace AI settings.`;
   }

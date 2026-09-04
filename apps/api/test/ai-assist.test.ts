@@ -501,6 +501,8 @@ describe('cuando el proveedor falla', () => {
 
     expect(error?.['kind']).toBe('AUTH');
     expect(error?.['message']).toMatch(/owner/i);
+    /* Con el motivo del proveedor debajo, que es el que dice qué ha pasado. */
+    expect(error?.['detail']).toContain('fallo de mentira');
     expect(proveedor.calls.filter((llamada) => llamada.operation === 'streamText')).toHaveLength(1);
     expect((await ultimaInvocacion())?.outcome).toBe('FAILED');
   });
@@ -515,12 +517,22 @@ describe('cuando el proveedor falla', () => {
     proveedor.program({ failWith: 'AUTH', failCounting: true });
 
     const { status, cuerpo } = await pedir(ana, await seleccion());
-    const detalle = JSON.parse(cuerpo) as { reason: string; kind: string; message: string };
+    const detalle = JSON.parse(cuerpo) as {
+      reason: string;
+      kind: string;
+      message: string;
+      detail: string;
+    };
 
     expect(status).toBe(502);
     expect(detalle.reason).toBe('PROVIDER_ERROR');
     expect(detalle.kind).toBe('AUTH');
     expect(detalle.message).toMatch(/owner/i);
+    /*
+     * Y lo que dijo el proveedor, que es lo que trae el motivo de verdad. Sin
+     * esto hubo que ir a leer los registros del servidor para saber qué pasaba.
+     */
+    expect(detalle.detail).toContain('fallo de mentira');
 
     /*
      * Y deja fila, con cero tokens: no llegó a generarse nada, pero el intento

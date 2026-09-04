@@ -57,6 +57,19 @@ function kindOfBadRequest(message: string): ProviderErrorKind {
     return ProviderErrorKind.CONTEXT_OVERFLOW;
   }
   /*
+   * Un modelo apagado en los ajustes del proyecto de Groq.
+   *
+   * Llega como 400 y acababa contándose como «algo iba mal en la petición», que
+   * manda a mirar donde no es: la petición está bien, lo que pasa es que esa
+   * cuenta no tiene permitido ese modelo. Y pasa más de lo que parece con los
+   * sistemas `compound`, que por dentro enrutan a otros modelos: basta con que
+   * uno de ellos esté bloqueado para que falle entero, aunque el bloqueado no
+   * sea el que se eligió aquí.
+   */
+  if (/blocked at the project level|not enabled|no access to model/.test(texto)) {
+    return ProviderErrorKind.MODEL_UNAVAILABLE;
+  }
+  /*
    * En Groq el esquema estricto se valida antes de generar, así que un esquema
    * mal escrito llega como 400 con la palabra dentro. Es nuestro fallo y no del
    * modelo, pero se le da la misma segunda oportunidad para no divergir del

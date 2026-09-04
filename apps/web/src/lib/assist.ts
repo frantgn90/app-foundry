@@ -56,7 +56,8 @@ export interface AssistHandlers {
   /** Si sigue dentro de su bloque de razonamiento, es decir: si aún no hay respuesta. */
   onThinking: (active: boolean) => void;
   onDone: () => void;
-  onError: (message: string) => void;
+  /** `detalle` es lo que dijo el proveedor, ya redactado: el motivo de verdad. */
+  onError: (message: string, detalle?: string) => void;
 }
 
 /**
@@ -124,7 +125,8 @@ function despachar(bloque: string, handlers: AssistHandlers): void {
   else if (evento.type === 'reasoning') handlers.onReasoning(evento['text'] as string);
   else if (evento.type === 'thinking') handlers.onThinking(evento['active'] as boolean);
   else if (evento.type === 'done') handlers.onDone();
-  else if (evento.type === 'error') handlers.onError(evento['message'] as string);
+  else if (evento.type === 'error')
+    handlers.onError(evento['message'] as string, evento['detail'] as string);
 }
 
 /** El techo de tokens antes de comprometerse (RF-1412). */
@@ -160,6 +162,7 @@ async function motivoDe(response: Response): Promise<string> {
     modelId?: string;
     retryAfterSeconds?: number;
     message?: string;
+    detail?: string;
     provider?: string;
     spent?: number;
     quota?: number;
@@ -181,7 +184,9 @@ async function motivoDe(response: Response): Promise<string> {
    * taxonomía es nuestra y su texto está escrito para leerse aquí, así que
    * volver a redactarlo sería mantener dos veces la misma lista.
    */
-  if (cuerpo?.reason === 'PROVIDER_ERROR' && cuerpo.message) return cuerpo.message;
+  if (cuerpo?.reason === 'PROVIDER_ERROR' && cuerpo.message) {
+    return cuerpo.detail ? `${cuerpo.message}\n${cuerpo.detail}` : cuerpo.message;
+  }
   if (cuerpo?.reason === 'RATE_LIMITED') {
     const minutos = Math.ceil((cuerpo.retryAfterSeconds ?? 60) / 60);
     return `Too many AI requests in a short time. Try again in about ${String(minutos)} minute${

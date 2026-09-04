@@ -81,7 +81,7 @@ export function IdeaGenerator({
   const [sources, setSources] = useState<IdeaSource[]>([]);
   const [grounded, setGrounded] = useState<boolean | null>(null);
   const [generando, setGenerando] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<{ mensaje: string; detalle?: string } | null>(null);
   const [eligiendo, setEligiendo] = useState<string | null>(null);
   const [ajustando, setAjustando] = useState(false);
   const abortRef = useRef<AbortController | null>(null);
@@ -125,10 +125,10 @@ export function IdeaGenerator({
         onDone: () => {
           if (vigente()) setGenerando(false);
         },
-        onError: (mensaje) => {
+        onError: (mensaje, detalle) => {
           if (!vigente()) return;
           setGenerando(false);
-          setError(mensaje);
+          setError({ mensaje, ...(detalle ? { detalle } : {}) });
         },
       },
       abort.signal,
@@ -145,7 +145,9 @@ export function IdeaGenerator({
       })
       .catch((fallo: unknown) => {
         setEligiendo(null);
-        setError(fallo instanceof Error ? fallo.message : 'That idea could not be created.');
+        setError({
+          mensaje: fallo instanceof Error ? fallo.message : 'That idea could not be created.',
+        });
       });
   }
 
@@ -285,9 +287,22 @@ export function IdeaGenerator({
       </div>
 
       {error && (
-        <p className="text-sm" style={{ color: 'var(--color-fallo)' }}>
-          {error}
-        </p>
+        <div className="flex flex-col gap-1">
+          <p className="text-sm" style={{ color: 'var(--color-fallo)' }}>
+            {error.mensaje}
+          </p>
+          {/*
+            Y lo que dijo el proveedor, en pequeño y debajo. Nuestro mensaje dice
+            qué hacer; este dice qué ha pasado, y a veces trae hasta el enlace
+            donde arreglarlo. Sin él había que ir a leer los registros del
+            servidor para averiguarlo.
+          */}
+          {error.detalle && (
+            <p className="whitespace-pre-wrap text-xs text-[var(--color-texto-suave)]">
+              {error.detalle}
+            </p>
+          )}
+        </div>
       )}
 
       {/*

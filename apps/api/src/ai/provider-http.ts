@@ -1,6 +1,6 @@
 import { HttpException } from '@nestjs/common';
 
-import { ProviderError, ProviderErrorKind } from '@app-foundry/core';
+import { ProviderError, ProviderErrorKind, redactSecrets } from '@app-foundry/core';
 
 /**
  * Traduce un fallo de proveedor a una respuesta HTTP con motivo.
@@ -62,7 +62,13 @@ export function providerMessage(kind: ProviderErrorKind): string {
     case ProviderErrorKind.CONTENT_FILTER:
       return 'The provider refused to answer this one.';
     case ProviderErrorKind.MODEL_UNAVAILABLE:
-      return 'The model assigned to this task is no longer available.';
+      /*
+       * Dos cosas caen aquí y las dos se arreglan en el mismo sitio: un modelo
+       * retirado del catálogo y uno que la cuenta del proveedor tiene apagado.
+       * Lo que importa es que quien lo lea sepa que hay que ir a los ajustes, no
+       * a reintentar.
+       */
+      return 'The provider will not run the model assigned to this task. Check that it is still offered and enabled for your account.';
     case ProviderErrorKind.SCHEMA:
     case ProviderErrorKind.INVALID_REQUEST:
       return 'Something was wrong with the request. Nothing has been changed.';
@@ -73,8 +79,24 @@ export function providerMessage(kind: ProviderErrorKind): string {
   }
 }
 
-/** El mismo fallo, ya como respuesta: con su estado, su tipo y su explicación. */
-export function toProviderHttpException(error: ProviderError): HttpException {
+/**
+ * El mismo fallo, ya como respuesta: estado, tipo, explicación y **lo que dijo el
+ * proveedor**.
+ *
+ * El detalle va aparte del mensaje y no en su lugar: el mensaje es nuestro, está
+ * escrito para leerse y no cambia; el detalle es de un tercero, puede venir en
+ * cualquier idioma y decir cualquier cosa. Pero es el que trae el motivo de
+ * verdad —«ese modelo está bloqueado en tu proyecto», con su enlace—, y sin él
+ * había que ir a leer los registros del servidor para saber qué pasaba.
+ *
+ * Va redactado, porque un cuerpo de error puede devolver la credencial dentro
+ * (RNF-602). El secreto se tapa por su valor exacto cuando se conoce, que es la
+ * garantía fuerte, y por su forma cuando no.
+ */
+export function toProviderHttpException(
+  error: ProviderError,
+  secretos: readonly string[] = [],
+): HttpException {
   const statusCode = providerHttpStatus(error.kind);
   return new HttpException(
     {
@@ -82,6 +104,7 @@ export function toProviderHttpException(error: ProviderError): HttpException {
       reason: 'PROVIDER_ERROR',
       kind: error.kind,
       message: providerMessage(error.kind),
+      detail: redactSecrets(error.message, secretos),
     },
     statusCode,
   );

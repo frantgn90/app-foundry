@@ -104,11 +104,17 @@ export class AiIdeasController {
       for (let paso = primero; !paso.done; paso = await flujo.next()) {
         enviar(response, paso.value);
       }
-    } catch (error) {
+    } catch {
+      /*
+       * Un fallo nuestro a mitad del flujo, no del proveedor: el detalle se deja
+       * vacío en vez de meter ahí un mensaje interno, que no ayudaría a nadie y
+       * podría contar de más.
+       */
       enviar(response, {
         type: 'error',
         kind: 'TRANSIENT',
-        message: error instanceof Error ? error.message : 'Could not generate ideas',
+        message: 'Could not generate ideas',
+        detail: '',
       });
     } finally {
       response.end();
