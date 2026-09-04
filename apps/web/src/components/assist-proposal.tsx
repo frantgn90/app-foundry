@@ -1,4 +1,5 @@
 import { ASSIST_LABELS, type AssistAction, type AssistMeta } from '../lib/assist.js';
+import { cn } from '../lib/utils.js';
 import { DiffView } from './diff-view.js';
 import { Button } from './ui/button.js';
 import { Card } from './ui/card.js';
@@ -30,6 +31,8 @@ export interface AssistState {
    * leer, y las veces que se quiere no hay otro sitio donde mirarlo.
    */
   razonamiento: string;
+  /** Si el bloque de razonamiento sigue abierto: aún no hay respuesta que leer. */
+  pensando: boolean;
   meta: AssistMeta | null;
   generando: boolean;
   error: string | null;
@@ -56,7 +59,13 @@ export function AssistProposal({
   onAceptar: () => void;
   onDescartar: () => void;
 }) {
-  const vacia = estado.propuesta.trim() === '';
+  /*
+   * Recortado por los extremos. Un modelo que acaba de cerrar su razonamiento
+   * suele arrancar con un salto de línea, y esos espacios llegarían al documento
+   * al aceptar: el diff los pintaría como cambio y nadie los pidió.
+   */
+  const propuesta = estado.propuesta.trim();
+  const vacia = propuesta === '';
 
   return (
     <Card
@@ -91,6 +100,38 @@ export function AssistProposal({
         </p>
       )}
 
+      {/*
+        El razonamiento va **encima** del texto, y plegado.
+
+        Encima porque es lo que pasó antes: se piensa y luego se responde, y
+        ponerlo debajo obliga a leer el resultado y después retroceder a buscar de
+        dónde salió. Plegado porque casi nunca se quiere leer, y las veces que se
+        quiere no hay otro sitio donde mirarlo.
+
+        Nunca forma parte de lo que se acepta: aceptar escribe la propuesta en el
+        documento, y esto no está ahí.
+      */}
+      {estado.razonamiento !== '' && (
+        <details className="rounded-lg border border-[var(--color-borde)] p-2">
+          <summary
+            className={cn(
+              'cursor-pointer text-xs text-[var(--color-texto-suave)]',
+              /*
+                Mientras el bloque de razonamiento siga abierto, el barrido dice
+                que sigue trabajando. Sin esa señal, un modelo que delibera medio
+                minuto no se distingue de uno colgado.
+              */
+              estado.pensando && estado.generando && 'pensando',
+            )}
+          >
+            How the model got there — not part of the proposal
+          </summary>
+          <pre className="mt-2 max-h-52 overflow-auto whitespace-pre-wrap text-xs text-[var(--color-texto-suave)]">
+            {estado.razonamiento}
+          </pre>
+        </details>
+      )}
+
       {estado.error ? (
         <p className="text-sm" style={{ color: 'var(--color-fallo)' }}>
           {estado.error}
@@ -105,28 +146,10 @@ export function AssistProposal({
             ? 'Waiting for the first words…'
             : estado.generando
               ? 'Thinking it through — nothing written yet.'
-              : 'The model spent its answer thinking and wrote nothing. Its reasoning is below.'}
+              : 'The model spent its answer thinking and wrote nothing. Its reasoning is above.'}
         </p>
       ) : (
-        <DiffView from={estado.original} to={estado.propuesta} />
-      )}
-
-      {/*
-        El razonamiento, plegado y separado de la propuesta.
-
-        Nunca forma parte de lo que se acepta: aceptar escribe `propuesta` en el
-        documento y esto no está ahí. Está aquí porque entender por qué el modelo
-        propuso lo que propuso es a veces más útil que la propuesta.
-      */}
-      {estado.razonamiento !== '' && (
-        <details className="rounded-lg border border-[var(--color-borde)] p-2">
-          <summary className="cursor-pointer text-xs text-[var(--color-texto-suave)]">
-            How the model got there — not part of the proposal
-          </summary>
-          <pre className="mt-2 max-h-52 overflow-auto whitespace-pre-wrap text-xs text-[var(--color-texto-suave)]">
-            {estado.razonamiento}
-          </pre>
-        </details>
+        <DiffView from={estado.original.trim()} to={propuesta} />
       )}
 
       <div className="flex flex-wrap items-center gap-2">

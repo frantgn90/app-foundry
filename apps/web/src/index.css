@@ -390,3 +390,51 @@
     animation: none;
   }
 }
+
+/*
+ * Barrido de izquierda a derecha sobre el propio texto.
+ *
+ * Marca que el modelo **sigue pensando**: mientras no cierre su bloque de
+ * razonamiento no hay respuesta que enseñar, y sin señal alguna un modelo que
+ * delibera medio minuto es indistinguible de uno colgado.
+ *
+ * Se ilumina el texto en vez de añadir un adorno al lado porque lo que está en
+ * curso es justamente eso que se está leyendo, y un punto girando en una esquina
+ * obliga a relacionar dos cosas separadas.
+ */
+.pensando {
+  background: linear-gradient(
+    90deg,
+    var(--color-texto-suave) 0%,
+    var(--color-texto-suave) 35%,
+    var(--color-texto) 50%,
+    var(--color-texto-suave) 65%,
+    var(--color-texto-suave) 100%
+  );
+  background-size: 250% 100%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  animation: barrido-pensando 1.6s linear infinite;
+}
+
+@keyframes barrido-pensando {
+  from {
+    background-position: 100% 0;
+  }
+  to {
+    background-position: -50% 0;
+  }
+}
+
+/*
+ * Sin movimiento, el texto vuelve a ser texto: quitar la animación dejando el
+ * recorte activo lo dejaría transparente, es decir, invisible.
+ */
+@media (prefers-reduced-motion: reduce) {
+  .pensando {
+    animation: none;
+    background: none;
+    color: var(--color-texto-suave);
+  }
+}

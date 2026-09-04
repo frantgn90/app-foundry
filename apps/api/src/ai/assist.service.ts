@@ -84,6 +84,14 @@ export type AssistEvent =
    * propuesta.
    */
   | { readonly type: 'reasoning'; readonly text: string }
+  /**
+   * Si el modelo está **ahora mismo** dentro de su bloque de razonamiento.
+   *
+   * Se manda solo cuando cambia. Mientras esté abierto no hay respuesta que
+   * enseñar, y sin decirlo, un modelo que delibera medio minuto es
+   * indistinguible de uno colgado.
+   */
+  | { readonly type: 'thinking'; readonly active: boolean }
   | { readonly type: 'done'; readonly inputTokens: number; readonly outputTokens: number }
   | { readonly type: 'error'; readonly kind: string; readonly message: string };
 
@@ -306,6 +314,7 @@ export class AiAssistService {
     for (;;) {
       intento += 1;
       const separador = new ReasoningSplitter();
+      let pensando = false;
       try {
         for await (const evento of proveedor.streamText(peticion, empezada.credential)) {
           if (evento.type === 'delta') {
@@ -320,6 +329,12 @@ export class AiAssistService {
             if (parte.text !== '') {
               enviado = true;
               yield { type: 'delta', text: parte.text };
+            }
+
+            /* Solo cuando cambia: un evento por trozo sería ruido puro. */
+            if (separador.unterminated !== pensando) {
+              pensando = separador.unterminated;
+              yield { type: 'thinking', active: pensando };
             }
           } else if (evento.type === 'usage') {
             usage = evento.usage;

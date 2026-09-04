@@ -231,6 +231,30 @@ describe('cuando el modelo piensa en voz alta', () => {
     expect(razonamientoDe(eventos)).toContain('me quede a medias');
   });
 
+  /*
+   * Y se dice **cuándo** está pensando, no solo qué pensó: mientras el bloque
+   * siga abierto no hay respuesta que enseñar, y sin esa señal un modelo que
+   * delibera medio minuto no se distingue de uno colgado.
+   */
+  it('avisa de que está pensando, y de que ha terminado de hacerlo', async () => {
+    proveedor.program({ text: '<think>lo estoy pensando</think>ya esta' });
+
+    const { eventos } = await pedir(ana, await seleccion());
+    const avisos = eventos
+      .filter((evento) => evento.type === 'thinking')
+      .map((evento) => evento['active']);
+
+    expect(avisos).toEqual([true, false]);
+  });
+
+  it('sin razonamiento no se avisa de nada', async () => {
+    proveedor.program({ text: 'una respuesta y ya' });
+
+    const { eventos } = await pedir(ana, await seleccion());
+
+    expect(eventos.some((evento) => evento.type === 'thinking')).toBe(false);
+  });
+
   it('lo que se genera pensando también se registra como consumido', async () => {
     proveedor.program({ text: '<think>pienso bastante y largo</think>corto' });
 

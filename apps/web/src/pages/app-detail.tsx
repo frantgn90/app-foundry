@@ -424,6 +424,7 @@ export function AppDetailPage({
       original: base.slice(start, end),
       propuesta: '',
       razonamiento: '',
+      pensando: false,
       meta: null,
       generando: true,
       error: null,
@@ -457,6 +458,9 @@ export function AppDetailPage({
           setAssist((previo) =>
             previo && vigente() ? { ...previo, razonamiento: previo.razonamiento + text } : previo,
           );
+        },
+        onThinking: (active) => {
+          setAssist((previo) => (previo && vigente() ? { ...previo, pensando: active } : previo));
         },
         onDone: () => {
           setAssist((previo) => (previo && vigente() ? { ...previo, generando: false } : previo));
@@ -507,6 +511,7 @@ export function AppDetailPage({
           original: '',
           propuesta: '',
           razonamiento: '',
+          pensando: false,
           meta: null,
           generando: false,
           error: error instanceof Error ? error.message : 'The assistant could not answer.',
@@ -1019,10 +1024,19 @@ export function AppDetailPage({
                   )}
 
                   {sinCommitear && document.data.canEdit && (
+                    /*
+                      Con una propuesta delante, estas dos no significan nada
+                      todavía: hay un cambio a medio decidir, y tanto descartar
+                      todo como fijar una versión sería contestar a una pregunta
+                      distinta de la que está en pantalla. Se apagan hasta que se
+                      acepte o se descarte, y el título dice por qué.
+                    */
                     <span className="ml-auto flex items-center gap-2">
                       <Button
                         variant="secondary"
                         className="px-3 py-1.5 text-sm"
+                        disabled={asistiendo}
+                        title={asistiendo ? 'Accept or discard the proposal first' : undefined}
                         onClick={() => {
                           setDescartando(!descartando);
                           setCommiteando(false);
@@ -1032,6 +1046,8 @@ export function AppDetailPage({
                       </Button>
                       <Button
                         className="px-3 py-1.5 text-sm"
+                        disabled={asistiendo}
+                        title={asistiendo ? 'Accept or discard the proposal first' : undefined}
                         onClick={() => {
                           setCommiteando(!commiteando);
                           setDescartando(false);

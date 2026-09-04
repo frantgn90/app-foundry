@@ -53,6 +53,8 @@ export interface AssistHandlers {
   onDelta: (text: string) => void;
   /** Lo que el modelo se dice a sí mismo, que llega aparte y aparte se queda. */
   onReasoning: (text: string) => void;
+  /** Si sigue dentro de su bloque de razonamiento, es decir: si aún no hay respuesta. */
+  onThinking: (active: boolean) => void;
   onDone: () => void;
   onError: (message: string) => void;
 }
@@ -120,6 +122,7 @@ function despachar(bloque: string, handlers: AssistHandlers): void {
   if (evento.type === 'meta') handlers.onMeta(evento as unknown as AssistMeta);
   else if (evento.type === 'delta') handlers.onDelta(evento['text'] as string);
   else if (evento.type === 'reasoning') handlers.onReasoning(evento['text'] as string);
+  else if (evento.type === 'thinking') handlers.onThinking(evento['active'] as boolean);
   else if (evento.type === 'done') handlers.onDone();
   else if (evento.type === 'error') handlers.onError(evento['message'] as string);
 }
