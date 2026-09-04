@@ -42,7 +42,7 @@ import { DiffView } from '../components/diff-view.js';
 import { MarkdownEditor } from '../components/editor.js';
 import { EditToggle, VersionPicker } from '../components/vision-controls.js';
 import { Markdown } from '../components/markdown.js';
-import { TagList } from '../components/app-status.js';
+import { StatusPill, TagList, VisibilityMark } from '../components/app-status.js';
 import { Button } from '../components/ui/button.js';
 import { Card } from '../components/ui/card.js';
 import { Input } from '../components/ui/input.js';
@@ -627,10 +627,20 @@ export function AppDetailPage({
           </button>
         ))}
 
-        {/* Las etiquetas ocupan el hueco que dejan las pestañas, en vez de una
-            línea propia: son clasificación, se consultan de reojo y no merecen
-            alto de pantalla para ellas solas. */}
-        <span className="ml-auto pb-1">
+        {/*
+          Estado, visibilidad, de quién es y etiquetas: todo lo que **describe**
+          la app, junto y en el hueco que dejan las pestañas.
+
+          Aquí y no en la ruta de arriba, que estaba antes: la ruta dice dónde
+          estás, y estas cuatro cosas dicen qué es esto. Se consultan de reojo y
+          no merecen alto de pantalla para ellas solas.
+        */}
+        <span className="ml-auto flex items-center gap-2 pb-1">
+          <StatusPill status={app.data.isArchived ? 'ARCHIVED' : app.data.status} />
+          <VisibilityMark accessLevel={app.data.accessLevel} />
+          <span className="hidden text-xs text-[var(--color-texto-suave)] sm:inline">
+            @{app.data.precursorHandle}
+          </span>
           <TagList tags={app.data.tags} />
         </span>
       </nav>

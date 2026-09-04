@@ -5,7 +5,6 @@ import { cn } from '../lib/utils.js';
 import { ICON_BACKGROUNDS } from './icon-picker.js';
 import { backgroundStyle } from './workspace-background.js';
 import { Logo } from './logo.js';
-import { StatusPill, VisibilityMark } from './app-status.js';
 import { NotificationBell, type NotificationTarget } from './notification-bell.js';
 import { UserMenu } from './user-menu.js';
 import { Badge } from './ui/badge.js';
@@ -34,6 +33,11 @@ interface Props {
  * Cada tramo de la ruta es además su propio selector, así que moverse no obliga
  * a volver atrás primero. El de workspace marca los ajenos como «Guest», porque
  * lo que puedes hacer cambia por completo entre uno y otro (RF-302, RF-606).
+ *
+ * La ruta dice **dónde estás**, y nada más. El estado de la app, su visibilidad
+ * y de quién es viven en la propia ficha, junto a sus etiquetas: son propiedades
+ * de la app, no tramos del camino hasta ella, y aquí competían por sitio con lo
+ * único que esta barra tiene que dejar claro.
  */
 export function Layout({
   session,
@@ -120,20 +124,6 @@ export function Layout({
                 onSelect={onSelectApp}
                 empty="No other apps here yet"
               />
-
-              {/*
-                El estado, la visibilidad y de quién es la app viajan con su
-                nombre en la ruta, que es donde ya se está mirando para saber
-                dónde se está. Así la ficha no necesita una cabecera propia sólo
-                para repetirlo.
-              */}
-              <span className="hidden items-center gap-2 sm:flex">
-                <StatusPill status={currentApp.isArchived ? 'ARCHIVED' : currentApp.status} />
-                <VisibilityMark accessLevel={currentApp.accessLevel} />
-              </span>
-              <span className="hidden text-xs text-[var(--color-texto-suave)] sm:inline">
-                @{currentApp.precursorHandle}
-              </span>
             </>
           )}
 
@@ -174,6 +164,25 @@ function Separator() {
     <span className="text-sm text-[var(--color-texto-suave)]" aria-hidden>
       /
     </span>
+  );
+}
+
+/**
+ * La flecha del desplegable.
+ *
+ * Atenuada cuando no hay nada que desplegar: se queda para que el tramo no
+ * cambie de forma según cuántas cosas haya —lo que movería el resto de la ruta
+ * de sitio—, pero apagada para que se vea que ahí no hay lista.
+ */
+function Flecha({ atenuada }: { atenuada: boolean }) {
+  return (
+    <svg
+      viewBox="0 0 12 12"
+      className={cn('size-3 shrink-0', atenuada ? 'opacity-25' : 'opacity-60')}
+      aria-hidden
+    >
+      <path d="M2 4.5 6 8.5 10 4.5" fill="none" stroke="currentColor" strokeWidth="1.5" />
+    </svg>
   );
 }
 
@@ -251,16 +260,33 @@ function Dropdown({
   }, [open]);
 
   const otras = options.filter((o) => o.id !== selectedId);
+  /*
+   * Sin hermanos no hay nada que desplegar, así que la flecha se apaga en vez de
+   * abrir una lista que solo contiene lo que ya se está mirando. Es el caso
+   * normal de quien tiene un workspace y su primera app.
+   */
+  const desplegable = otras.length > 0;
+
+  /*
+   * Un tramo, dos botones: el nombre lleva a su sitio y la flecha abre la lista.
+   * Tienen que **verse como una sola pieza**, porque lo son: al pasar por
+   * encima, el grupo entero se tiñe suave y la mitad que está bajo el cursor un
+   * poco más. Iluminando solo la mitad tocada, la cápsula parecía partida por la
+   * mitad; iluminando las dos por igual, no se sabría cuál se va a pulsar.
+   */
+  const fondoGrupo = 'group-hover:bg-[var(--color-borde)]/20';
+  const fondoPropio = 'hover:bg-[var(--color-borde)]/50';
 
   return (
-    <div className="relative flex items-center" ref={caja}>
+    <div className="group relative flex items-center" ref={caja}>
       {onPrimary ? (
         <>
           <button
             onClick={onPrimary}
             className={cn(
               'flex max-w-32 items-center gap-2 rounded-l-lg py-1.5 pl-2 pr-1 text-sm sm:max-w-52',
-              'hover:bg-[var(--color-borde)]/40',
+              fondoGrupo,
+              fondoPropio,
             )}
           >
             {icon}
@@ -271,14 +297,17 @@ function Dropdown({
             onClick={() => {
               setOpen((v) => !v);
             }}
+            disabled={!desplegable}
             aria-haspopup="listbox"
             aria-expanded={open}
             aria-label={`Switch from ${label}`}
-            className="rounded-r-lg py-1.5 pl-0.5 pr-2 hover:bg-[var(--color-borde)]/40"
+            className={cn(
+              'rounded-r-lg py-1.5 pl-0.5 pr-2',
+              fondoGrupo,
+              desplegable ? fondoPropio : 'cursor-default',
+            )}
           >
-            <svg viewBox="0 0 12 12" className="size-3 shrink-0 opacity-60" aria-hidden>
-              <path d="M2 4.5 6 8.5 10 4.5" fill="none" stroke="currentColor" strokeWidth="1.5" />
-            </svg>
+            <Flecha atenuada={!desplegable} />
           </button>
         </>
       ) : (
@@ -286,9 +315,10 @@ function Dropdown({
           onClick={() => {
             setOpen((v) => !v);
           }}
+          disabled={!desplegable}
           className={cn(
             'flex max-w-32 items-center gap-2 rounded-lg px-2 py-1.5 text-sm sm:max-w-52',
-            'hover:bg-[var(--color-borde)]/40',
+            desplegable ? fondoPropio : 'cursor-default',
           )}
           aria-haspopup="listbox"
           aria-expanded={open}
@@ -296,9 +326,7 @@ function Dropdown({
           {icon}
           <span className="truncate">{label}</span>
           {badge}
-          <svg viewBox="0 0 12 12" className="size-3 shrink-0 opacity-60" aria-hidden>
-            <path d="M2 4.5 6 8.5 10 4.5" fill="none" stroke="currentColor" strokeWidth="1.5" />
-          </svg>
+          <Flecha atenuada={!desplegable} />
         </button>
       )}
 
