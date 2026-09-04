@@ -905,7 +905,7 @@ Solo se desglosa el hito en curso. H9, H10 y H11 están cerradas; **H12** está 
 
 | # | Tarea | Verificación | Traza | Estado |
 |---|---|---|---|---|
-| BC1 | Plantillas de agente en el workspace | Nombre, handle único ahí, icono, prompt y modelo propio opcional | RF-1501, RF-1104 | ⬜ |
+| BC1 | Plantillas de agente en el workspace | Nombre, handle único ahí, icono, prompt y modelo propio opcional | RF-1501, RF-1104 | ✅ |
 | BC2 | El agente como instancia en una app, con handle único en ella | Dos apps pueden repetir handle; una app, no | RF-1503, RF-1506, RF-1512 | ⬜ |
 | BC3 | El prompt como revisión numerada, no como texto suelto | Ajustarlo añade revisión; la anterior sigue legible | RF-1510 | ⬜ |
 | BC4 | Desactivar y retirar sin borrar | `active` y `removed_at`; lo escrito se queda donde está | RF-1508, RF-1509 | ⬜ |

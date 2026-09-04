@@ -316,6 +316,13 @@
       "when": 1788528077405,
       "tag": "0044_ai_seeded_vision",
       "breakpoints": true
+    },
+    {
+      "idx": 45,
+      "version": "7",
+      "when": 1788559884211,
+      "tag": "0045_agent_templates",
+      "breakpoints": true
     }
   ]
 }
