@@ -57,6 +57,20 @@ import { WorkspaceAiController } from './workspace-ai.controller.js';
          * producción. Nunca en producción, pase lo que pase en el entorno.
          */
         if (env.AI_USE_FAKE_PROVIDER && env.NODE_ENV !== 'production') {
+          /*
+           * Y se dice al arrancar, en alto.
+           *
+           * Suplantar es justo lo que lo hace útil: la credencial se guarda, el
+           * catálogo es el de verdad y el modelo asignado es el de verdad, así
+           * que por pantalla no se distingue **nada** hasta que llega la
+           * respuesta y dice «texto de mentira». Sin esta línea, una instancia
+           * arrancada así se diagnostica leyendo código; con ella, mirando el
+           * primer renglón del arranque.
+           */
+          new Logger('AiModule').warn(
+            'AI_USE_FAKE_PROVIDER activo: ningún modelo real será invocado, ' +
+              'las respuestas son de mentira',
+          );
           return createProviderRegistry([
             new FakeProvider({ id: AiProvider.ANTHROPIC }),
             new FakeProvider({ id: AiProvider.GROQ }),
