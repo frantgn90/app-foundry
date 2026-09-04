@@ -107,23 +107,40 @@ export class AiIdeasService {
 
     let research: string | undefined;
     let sources: readonly WebSource[] = [];
+    let fundamentado = grounded;
 
-    try {
-      if (grounded) {
+    if (grounded && !signal.aborted) {
+      try {
         const investigado = await this.research(context, command.constraints, userId, signal);
         research = investigado.text;
         sources = investigado.sources;
+      } catch (error) {
+        /*
+         * Buscar es **lo mejor que se puede hacer**, no un requisito.
+         *
+         * La capacidad se declara por proveedor, pero la realidad es por modelo:
+         * Groq ofrece búsqueda web y solo la admiten algunos de sus modelos, y
+         * eso no se puede consultar en ninguna parte. Así que se pide, y si la
+         * rechaza se generan las ideas igual **diciendo que no están
+         * fundamentadas** (RF-1305). Rendirse dejaba sin función a quien tiene
+         * un modelo perfectamente capaz de proponer, y el mensaje que le llegaba
+         * —«algo iba mal en la petición»— no le decía ni qué ni por qué.
+         */
+        if (signal.aborted) return;
+        fundamentado = false;
+        this.logger.warn(
+          `${plan.provider} no ha podido buscar con ${plan.modelId}, así que las ideas van sin fundamentar: ${
+            error instanceof Error ? error.message : String(error)
+          }`,
+        );
       }
-    } catch (error) {
-      yield this.asError(error);
-      return;
     }
 
     const candidatos: InvocationCandidate[] = [
       {
-        label: grounded ? 'con-hallazgos' : 'sin-hallazgos',
+        label: fundamentado ? 'con-hallazgos' : 'sin-hallazgos',
         request: {
-          system: ideasSystemPrompt(grounded),
+          system: ideasSystemPrompt(fundamentado),
           messages: ideasMessages({
             constraints: command.constraints,
             ...(research !== undefined && { research }),
@@ -141,7 +158,7 @@ export class AiIdeasService {
       type: 'meta',
       provider: empezada.plan.provider,
       model: empezada.plan.modelId,
-      grounded,
+      grounded: fundamentado,
       estimatedTokens: empezada.estimatedTokens,
     };
     if (sources.length > 0) yield { type: 'sources', sources };
@@ -311,10 +328,5 @@ export class AiIdeasService {
     ).catch((error: unknown) => {
       this.logger.error({ err: error }, 'No se pudo liquidar la invocación de ideas');
     });
-  }
-
-  private asError(error: unknown): IdeaEvent {
-    const kind = error instanceof ProviderError ? error.kind : ProviderErrorKind.TRANSIENT;
-    return { type: 'error', kind, message: providerMessage(kind) };
   }
 }

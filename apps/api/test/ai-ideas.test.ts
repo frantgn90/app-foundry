@@ -153,6 +153,26 @@ describe('con un modelo que sabe buscar', () => {
   });
 
   /*
+   * Buscar es lo mejor que se puede hacer, no un requisito: la capacidad se
+   * declara por proveedor y la realidad es por modelo —Groq ofrece búsqueda web
+   * y solo la admiten algunos de sus modelos—. Si la rechaza, se proponen ideas
+   * igual **diciendo que no están fundamentadas**, que es justo lo que pide
+   * RF-1305. Rendirse dejaba sin función a un modelo perfectamente capaz de
+   * proponer.
+   */
+  it('si la búsqueda se rechaza, hay ideas igual y se dice que no van fundamentadas', async () => {
+    /* Falla la primera llamada —la de buscar— y responde la segunda. */
+    conBusqueda.program({ object: tanda(3), failWith: 'INVALID_REQUEST', failTimes: 1 });
+
+    const { status, eventos } = await pedir(ana, { topic: 'lo que sea' });
+
+    expect(status).toBe(200);
+    expect(meta(eventos)?.['grounded']).toBe(false);
+    expect(propuestasDe(eventos)).toHaveLength(3);
+    expect(eventos.some((e) => e.type === 'error')).toBe(false);
+  });
+
+  /*
    * El modelo no recuerda la tanda anterior: pedirle variedad sin decirle de qué
    * produce las mismas ideas con otras palabras (RF-1307). Se comprueba que lo
    * excluido sale de verdad hacia el proveedor, mirando cuánto se le manda.
