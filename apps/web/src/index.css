@@ -394,9 +394,13 @@
 /*
  * Barrido de izquierda a derecha sobre el propio texto.
  *
- * Marca que el modelo **sigue pensando**: mientras no cierre su bloque de
- * razonamiento no hay respuesta que enseñar, y sin señal alguna un modelo que
- * delibera medio minuto es indistinguible de uno colgado.
+ * Marca que el modelo **está trabajando y todavía no hay nada que leer**: el
+ * bloque de razonamiento sin cerrar en la ficha de una app, la tanda de ideas
+ * que aún no ha traído ninguna. Sin señal alguna, un modelo que delibera medio
+ * minuto es indistinguible de uno colgado.
+ *
+ * Es la misma señal en los dos sitios a propósito: aprender dos lenguajes para
+ * lo mismo no le sirve a nadie.
  *
  * Se ilumina el texto en vez de añadir un adorno al lado porque lo que está en
  * curso es justamente eso que se está leyendo, y un punto girando en una esquina

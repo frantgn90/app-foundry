@@ -338,27 +338,34 @@ export function IdeaGenerator({
       )}
 
       {/*
-        Otra tanda conserva las entradas y excluye lo ya enseñado. Solo aparece
-        con la generación terminada: pedir más a mitad dejaría dos tandas
-        mezclándose en la misma lista.
-      */}
-      {propuestas.length > 0 && !generando && (
-        <Button
-          type="button"
-          variant="secondary"
-          className="self-start px-3 py-1.5 text-sm"
-          onClick={() => {
-            generar(true);
-          }}
-        >
-          More ideas, different ones
-        </Button>
-      )}
+        Mientras se busca, se dice; y cuando se puede pedir más, se ofrece. Nunca
+        las dos cosas, y nunca ninguna: el botón desapareciendo sin nada en su
+        lugar dejaba la pantalla quieta y sin explicación justo cuando más falta
+        hace saber que algo está pasando.
 
-      {generando && propuestas.length === 0 && (
-        <p className="text-sm text-[var(--color-texto-suave)]">
-          Looking for something worth building…
+        El barrido es el mismo que marca al modelo pensando en la ficha de una
+        app. Mismo significado, misma señal: aprender dos lenguajes para lo mismo
+        no le sirve a nadie.
+      */}
+      {generando ? (
+        <p className="pensando self-start text-sm">
+          {propuestas.length === 0
+            ? 'Looking for something worth building…'
+            : 'Looking for different ideas…'}
         </p>
+      ) : (
+        propuestas.length > 0 && (
+          <Button
+            type="button"
+            variant="secondary"
+            className="self-start px-3 py-1.5 text-sm"
+            onClick={() => {
+              generar(true);
+            }}
+          >
+            More ideas, different ones
+          </Button>
+        )
       )}
     </div>
   );
