@@ -141,6 +141,26 @@ describe('el adaptador de Groq', () => {
       expect(params[0]?.['search_settings']).toEqual({ include_domains: ['example.com'] });
     });
 
+    /*
+     * Los modelos `compound` ejecutan sus herramientas por su cuenta y su lista
+     * solo admite las del cliente: declararles la búsqueda es un 400.
+     */
+    it('a los que buscan por su cuenta no se les declara nada', async () => {
+      const { client, params } = stub([{ content: 'hola' }]);
+      const proveedor = new GroqProvider(() => client);
+
+      await recoger(
+        proveedor.streamText(
+          { ...peticion(), model: 'groq/compound', webSearch: { maxUses: 3 } },
+          credencial,
+        ),
+      );
+
+      expect(params[0]?.['tools']).toBeUndefined();
+      /* Pero los ajustes de búsqueda sí valen para ellos. */
+      expect(params[0]).toHaveProperty('search_settings');
+    });
+
     it('recoge las fuentes de las herramientas ejecutadas', async () => {
       const { client } = stub([
         {
@@ -167,6 +187,53 @@ describe('el adaptador de Groq', () => {
         { url: 'https://a.example', title: 'A' },
         { url: 'https://b.example', title: 'https://b.example' },
       ]);
+    });
+  });
+
+  /*
+   * Groq lo exige: con herramientas o con salida JSON el razonamiento no puede
+   * ir en crudo dentro del texto. Sin decirlo, la respuesta volvía con un
+   * «Parsing failed» que no menciona en ningún momento que el problema sea este.
+   */
+  describe('el razonamiento cuando hay herramientas o esquema', () => {
+    it('se pide oculto, porque en esas dos llamadas no se usa', async () => {
+      const { client, params } = stub([{ content: 'hola' }]);
+      const proveedor = new GroqProvider(() => client);
+
+      await recoger(proveedor.streamText({ ...peticion(), webSearch: { maxUses: 2 } }, credencial));
+
+      expect(params[0]?.['reasoning_format']).toBe('hidden');
+    });
+
+    /* Los `gpt-oss` no admiten ese parámetro: tienen el suyo, y son excluyentes. */
+    it('los gpt-oss llevan el suyo', async () => {
+      const { client, params } = stub([{ content: 'hola' }]);
+      const proveedor = new GroqProvider(() => client);
+
+      await recoger(
+        proveedor.streamText(
+          { ...peticion(), model: 'openai/gpt-oss-120b', webSearch: { maxUses: 2 } },
+          credencial,
+        ),
+      );
+
+      expect(params[0]?.['include_reasoning']).toBe(false);
+      expect(params[0]?.['reasoning_format']).toBeUndefined();
+    });
+
+    /*
+     * Sin herramientas ni esquema no se toca: es lo que permite que el asistente
+     * de escritura reciba el razonamiento en crudo y lo separe él, para poder
+     * enseñarlo plegado.
+     */
+    it('sin herramientas ni esquema, no se pide nada', async () => {
+      const { client, params } = stub([{ content: 'hola' }]);
+      const proveedor = new GroqProvider(() => client);
+
+      await recoger(proveedor.streamText(peticion(), credencial));
+
+      expect(params[0]?.['reasoning_format']).toBeUndefined();
+      expect(params[0]?.['include_reasoning']).toBeUndefined();
     });
   });
 

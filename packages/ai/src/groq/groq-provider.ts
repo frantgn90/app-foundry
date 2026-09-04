@@ -106,6 +106,9 @@ export class GroqProvider implements LlmProvider {
     const client = this.createClient(credential);
     const signal = toAbortSignal(request.signal);
 
+    /* Con herramientas o con esquema, el razonamiento no puede venir en crudo. */
+    const sinRazonamientoEnCrudo = Boolean(schema ?? request.webSearch);
+
     let texto = '';
     let inputTokens = 0;
     let outputTokens = 0;
@@ -121,6 +124,29 @@ export class GroqProvider implements LlmProvider {
             { role: 'system', content: request.system },
             ...request.messages.map((m) => ({ role: m.role, content: m.content })),
           ],
+          /*
+           * Cómo se entrega el razonamiento, cuando hay herramientas o esquema
+           * de por medio.
+           *
+           * Groq lo exige: con herramientas o con salida JSON, el razonamiento
+           * **no puede ir en crudo** dentro del texto. Sin decir nada se usaba el
+           * formato crudo, y la respuesta volvía con un «Parsing failed: the
+           * model generated output that could not be parsed» que no dice en
+           * ningún momento que el problema sea este.
+           *
+           * Se pide oculto porque aquí no se usa: lo que interesa de estas dos
+           * llamadas es lo que el modelo concluye, no cómo llegó. En el asistente
+           * de escritura, que no lleva ni herramientas ni esquema, se sigue
+           * recibiendo en crudo y separándolo nosotros (`ReasoningSplitter`), que
+           * es lo que permite enseñarlo plegado.
+           *
+           * Y los `gpt-oss` no admiten ese parámetro: tienen el suyo, que además
+           * es mutuamente excluyente con el otro.
+           */
+          ...(sinRazonamientoEnCrudo &&
+            (esGptOss(request.model)
+              ? { include_reasoning: false }
+              : { reasoning_format: 'hidden' as const })),
           ...(schema && {
             response_format: {
               type: 'json_schema' as const,
@@ -199,6 +225,11 @@ export class GroqProvider implements LlmProvider {
  */
 function buscaPorSuCuenta(model: string): boolean {
   return model.startsWith('groq/compound');
+}
+
+/** Los `gpt-oss` tienen su propio interruptor de razonamiento, no el común. */
+function esGptOss(model: string): boolean {
+  return model.includes('gpt-oss');
 }
 
 export function approximateTokens(request: TextRequest): number {
