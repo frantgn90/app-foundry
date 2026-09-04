@@ -284,7 +284,7 @@ function Dropdown({
           <button
             onClick={onPrimary}
             className={cn(
-              'flex max-w-32 items-center gap-2 rounded-l-lg py-1.5 pl-2 pr-1 text-sm sm:max-w-52',
+              'flex h-8 max-w-32 items-center gap-2 rounded-l-lg pl-2 pr-1 text-sm sm:max-w-52',
               fondoGrupo,
               fondoPropio,
             )}
@@ -302,7 +302,13 @@ function Dropdown({
             aria-expanded={open}
             aria-label={`Switch from ${label}`}
             className={cn(
-              'rounded-r-lg py-1.5 pl-0.5 pr-2',
+              /*
+                Alto fijo y el mismo que el del nombre: la flecha solo lleva un
+                icono de doce píxeles, así que con relleno vertical le salía una
+                caja más baja y las dos mitades de la cápsula no casaban al
+                iluminarse.
+              */
+              'flex h-8 items-center rounded-r-lg pl-0.5 pr-2',
               fondoGrupo,
               desplegable ? fondoPropio : 'cursor-default',
             )}
@@ -317,7 +323,7 @@ function Dropdown({
           }}
           disabled={!desplegable}
           className={cn(
-            'flex max-w-32 items-center gap-2 rounded-lg px-2 py-1.5 text-sm sm:max-w-52',
+            'flex h-8 max-w-32 items-center gap-2 rounded-lg px-2 text-sm sm:max-w-52',
             desplegable ? fondoPropio : 'cursor-default',
           )}
           aria-haspopup="listbox"
