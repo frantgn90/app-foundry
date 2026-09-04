@@ -693,6 +693,7 @@ Solo se desglosa el hito en curso. H9 está cerrada; H10 está desglosada abajo.
 | AV5 | Reintentos y cortacircuitos por proveedor | Un `AUTH` no se reintenta; un proveedor que falla sin parar deja de intentarse | RNF-703, RNF-704 | ✅ |
 | AV6 | Cancelar corta la llamada al proveedor | Cerrar la petición aborta de verdad, no solo deja de escuchar | RNF-702 | ✅ |
 | AV7 | Permisos: edición, y solo sobre la copia de trabajo | Con lectura no aparece; sobre una versión anterior no se puede | RF-1406, RF-1410 | ✅ |
+| AV8 | El razonamiento de los modelos que piensan en voz alta, fuera del texto | `<think>…</think>` viaja aparte y nunca entra en el documento | RF-1403, RD-9 | ✅ |
 
 > **Sobre AV5 y AV6.** El reintento **solo ocurre antes de la primera palabra**. Después de haber enviado texto,
 > repetir la llamada volvería a escribir la propuesta desde el principio delante de quien la está leyendo: es la
@@ -708,6 +709,19 @@ Solo se desglosa el hito en curso. H9 está cerrada; H10 está desglosada abajo.
 > entrada contada más una estimación al alza de lo generado. Es mentira registrar cero, y quedarse corto es
 > regalar cupo ajeno.
 
+> **Sobre AV8.** Salió de usarlo con Groq: `qwen3.6` escribe su deliberación en el mismo flujo, envuelta en
+> `<think>…</think>`, y aparecía en el diff —o sea, a un clic de entrar en el `VISION.md`—. Se separa **en el
+> servidor** y no al pintarlo: lo que se acepta se escribe en el documento, así que dejar la limpieza para la
+> interfaz habría dejado desprotegido a cualquier otro consumidor —un agente escribiendo un comentario, el MCP de
+> la v3—. El separador es incremental porque la etiqueta se parte por donde quiera entre dos trozos del flujo, y
+> retiene el final de cada trozo mientras pueda ser el principio de una: sin eso, un documento que acabe en «<»
+> perdería ese carácter. Un bloque que se queda sin cerrar —el modelo se quedó sin tokens pensando— cuenta entero
+> como razonamiento: darlo por respuesta metería la deliberación completa en el documento.
+>
+> El razonamiento se guarda y se enseña plegado en vez de tirarse: entender por qué el modelo propuso lo que
+> propuso es a veces más útil que la propuesta. Y lo generado pensando se registra como consumido, porque pensar
+> también se paga.
+
 ### Bloque AW — El asistente en la interfaz
 
 | # | Tarea | Verificación | Traza | Estado |
@@ -717,6 +731,7 @@ Solo se desglosa el hito en curso. H9 está cerrada; H10 está desglosada abajo.
 | AW3 | Aceptar aplica a la copia de trabajo; descartar no deja rastro | Con la misma comprobación de concurrencia que un guardado | RF-1404, RF-1408 | ✅ |
 | AW4 | Acciones sobre el documento entero, con su techo de tokens a la vista | Mismo diff, mismas reglas; solo cambia el alcance | RF-1411, RF-1412 | ✅ |
 | AW5 | Sin disponibilidad, ninguna acción aparece | Ni con la IA apagada, ni sin modelo asignado | RF-1010 | ✅ |
+| AW6 | El razonamiento, en una sección plegada aparte de la propuesta | Se puede consultar, y no forma parte de lo que se acepta | RF-1403 | ✅ |
 
 > **Sobre AW4.** El techo se pide a una ruta propia —`POST /apps/:id/document/assist/estimate`—, que cuenta de
 > verdad contra el proveedor y comprueba que cabe, y ahí se para: ni traza, ni reserva de cupo, ni llamada a

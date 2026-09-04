@@ -51,6 +51,8 @@ export interface AssistEstimate {
 export interface AssistHandlers {
   onMeta: (meta: AssistMeta) => void;
   onDelta: (text: string) => void;
+  /** Lo que el modelo se dice a sí mismo, que llega aparte y aparte se queda. */
+  onReasoning: (text: string) => void;
   onDone: () => void;
   onError: (message: string) => void;
 }
@@ -117,6 +119,7 @@ function despachar(bloque: string, handlers: AssistHandlers): void {
   const evento = JSON.parse(datos) as { type: string; [campo: string]: unknown };
   if (evento.type === 'meta') handlers.onMeta(evento as unknown as AssistMeta);
   else if (evento.type === 'delta') handlers.onDelta(evento['text'] as string);
+  else if (evento.type === 'reasoning') handlers.onReasoning(evento['text'] as string);
   else if (evento.type === 'done') handlers.onDone();
   else if (evento.type === 'error') handlers.onError(evento['message'] as string);
 }

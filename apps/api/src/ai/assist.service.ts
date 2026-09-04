@@ -18,6 +18,7 @@ import {
   hasAttemptsLeft,
   ProviderError,
   ProviderErrorKind,
+  ReasoningSplitter,
   retryPolicyFor,
   roughTokenCount,
   surroundingsOf,
@@ -73,6 +74,16 @@ export type AssistEvent =
       readonly degraded: readonly string[];
     }
   | { readonly type: 'delta'; readonly text: string }
+  /**
+   * Lo que el modelo se dice a sí mismo por el camino (`<think>…</think>`).
+   *
+   * Viaja en su propio evento y **nunca** como parte del texto: el texto se
+   * escribe en el documento al aceptar, y la deliberación de un modelo no es
+   * algo que nadie quiera dentro de su visión. Se manda igualmente porque
+   * entender por qué propuso lo que propuso es a veces más útil que la
+   * propuesta.
+   */
+  | { readonly type: 'reasoning'; readonly text: string }
   | { readonly type: 'done'; readonly inputTokens: number; readonly outputTokens: number }
   | { readonly type: 'error'; readonly kind: string; readonly message: string };
 
@@ -281,25 +292,46 @@ export class AiAssistService {
     const proveedor = this.registry.get(empezada.plan.provider);
     const peticion = { ...empezada.request, signal };
 
-    let escrito = '';
+    /*
+     * Lo generado **entero**, razonamiento incluido: es lo que se ha consumido,
+     * y lo que hay que registrar si esto se cancela a medias. Lo que va al
+     * cliente como texto es otra cosa, y por eso se cuentan aparte.
+     */
+    let generado = '';
+    let enviado = false;
     let usage: TokenUsage | null = null;
     let ttftMs: number | undefined;
     let intento = 0;
 
     for (;;) {
       intento += 1;
+      const separador = new ReasoningSplitter();
       try {
         for await (const evento of proveedor.streamText(peticion, empezada.credential)) {
           if (evento.type === 'delta') {
             ttftMs ??= Date.now() - empezada.startedAt;
-            escrito += evento.text;
-            yield { type: 'delta', text: evento.text };
+            generado += evento.text;
+
+            const parte = separador.push(evento.text);
+            if (parte.reasoning !== '') {
+              enviado = true;
+              yield { type: 'reasoning', text: parte.reasoning };
+            }
+            if (parte.text !== '') {
+              enviado = true;
+              yield { type: 'delta', text: parte.text };
+            }
           } else if (evento.type === 'usage') {
             usage = evento.usage;
           }
         }
 
-        const real = usage ?? this.estimatedUsage(empezada, escrito);
+        /* Lo retenido esperando a ver si era una etiqueta: si no lo era, es texto. */
+        const ultimo = separador.flush();
+        if (ultimo.reasoning !== '') yield { type: 'reasoning', text: ultimo.reasoning };
+        if (ultimo.text !== '') yield { type: 'delta', text: ultimo.text };
+
+        const real = usage ?? this.estimatedUsage(empezada, generado);
         await this.settle(
           context,
           empezada,
@@ -312,7 +344,7 @@ export class AiAssistService {
       } catch (error) {
         const kind = error instanceof ProviderError ? error.kind : ProviderErrorKind.TRANSIENT;
         const politica = retryPolicyFor(kind);
-        if (escrito === '' && !signal.aborted && hasAttemptsLeft(politica, intento)) {
+        if (!enviado && !signal.aborted && hasAttemptsLeft(politica, intento)) {
           await esperar(delayForAttempt(politica, intento + 1));
           continue;
         }
@@ -322,7 +354,7 @@ export class AiAssistService {
          * como tal y con lo que se llegó a consumir, que se gastó igual.
          */
         const cancelado = signal.aborted || kind === ProviderErrorKind.CANCELLED;
-        const real = usage ?? this.estimatedUsage(empezada, escrito);
+        const real = usage ?? this.estimatedUsage(empezada, generado);
         await this.settle(
           context,
           empezada,
@@ -349,10 +381,11 @@ export class AiAssistService {
    * de la salida solo tenemos el texto que llegó a llegar. Registrar cero sería
    * mentira y además regalaría cupo ajeno, así que se aproxima al alza (§10).
    */
-  private estimatedUsage(empezada: StartedInvocation, escrito: string): TokenUsage {
+  private estimatedUsage(empezada: StartedInvocation, generado: string): TokenUsage {
     return {
       inputTokens: Math.max(0, empezada.estimatedTokens - empezada.maxOutputTokens),
-      outputTokens: roughTokenCount(escrito),
+      /* Todo lo generado, razonamiento incluido: pensar también se paga. */
+      outputTokens: roughTokenCount(generado),
     };
   }
 

@@ -22,6 +22,14 @@ export interface AssistState {
   original: string;
   /** Lo que va llegando. */
   propuesta: string;
+  /**
+   * Lo que el modelo pensó por el camino, si lo enseñó.
+   *
+   * Se guarda aparte de la propuesta y se enseña plegado. Aparte porque es lo
+   * que impide que acabe en el documento; plegado porque casi nunca se quiere
+   * leer, y las veces que se quiere no hay otro sitio donde mirarlo.
+   */
+  razonamiento: string;
   meta: AssistMeta | null;
   generando: boolean;
   error: string | null;
@@ -88,9 +96,37 @@ export function AssistProposal({
           {estado.error}
         </p>
       ) : vacia ? (
-        <p className="text-sm text-[var(--color-texto-suave)]">Waiting for the first words…</p>
+        <p className="text-sm text-[var(--color-texto-suave)]">
+          {/*
+            Pensando en voz alta y sin haber dicho nada todavía. Decirlo importa:
+            si no, un modelo que delibera medio minuto parece uno colgado.
+          */}
+          {estado.razonamiento === ''
+            ? 'Waiting for the first words…'
+            : estado.generando
+              ? 'Thinking it through — nothing written yet.'
+              : 'The model spent its answer thinking and wrote nothing. Its reasoning is below.'}
+        </p>
       ) : (
         <DiffView from={estado.original} to={estado.propuesta} />
+      )}
+
+      {/*
+        El razonamiento, plegado y separado de la propuesta.
+
+        Nunca forma parte de lo que se acepta: aceptar escribe `propuesta` en el
+        documento y esto no está ahí. Está aquí porque entender por qué el modelo
+        propuso lo que propuso es a veces más útil que la propuesta.
+      */}
+      {estado.razonamiento !== '' && (
+        <details className="rounded-lg border border-[var(--color-borde)] p-2">
+          <summary className="cursor-pointer text-xs text-[var(--color-texto-suave)]">
+            How the model got there — not part of the proposal
+          </summary>
+          <pre className="mt-2 max-h-52 overflow-auto whitespace-pre-wrap text-xs text-[var(--color-texto-suave)]">
+            {estado.razonamiento}
+          </pre>
+        </details>
       )}
 
       <div className="flex flex-wrap items-center gap-2">

@@ -76,6 +76,12 @@ const textoDe = (eventos: Evento[]): string =>
     .map((evento) => evento['text'] as string)
     .join('');
 
+const razonamientoDe = (eventos: Evento[]): string =>
+  eventos
+    .filter((evento) => evento.type === 'reasoning')
+    .map((evento) => evento['text'] as string)
+    .join('');
+
 const meta = (eventos: Evento[]): Evento | undefined =>
   eventos.find((evento) => evento.type === 'meta');
 
@@ -176,6 +182,63 @@ describe('una propuesta sobre lo marcado', () => {
     }
     /* Sin instrucción libre (RF-1402): lo que no está en la lista no entra. */
     expect((await pedir(ana, await seleccion({ action: 'TRANSLATE' }))).status).toBe(400);
+  });
+});
+
+describe('cuando el modelo piensa en voz alta', () => {
+  /*
+   * Muchos modelos de razonamiento escriben su deliberación en el mismo flujo,
+   * envuelta en `<think>…</think>`. Eso no es la respuesta: es el camino hasta
+   * ella, y no puede acabar dentro del documento de nadie.
+   */
+  it('el razonamiento va por su lado y el texto sale limpio', async () => {
+    proveedor.program({
+      text: '<think>Primero valoro el parrafo y decido</think>El parrafo, mejor escrito',
+    });
+
+    const { eventos } = await pedir(ana, await seleccion());
+
+    expect(textoDe(eventos)).toBe('El parrafo, mejor escrito');
+    expect(razonamientoDe(eventos)).toContain('Primero valoro el parrafo');
+    /* Y ni rastro de la etiqueta en lo que se ofrecería aceptar. */
+    expect(textoDe(eventos)).not.toContain('think');
+  });
+
+  /*
+   * Llega en trozos, así que la etiqueta se parte por donde quiera. El proveedor
+   * de mentira trocea por palabras, que es exactamente lo que hace falta aquí.
+   */
+  it('se reconoce aunque la etiqueta llegue partida', async () => {
+    proveedor.program({ text: '<think> dudo un poco </think> la respuesta buena' });
+
+    const { eventos } = await pedir(ana, await seleccion());
+
+    expect(textoDe(eventos).trim()).toBe('la respuesta buena');
+    expect(razonamientoDe(eventos)).toContain('dudo un poco');
+  });
+
+  /*
+   * Si el modelo se queda sin tokens pensando, lo pensado sigue siendo
+   * razonamiento. Darlo por respuesta metería la deliberación entera en el
+   * documento, que es lo peor que se puede hacer con ella.
+   */
+  it('un bloque sin cerrar no se cuela como respuesta', async () => {
+    proveedor.program({ text: '<think>me quede a medias pensando y no termine' });
+
+    const { eventos } = await pedir(ana, await seleccion());
+
+    expect(textoDe(eventos)).toBe('');
+    expect(razonamientoDe(eventos)).toContain('me quede a medias');
+  });
+
+  it('lo que se genera pensando también se registra como consumido', async () => {
+    proveedor.program({ text: '<think>pienso bastante y largo</think>corto' });
+
+    await pedir(ana, await seleccion());
+    const fila = await ultimaInvocacion();
+
+    /* El proveedor cuenta lo que generó, y generó las dos cosas. */
+    expect(fila?.outputTokens).toBeGreaterThan(0);
   });
 });
 

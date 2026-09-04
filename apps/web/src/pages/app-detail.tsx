@@ -423,6 +423,7 @@ export function AppDetailPage({
       revision,
       original: base.slice(start, end),
       propuesta: '',
+      razonamiento: '',
       meta: null,
       generando: true,
       error: null,
@@ -450,6 +451,11 @@ export function AppDetailPage({
         onDelta: (text) => {
           setAssist((previo) =>
             previo && vigente() ? { ...previo, propuesta: previo.propuesta + text } : previo,
+          );
+        },
+        onReasoning: (text) => {
+          setAssist((previo) =>
+            previo && vigente() ? { ...previo, razonamiento: previo.razonamiento + text } : previo,
           );
         },
         onDone: () => {
@@ -500,6 +506,7 @@ export function AppDetailPage({
           revision: 0,
           original: '',
           propuesta: '',
+          razonamiento: '',
           meta: null,
           generando: false,
           error: error instanceof Error ? error.message : 'The assistant could not answer.',
