@@ -39,13 +39,12 @@ test('generar ideas, elegir una y aterrizar en su visión', async ({ page, conte
 
   await page.getByRole('button', { name: 'Apps', exact: true }).click();
 
-  await test.step('la vía aparece junto a crear a mano', async () => {
+  /*
+   * Pulsar «Get inspired» ya es pedir ideas: no hay un segundo botón que
+   * confirme algo que ya se ha decidido.
+   */
+  await test.step('pulsar el botón ya trae propuestas', async () => {
     await page.getByRole('button', { name: 'Get inspired' }).click();
-    await expect(page.getByText(/all of it is optional/i)).toBeVisible();
-  });
-
-  await test.step('sin rellenar nada, las propuestas van llegando', async () => {
-    await page.getByRole('button', { name: 'Give me ideas' }).click();
 
     /* Tres como mínimo, que es lo que pide el esquema. */
     await expect(page.getByRole('button', { name: 'Build this one' })).toHaveCount(3, {
@@ -55,6 +54,40 @@ test('generar ideas, elegir una y aterrizar en su visión', async ({ page, conte
     await expect(
       page.getByText(/Grounded in what was found|come from its own memory/),
     ).toBeVisible();
+  });
+
+  /* El botón se queda, y cerrar se hace donde se abrió. */
+  await test.step('el mismo botón cierra, y vuelve a abrir', async () => {
+    await page.getByRole('button', { name: 'Get inspired' }).click();
+    await expect(page.getByRole('button', { name: 'Build this one' })).toHaveCount(0);
+
+    await page.getByRole('button', { name: 'Get inspired' }).click();
+    await expect(page.getByRole('button', { name: 'Build this one' })).toHaveCount(3, {
+      timeout: 20_000,
+    });
+  });
+
+  /* Los ajustes esperan detrás: delante va lo propuesto. */
+  await test.step('las restricciones están plegadas hasta que se piden', async () => {
+    await expect(page.getByLabel('Topic or domain')).toBeHidden();
+    await page.getByRole('button', { name: /Adjust ideas/ }).click();
+    await expect(page.getByLabel('Topic or domain')).toBeVisible();
+  });
+
+  /*
+   * Quien ha escrito «gestión de rutas» y luego pide ideas ya ha dicho de qué las
+   * quiere: volver a preguntárselo sería no haber escuchado.
+   */
+  await test.step('lo escrito para crear a mano se usa como tema', async () => {
+    await page.getByRole('button', { name: 'Get inspired' }).click();
+    await page.getByLabel(/What.s the idea called/).fill('rutas de autobus');
+    await page.getByRole('button', { name: 'Get inspired' }).click();
+
+    await page.getByRole('button', { name: /Adjust ideas/ }).click();
+    await expect(page.getByLabel('Topic or domain')).toHaveValue('rutas de autobus');
+
+    /* Y se limpia para no arrastrarlo al paso siguiente. */
+    await page.getByLabel(/What.s the idea called/).fill('');
   });
 
   await test.step('otra tanda conserva las entradas y no repite', async () => {

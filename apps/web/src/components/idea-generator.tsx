@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 
 import {
   chooseIdea,
@@ -9,6 +9,7 @@ import {
   MONETISATIONS,
   streamIdeas,
 } from '../lib/ideas.js';
+import { cn } from '../lib/utils.js';
 import { Badge } from './ui/badge.js';
 import { Logo } from './logo.js';
 import { Button } from './ui/button.js';
@@ -16,20 +17,25 @@ import { Card } from './ui/card.js';
 import { Input } from './ui/input.js';
 
 /**
- * El botón que abre la vía «no sé qué construir» (RF-1301).
+ * El botón que abre y cierra la vía «no sé qué construir» (RF-1301).
  *
  * Va en la misma fila que crear a mano, a su derecha: son las dos formas de
  * empezar y ninguna es un rincón de la otra. Es su propio componente porque el
  * botón y el panel viven en sitios distintos de la pantalla —uno en la fila,
  * otro debajo— y un solo componente no puede pintarse en dos padres.
+ *
+ * Y **no desaparece al pulsarlo**: es un conmutador, así que cerrar las ideas se
+ * hace donde se abrieron. Un botón que se esfuma deja a quien lo pulsó buscando
+ * por dónde volver, y obligaba a un «Close» aparte que decía lo mismo dos veces.
  */
-export function IdeaTrigger({ onAbrir }: { onAbrir: () => void }) {
+export function IdeaTrigger({ abierto, onToggle }: { abierto: boolean; onToggle: () => void }) {
   return (
     <button
       /* Vive dentro del formulario de crear a mano: sin esto sería otro botón de
          envío, y abrir las ideas intentaría crear una app sin nombre. */
       type="button"
-      onClick={onAbrir}
+      aria-pressed={abierto}
+      onClick={onToggle}
       className="boton-inspirar shrink-0"
     >
       {/*
@@ -55,20 +61,29 @@ export function IdeaTrigger({ onAbrir }: { onAbrir: () => void }) {
  */
 export function IdeaGenerator({
   workspaceId,
+  temaInicial,
   onCreated,
-  onCerrar,
 }: {
   workspaceId: string;
+  /**
+   * Lo que hubiera escrito en el campo de crear a mano.
+   *
+   * Quien ha tecleado «gestión de rutas» y luego pide ideas ya ha dicho de qué
+   * las quiere: volver a preguntárselo en otro campo sería no haber escuchado.
+   */
+  temaInicial: string;
   onCreated: (appId: string) => void;
-  onCerrar: () => void;
 }) {
-  const [constraints, setConstraints] = useState<IdeaConstraints>({});
+  const [constraints, setConstraints] = useState<IdeaConstraints>(
+    temaInicial.trim() === '' ? {} : { topic: temaInicial.trim() },
+  );
   const [propuestas, setPropuestas] = useState<IdeaProposal[]>([]);
   const [sources, setSources] = useState<IdeaSource[]>([]);
   const [grounded, setGrounded] = useState<boolean | null>(null);
   const [generando, setGenerando] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [eligiendo, setEligiendo] = useState<string | null>(null);
+  const [ajustando, setAjustando] = useState(false);
   const abortRef = useRef<AbortController | null>(null);
 
   /**
@@ -134,11 +149,26 @@ export function IdeaGenerator({
       });
   }
 
-  function cerrar() {
-    abortRef.current?.abort();
-    abortRef.current = null;
-    onCerrar();
-  }
+  /*
+   * Se pide nada más abrir, sin botón por medio: pulsar «Get inspired» ya es
+   * pedir ideas, y un segundo botón para confirmarlo solo añadía un paso a algo
+   * que ya se había decidido.
+   *
+   * Y al cerrar se corta lo que estuviera generándose: cerrar el panel es
+   * desmontarlo, así que la limpieza del efecto es el único sitio donde consta
+   * que alguien se ha ido.
+   */
+  useEffect(() => {
+    generar();
+    return () => {
+      abortRef.current?.abort();
+      abortRef.current = null;
+    };
+    /*
+     * Sin dependencias y a propósito: esto es «al abrirse», no «cuando cambie
+     * algo». Las tandas siguientes las pide quien las quiera.
+     */
+  }, []);
 
   return (
     <div className="flex flex-col gap-3 border-t border-[var(--color-borde)] pt-3">
@@ -150,17 +180,26 @@ export function IdeaGenerator({
         que se veía era el panel reiniciándose al pedir ideas. Los campos no
         necesitan un formulario propio; lo único que hacía falta era un botón.
       */}
-      <div className="flex flex-col gap-2">
-        {/*
-          Todo opcional, y se dice: quien llega sin saber qué construir tampoco
-          sabe para quién ni con qué modelo de negocio, y un formulario que
-          exigiera eso le pediría justo lo que ha venido a buscar (RF-1302).
-        */}
-        <p className="text-xs text-[var(--color-texto-suave)]">
-          Fill in as much or as little as you like — all of it is optional.
-        </p>
+      {/*
+        Los ajustes van plegados.
 
-        <div className="grid gap-2 sm:grid-cols-2">
+        Quien pide ideas no ha venido a rellenar un formulario: ha venido a que
+        le propongan algo. Delante va lo propuesto, y las restricciones esperan
+        detrás para quien quiera afinar. Todas siguen siendo opcionales (RF-1302).
+      */}
+      <div className="flex flex-col gap-2">
+        <button
+          type="button"
+          aria-expanded={ajustando}
+          onClick={() => {
+            setAjustando((v) => !v);
+          }}
+          className="self-start text-xs text-[var(--color-texto-suave)] hover:text-[var(--color-texto)]"
+        >
+          {ajustando ? '▾' : '▸'} Adjust ideas
+        </button>
+
+        <div className={cn('grid gap-2 sm:grid-cols-2', !ajustando && 'hidden')}>
           <Campo
             etiqueta="Topic or domain"
             valor={constraints.topic ?? ''}
@@ -224,20 +263,25 @@ export function IdeaGenerator({
           />
         </div>
 
-        <div className="flex items-center gap-2">
+        {/*
+          El único botón que queda, y solo con los ajustes abiertos: pedir ideas
+          ya lo hizo «Get inspired», y cerrar se hace pulsándolo otra vez. Este
+          existe porque cambiar una restricción no sirve de nada si no se puede
+          volver a preguntar con ella.
+        */}
+        {ajustando && (
           <Button
             type="button"
+            variant="secondary"
+            className="self-start px-3 py-1.5 text-sm"
             disabled={generando}
             onClick={() => {
               generar();
             }}
           >
-            {generando ? 'Thinking…' : propuestas.length > 0 ? 'Start over' : 'Give me ideas'}
+            {generando ? 'Thinking…' : 'Ask again with these'}
           </Button>
-          <Button type="button" variant="secondary" onClick={cerrar}>
-            Close
-          </Button>
-        </div>
+        )}
       </div>
 
       {error && (

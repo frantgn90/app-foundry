@@ -102,23 +102,18 @@ export function AppsListPage({
               tiene por qué saber que hay un rincón aparte donde se le ayuda
               (RF-1301).
             */}
-            {puedeGenerar && !ideasAbiertas && (
+            {puedeGenerar && (
               <IdeaTrigger
-                onAbrir={() => {
-                  setIdeasAbiertas(true);
+                abierto={ideasAbiertas}
+                onToggle={() => {
+                  setIdeasAbiertas((v) => !v);
                 }}
               />
             )}
           </div>
 
           {puedeGenerar && ideasAbiertas && (
-            <IdeaGenerator
-              workspaceId={workspace.id}
-              onCreated={onOpen}
-              onCerrar={() => {
-                setIdeasAbiertas(false);
-              }}
-            />
+            <IdeaGenerator workspaceId={workspace.id} temaInicial={name} onCreated={onOpen} />
           )}
 
           {workspace.role !== 'OWNER' && (
