@@ -751,10 +751,34 @@ Solo se desglosa el hito en curso. H9 está cerrada; H10 está desglosada abajo.
 | # | Tarea | Verificación | Traza | Estado |
 |---|---|---|---|---|
 | AX1 | Recorrido completo con el proveedor de mentira | Seleccionar, pedir, ver el diff, descartar y aceptar | RNF-905 | ✅ |
-| AX2 | Comprobar la observabilidad con tráfico de verdad | Las trazas cuelgan de su petición y el panel deja de estar plano | RNF-801, AT4 | ⬜ |
+| AX2 | Comprobar la observabilidad con tráfico de verdad | Las trazas cuelgan de su petición y el panel deja de estar plano | RNF-801, AT4 | ✅ |
 
 > **Sobre AX1.** El recorrido va contra el proveedor de mentira, que se activa desde la propia configuración de
 > Playwright: sin eso, el asistente llamaría a un modelo de verdad y gastaría la cuota —y el dinero— de quien
 > ejecute los tests. Una salvedad honesta: el paso de «descartar a media respuesta» descarta cuando la respuesta
 > ya ha llegado entera, porque el proveedor de mentira escribe al instante. Que cancelar corte de verdad la
 > llamada al proveedor se comprueba en el test de API, contra el registro de invocaciones.
+
+> **Sobre AX2, y los tres agujeros que destapó.** Se generó tráfico de verdad contra una instancia aparte —con
+> telemetría encendida y en su propio puerto, para no tocar la que estaba en uso—: once invocaciones completadas,
+> una cortada por cupo, dos rechazadas por el proveedor y una con el cortacircuitos abierto. Las trazas cuelgan
+> donde tienen que colgar (`ai.invocation` bajo el manejador de su propio POST) y llevan proveedor, modelo,
+> tarea, variante de contexto, tokens estimados y reales, desenlace y tiempo hasta la primera palabra. **Ningún
+> contenido**, como manda RNF-801.
+>
+> Lo que el tráfico encontró y ningún test veía:
+>
+> 1. **El corte por cupo respondía 500.** El servicio lanzaba su error de dominio y la ruta lo convertía en
+>    «Assist failed». Ahora es un **402** con motivo y cifras. 402 y no 429 a propósito: un 429 invita a
+>    reintentar en un rato, y esto no se arregla esperando un rato.
+> 2. **Un fallo del proveedor al contar tokens respondía 500.** La taxonomía de errores solo servía dentro del
+>    flujo; antes de empezar no había traducción. Ahora lleva estado, tipo y explicación.
+> 3. **Ese fallo no dejaba fila.** Se registra como invocación fallida con cero tokens, por el mismo motivo que
+>    el corte por cupo: sin ella, el panel de errores queda ciego justo para la clase de fallo más común.
+>
+> Y dos paneles apuntaban a métricas **que no existen**: el exportador añade la unidad al nombre, así que lo que
+> Prometheus tiene es `foundry_ai_ttft_milliseconds_bucket`, no `foundry_ai_ttft_bucket`. Esos dos paneles
+> llevaban vacíos desde que se escribieron y nadie podía saberlo sin mirar.
+>
+> Nueve de los diez paneles quedan con datos. El décimo —«Desfase del contador de cupo»— sigue vacío **y así
+> debe estar**: solo se mueve cuando una conciliación corrige un descuadre, y no haberlo es el estado deseado.

@@ -331,7 +331,7 @@
       },
       "targets": [
         {
-          "expr": "histogram_quantile(0.95, sum by (le, task) (rate(foundry_ai_ttft_bucket[5m])))",
+          "expr": "histogram_quantile(0.95, sum by (le, task) (rate(foundry_ai_ttft_milliseconds_bucket[5m])))",
           "refId": "A",
           "datasource": {
             "type": "prometheus",
@@ -340,7 +340,7 @@
           "legendFormat": "p95 · {{task}}"
         },
         {
-          "expr": "histogram_quantile(0.50, sum by (le, task) (rate(foundry_ai_ttft_bucket[5m])))",
+          "expr": "histogram_quantile(0.50, sum by (le, task) (rate(foundry_ai_ttft_milliseconds_bucket[5m])))",
           "refId": "B",
           "datasource": {
             "type": "prometheus",
@@ -373,7 +373,7 @@
       },
       "targets": [
         {
-          "expr": "histogram_quantile(0.95, sum by (le, provider) (rate(foundry_ai_latency_bucket[5m])))",
+          "expr": "histogram_quantile(0.95, sum by (le, provider) (rate(foundry_ai_latency_milliseconds_bucket[5m])))",
           "refId": "A",
           "datasource": {
             "type": "prometheus",

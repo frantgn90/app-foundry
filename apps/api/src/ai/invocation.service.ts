@@ -1,4 +1,11 @@
-import { BadRequestException, Inject, Injectable, Logger } from '@nestjs/common';
+import {
+  BadRequestException,
+  HttpException,
+  HttpStatus,
+  Inject,
+  Injectable,
+  Logger,
+} from '@nestjs/common';
 import { type Span, SpanStatusCode, trace } from '@opentelemetry/api';
 
 import {
@@ -20,6 +27,7 @@ import { currentTx } from '../database/request-context.js';
 import { DATABASE, ENV } from '../infrastructure/tokens.js';
 import { AI_REGISTRY } from './ai.tokens.js';
 import { AiCircuitService } from './circuit.service.js';
+import { toProviderHttpException } from './provider-http.js';
 import { MetricsService } from '../observability/metrics.service.js';
 import { NotificationsService } from '../notifications/notifications.service.js';
 import { AiProvidersService } from './providers.service.js';
@@ -144,7 +152,21 @@ export class AiInvocationService {
         now,
       );
     } catch (error) {
-      if (error instanceof RateLimitedError) throw error;
+      if (error instanceof RateLimitedError) {
+        /*
+         * 429 y con cuántos segundos esperar: aquí no falta cuota, sobra prisa,
+         * y volver a intentarlo dentro de un rato **sí** funciona.
+         */
+        throw new HttpException(
+          {
+            statusCode: HttpStatus.TOO_MANY_REQUESTS,
+            reason: 'RATE_LIMITED',
+            message: error.message,
+            retryAfterSeconds: error.retryAfterSeconds,
+          },
+          HttpStatus.TOO_MANY_REQUESTS,
+        );
+      }
       AiQuotaService.failClosed(error);
     }
 
@@ -184,6 +206,20 @@ export class AiInvocationService {
     } catch (error) {
       span.setStatus({ code: SpanStatusCode.ERROR });
       span.end();
+
+      /*
+       * Contar tokens ya es hablar con el proveedor, así que aquí se cae por las
+       * mismas razones por las que se cae invocando: credencial rechazada,
+       * proveedor caído, modelo retirado. Se registra como invocación fallida
+       * —con cero tokens, porque no llegó a generarse nada— por el mismo motivo
+       * que el corte por cupo: sin la fila, la pregunta «¿por qué dejó de
+       * funcionar el martes?» no tiene respuesta, y el panel de errores se
+       * queda ciego justo para la clase de fallo más común (RF-1201).
+       */
+      if (error instanceof ProviderError) {
+        await this.failed(context, plan, error.kind);
+        throw toProviderHttpException(error);
+      }
       throw error;
     }
     span.setAttribute('ai.context_variant', elegida.variant);
@@ -254,7 +290,30 @@ export class AiInvocationService {
           outputTokens: 0,
           latencyMs: 0,
         });
-        throw error;
+
+        /*
+         * 402 y no 429, aunque las dos hablen de límites.
+         *
+         * Un 429 dice «vuelve en un rato» y hay clientes que reintentan solos al
+         * verlo; el cupo mensual agotado no se arregla esperando un rato, sino
+         * ampliándolo o esperando al mes que viene. Dárselo como 429 sería
+         * invitar a un bucle de reintentos contra una puerta cerrada.
+         *
+         * El motivo y las cifras van en el cuerpo porque el texto lo escribe la
+         * interfaz, en inglés, y lo que no puede inventarse es cuánto se ha
+         * gastado (RF-1204: hay que decirlo con claridad en cada punto de uso).
+         */
+        throw new HttpException(
+          {
+            statusCode: HttpStatus.PAYMENT_REQUIRED,
+            reason: 'QUOTA_EXCEEDED',
+            message: error.message,
+            provider: plan.provider,
+            spent: error.state.spent,
+            quota: error.state.quota,
+          },
+          HttpStatus.PAYMENT_REQUIRED,
+        );
       }
 
       /*
@@ -264,6 +323,36 @@ export class AiInvocationService {
        */
       AiQuotaService.failClosed(error);
     }
+  }
+
+  /** Deja constancia de un intento que ni siquiera llegó a invocar. */
+  private async failed(
+    context: InvocationContext,
+    plan: TaskPlan,
+    errorKind: ProviderErrorKind,
+  ): Promise<void> {
+    /* En su propia transacción: la de la petición se deshace al rechazar. */
+    await conIdentidad(this.db, context.userId, () =>
+      this.record(
+        context,
+        plan,
+        { inputTokens: 0, outputTokens: 0 },
+        { outcome: 'FAILED', errorKind, latencyMs: 0 },
+      ),
+    ).catch((fallo: unknown) => {
+      this.logger.error({ err: fallo }, 'No se pudo registrar el fallo de proveedor');
+    });
+
+    this.metrics.invocacionIa({
+      provider: plan.provider,
+      model: plan.modelId,
+      task: context.task,
+      outcome: 'FAILED',
+      errorKind,
+      inputTokens: 0,
+      outputTokens: 0,
+      latencyMs: 0,
+    });
   }
 
   /**
@@ -296,8 +385,9 @@ export class AiInvocationService {
       const cuenta = await proveedor
         .countTokens(peticion, credential)
         .catch(async (error: unknown) => {
-          if (error instanceof ProviderError)
+          if (error instanceof ProviderError) {
             await this.circuit.recordFailure(plan.provider, error.kind);
+          }
           throw error;
         });
       ultima = { peticion, inputTokens: cuenta.inputTokens };

@@ -33,6 +33,7 @@ import { currentTx } from '../database/request-context.js';
 import { DocumentsService } from '../documents/documents.service.js';
 import { DATABASE } from '../infrastructure/tokens.js';
 import { AI_REGISTRY } from './ai.tokens.js';
+import { providerMessage } from './provider-http.js';
 import {
   AiInvocationService,
   type InvocationCandidate,
@@ -383,7 +384,7 @@ export class AiAssistService {
         );
 
         if (cancelado) return;
-        yield { type: 'error', kind, message: mensajeDe(kind) };
+        yield { type: 'error', kind, message: providerMessage(kind) };
         return;
       }
     }
@@ -434,33 +435,4 @@ function esperar(ms: number): Promise<void> {
   return new Promise((resolve) => {
     setTimeout(resolve, ms);
   });
-}
-
-/**
- * El motivo, en los términos de quien lo lee.
- *
- * La taxonomía es nuestra y en inglés porque va a la interfaz (RNF-502). Se
- * distingue lo que se arregla esperando de lo que hay que ir a arreglar a los
- * ajustes: son dos acciones distintas y un mensaje genérico no lleva a ninguna.
- */
-function mensajeDe(kind: ProviderErrorKind): string {
-  switch (kind) {
-    case ProviderErrorKind.AUTH:
-      return 'The provider rejected the key for this workspace. Its owner needs to check it.';
-    case ProviderErrorKind.RATE_LIMIT:
-      return 'The provider is asking us to slow down. Try again in a moment.';
-    case ProviderErrorKind.CONTEXT_OVERFLOW:
-      return 'The text is too long for the model assigned to this task.';
-    case ProviderErrorKind.CONTENT_FILTER:
-      return 'The provider refused to answer this one.';
-    case ProviderErrorKind.MODEL_UNAVAILABLE:
-      return 'The model assigned to this task is no longer available.';
-    case ProviderErrorKind.SCHEMA:
-    case ProviderErrorKind.INVALID_REQUEST:
-      return 'Something was wrong with the request. Nothing has been changed.';
-    case ProviderErrorKind.CANCELLED:
-      return 'Cancelled.';
-    case ProviderErrorKind.TRANSIENT:
-      return 'The provider did not answer. Try again in a moment.';
-  }
 }

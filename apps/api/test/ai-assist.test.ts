@@ -447,6 +447,37 @@ describe('quién puede pedirlo, y sobre qué', () => {
   });
 });
 
+describe('cuando se acaba el cupo', () => {
+  /*
+   * El corte por cupo nunca había pasado por una **ruta**: el servicio lo hacía
+   * bien y devolvía su error de dominio, y la ruta lo convertía en un 500 con
+   * «Assist failed». Se vio generando tráfico de verdad contra la instancia con
+   * telemetría (AX2), no con un test (RF-1204, RNF-903).
+   */
+  it('se dice que es el cupo, con su cifra, y no un fallo genérico', async () => {
+    await h.as(ana).put(`/api/v1/workspaces/${ana.workspaceId}/ai/providers/ANTHROPIC/quota`, {
+      monthlyTokenQuota: 1,
+    });
+
+    const { status, cuerpo } = await pedir(ana, await seleccion());
+    const detalle = JSON.parse(cuerpo) as { reason: string; quota: number; provider: string };
+
+    /*
+     * 402 y no 429: un 429 invita a reintentar en un rato, y esto no se arregla
+     * esperando un rato sino ampliando el techo o esperando al mes que viene.
+     */
+    expect(status).toBe(402);
+    expect(detalle.reason).toBe('QUOTA_EXCEEDED');
+    expect(detalle.quota).toBe(1);
+    expect(detalle.provider).toBe('ANTHROPIC');
+
+    /* Y queda registrado, que es de donde sale la respuesta a «¿por qué dejó de funcionar?». */
+    expect((await ultimaInvocacion())?.outcome).toBe('QUOTA_BLOCKED');
+
+    await h.as(ana).put(`/api/v1/workspaces/${ana.workspaceId}/ai/providers/ANTHROPIC/quota`, {});
+  });
+});
+
 describe('cuando el proveedor falla', () => {
   it('un fallo pasajero se reintenta y la propuesta llega igual', async () => {
     proveedor.program({ text: 'a la segunda', failWith: 'TRANSIENT', failTimes: 1 });
@@ -472,6 +503,34 @@ describe('cuando el proveedor falla', () => {
     expect(error?.['message']).toMatch(/owner/i);
     expect(proveedor.calls.filter((llamada) => llamada.operation === 'streamText')).toHaveLength(1);
     expect((await ultimaInvocacion())?.outcome).toBe('FAILED');
+  });
+
+  /*
+   * Contar tokens ya es hablar con el proveedor, y ahí todavía no se han enviado
+   * cabeceras: ese fallo **sí** tiene código de estado, y tiene que decir qué
+   * pasó. Salió de generar tráfico con una credencial que no valía contra el
+   * adaptador real: llegaba como un 500 con «Assist failed» (AX2).
+   */
+  it('un fallo al contar tokens se explica, y queda registrado', async () => {
+    proveedor.program({ failWith: 'AUTH', failCounting: true });
+
+    const { status, cuerpo } = await pedir(ana, await seleccion());
+    const detalle = JSON.parse(cuerpo) as { reason: string; kind: string; message: string };
+
+    expect(status).toBe(502);
+    expect(detalle.reason).toBe('PROVIDER_ERROR');
+    expect(detalle.kind).toBe('AUTH');
+    expect(detalle.message).toMatch(/owner/i);
+
+    /*
+     * Y deja fila, con cero tokens: no llegó a generarse nada, pero el intento
+     * existió. Sin ella, el panel de errores queda ciego justo para la clase de
+     * fallo más común.
+     */
+    const fila = await ultimaInvocacion();
+    expect(fila?.outcome).toBe('FAILED');
+    expect(fila?.errorKind).toBe('AUTH');
+    expect(fila?.outputTokens).toBe(0);
   });
 
   /*

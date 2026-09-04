@@ -92,13 +92,14 @@ export class AiAssistController {
        */
       if (error instanceof HttpException) {
         const cuerpo = error.getResponse();
-        response
-          .status(error.getStatus())
-          .json(
-            typeof cuerpo === 'string'
-              ? { statusCode: error.getStatus(), message: cuerpo }
-              : cuerpo,
-          );
+        const detalle =
+          typeof cuerpo === 'string' ? { statusCode: error.getStatus(), message: cuerpo } : cuerpo;
+
+        /* Lo que el cliente necesita para no reintentar a ciegas, donde se busca. */
+        const espera = (detalle as { retryAfterSeconds?: number }).retryAfterSeconds;
+        if (typeof espera === 'number') response.setHeader('Retry-After', String(espera));
+
+        response.status(error.getStatus()).json(detalle);
         return;
       }
       response.status(500).json({ statusCode: 500, message: 'Assist failed' });

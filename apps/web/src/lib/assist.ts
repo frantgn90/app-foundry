@@ -153,13 +153,41 @@ async function motivoDe(response: Response): Promise<string> {
   if (response.status === 403) return 'You can read this app but not edit it.';
   if (response.status === 409) return 'Someone saved while you were reading. Reload to try again.';
   if (response.status === 503) return 'The provider is not answering right now. Try again shortly.';
-  if (response.status === 429) return 'Too many AI requests in a short time. Give it a minute.';
 
   const cuerpo = (await response.json().catch(() => null)) as {
     reason?: string;
     overflowTokens?: number;
     modelId?: string;
+    retryAfterSeconds?: number;
+    message?: string;
+    provider?: string;
+    spent?: number;
+    quota?: number;
   } | null;
+
+  /*
+   * Quedarse sin cupo y ir demasiado deprisa piden cosas distintas —ampliar el
+   * techo o esperar un rato—, así que se cuentan por separado. Un mensaje común
+   * llevaría a media gente a esperar a que se arregle algo que no se arregla
+   * solo.
+   */
+  if (cuerpo?.reason === 'QUOTA_EXCEEDED') {
+    return `This workspace has used up its monthly ${cuerpo.provider ?? 'provider'} token quota${
+      typeof cuerpo.quota === 'number' ? ` of ${cuerpo.quota.toLocaleString()}` : ''
+    }. Its owner can raise it in the workspace AI settings.`;
+  }
+  /*
+   * Un fallo del proveedor ya viene explicado y en inglés desde el servidor: la
+   * taxonomía es nuestra y su texto está escrito para leerse aquí, así que
+   * volver a redactarlo sería mantener dos veces la misma lista.
+   */
+  if (cuerpo?.reason === 'PROVIDER_ERROR' && cuerpo.message) return cuerpo.message;
+  if (cuerpo?.reason === 'RATE_LIMITED') {
+    const minutos = Math.ceil((cuerpo.retryAfterSeconds ?? 60) / 60);
+    return `Too many AI requests in a short time. Try again in about ${String(minutos)} minute${
+      minutos === 1 ? '' : 's'
+    }.`;
+  }
 
   if (cuerpo?.reason === 'CONTEXT_OVERFLOW') {
     return `This is about ${String(cuerpo.overflowTokens ?? 0)} tokens too long for ${

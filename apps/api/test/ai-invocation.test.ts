@@ -1,9 +1,9 @@
+import { HttpException } from '@nestjs/common';
 import type { Database } from '@app-foundry/db';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
 import { conIdentidad } from '../src/database/con-identidad.js';
 import { AiInvocationService } from '../src/ai/invocation.service.js';
-import { QuotaExceededError } from '../src/ai/quota.service.js';
 import { DATABASE } from '../src/infrastructure/tokens.js';
 import { type Harness, startHarness, type TestUser } from './harness.js';
 
@@ -91,12 +91,23 @@ describe('preparar una invocación', () => {
 });
 
 describe('el corte por cupo', () => {
-  it('lo que no cabe en el cupo no se invoca', async () => {
+  it('lo que no cabe en el cupo no se invoca, y se dice que es el cupo', async () => {
     await ponerCupo(10);
 
     const error = await empezar().catch((e: unknown) => e);
 
-    expect(error).toBeInstanceOf(QuotaExceededError);
+    /*
+     * Con su estado y su motivo, no como un error de dominio suelto: este paso
+     * lo usan rutas, y un error sin traducir acababa en la pantalla como un 500
+     * genérico —«Assist failed»—, que no dice ni qué pasó ni quién lo arregla
+     * (RF-1204).
+     */
+    expect(error).toBeInstanceOf(HttpException);
+    expect((error as HttpException).getStatus()).toBe(402);
+    expect((error as HttpException).getResponse()).toMatchObject({
+      reason: 'QUOTA_EXCEEDED',
+      quota: 10,
+    });
   });
 
   /*
@@ -297,6 +308,7 @@ describe('cerrar una invocación', () => {
       ),
     );
 
-    await expect(empezar()).rejects.toBeInstanceOf(QuotaExceededError);
+    const error = await empezar().catch((e: unknown) => e);
+    expect((error as HttpException).getStatus()).toBe(402);
   });
 });

@@ -43,6 +43,14 @@ export interface FakeScript {
   readonly failWith?: ProviderErrorKind;
   /** Falla solo los primeros intentos y luego responde: para probar reintentos. */
   readonly failTimes?: number;
+  /**
+   * Falla ya al **contar** tokens, no al generar.
+   *
+   * Es otra fase y otro camino: contar es la primera vez que se habla con el
+   * proveedor, y un fallo ahí ocurre antes de que exista invocación alguna. Sin
+   * poder provocarlo, ese camino solo se recorría en producción.
+   */
+  readonly failCounting?: boolean;
   /** Espera entre deltas. Sirve para cancelar a mitad de una generación. */
   readonly delayMs?: number;
   /** Claves que se consideran inválidas al verificar. */
@@ -140,6 +148,16 @@ export class FakeProvider implements LlmProvider {
   countTokens(request: TextRequest): Promise<TokenCount> {
     const inputChars = charsOf(request);
     this.calls.push({ operation: 'countTokens', model: request.model, inputChars });
+
+    if (this.script.failCounting && this.script.failWith) {
+      return Promise.reject(
+        new ProviderError(
+          this.script.failWith,
+          `fallo de mentira al contar: ${this.script.failWith}`,
+        ),
+      );
+    }
+
     return Promise.resolve({
       inputTokens: fakeTokenCount(textOf(request)),
       exact: this.capabilities.exactTokenCount,
