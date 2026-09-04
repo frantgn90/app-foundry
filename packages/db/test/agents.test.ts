@@ -1,7 +1,7 @@
-import { sql } from 'drizzle-orm';
+import { and, eq, isNotNull, sql } from 'drizzle-orm';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
-import { agentTemplates } from '../src/index.js';
+import { agents, agentTemplates, apps } from '../src/index.js';
 import { startTestDb, type TestDb } from './helpers.js';
 import { type Scenario, seed } from './scenario.js';
 
@@ -17,9 +17,41 @@ let e: Scenario;
  * promete. Se siembra como superusuario, igual que el resto del escenario, para
  * que ninguna política estorbe a lo que se quiere medir.
  */
+/** Una app de Ana y otra de Bruno, para cruzar workspaces cuando haga falta. */
+let appAna: string;
+let appBruno: string;
+
 beforeAll(async () => {
   db = await startTestDb();
   e = await seed(db.db);
+
+  const [deAna] = await db.db
+    .insert(apps)
+    .values({
+      workspaceId: e.wsAna,
+      slug: 'vision',
+      name: 'Visión',
+      precursorId: e.ana,
+      accessLevel: 'WORKSPACE_READ',
+      iconEmoji: '💡',
+      iconColor: 'teal',
+    })
+    .returning({ id: apps.id });
+  appAna = deAna!.id;
+
+  const [deBruno] = await db.db
+    .insert(apps)
+    .values({
+      workspaceId: e.wsBruno,
+      slug: 'ajena',
+      name: 'Ajena',
+      precursorId: e.bruno,
+      accessLevel: 'WORKSPACE_READ',
+      iconEmoji: '📦',
+      iconColor: 'slate',
+    })
+    .returning({ id: apps.id });
+  appBruno = deBruno!.id;
 }, 180_000);
 
 afterAll(async () => {
@@ -37,6 +69,29 @@ function plantilla(workspaceId: string, handle: string) {
     prompt: 'Judge whether this can actually be built.',
     createdBy: e.ana,
   };
+}
+
+/** Un agente mínimo, sin molde: instanciar desde uno se prueba aparte. */
+function agente(appId: string, handle: string) {
+  return {
+    appId,
+    name: 'Product Owner',
+    handle,
+    iconEmoji: '🎯',
+    iconColor: 'amber',
+    addedBy: e.ana,
+  };
+}
+
+/** El mensaje del error de Postgres, que Drizzle envuelve en su «Failed query». */
+function mensajeDe(error: unknown): string {
+  const partes: string[] = [];
+  let actual: unknown = error;
+  while (actual instanceof Error) {
+    partes.push(actual.message);
+    actual = actual.cause;
+  }
+  return partes.join(' | ');
 }
 
 async function fallo(fn: () => Promise<unknown>): Promise<unknown> {
@@ -108,14 +163,102 @@ describe('el modelo propio', () => {
   });
 });
 
+describe('el handle de un agente', () => {
+  it('no se repite entre los que siguen en la app', async () => {
+    await db.db.insert(agents).values(agente(appAna, 'po'));
+
+    const error = await fallo(() => db.db.insert(agents).values(agente(appAna, 'po')));
+    expect(error).not.toBeNull();
+  });
+
+  it('tampoco cambiando las mayúsculas', async () => {
+    const error = await fallo(() => db.db.insert(agents).values(agente(appAna, 'PO')));
+    expect(error).not.toBeNull();
+  });
+
+  it('se libera al retirarlo, en vez de quedar quemado para siempre', async () => {
+    await db.db
+      .update(agents)
+      .set({ removedAt: new Date() })
+      .where(and(eq(agents.appId, appAna), eq(agents.handle, 'po')));
+
+    await expect(db.db.insert(agents).values(agente(appAna, 'po'))).resolves.not.toThrow();
+  });
+
+  it('y el retirado sigue ahí, con su nombre, para lo que escribiera', async () => {
+    const retirados = await db.db
+      .select()
+      .from(agents)
+      .where(and(eq(agents.appId, appAna), isNotNull(agents.removedAt)));
+    expect(retirados).toHaveLength(1);
+    expect(retirados[0]!.handle).toBe('po');
+  });
+
+  it('se repite sin problema en otra app: cada una tiene los suyos', async () => {
+    await expect(db.db.insert(agents).values(agente(appBruno, 'po'))).resolves.not.toThrow();
+  });
+});
+
+describe('de qué plantilla desciende', () => {
+  it('de una de su propio workspace, sí', async () => {
+    const [plantillaAna] = await db.db
+      .insert(agentTemplates)
+      .values(plantilla(e.wsAna, 'para-instanciar'))
+      .returning({ id: agentTemplates.id });
+
+    await expect(
+      db.db.insert(agents).values({ ...agente(appAna, 'con-molde'), templateId: plantillaAna!.id }),
+    ).resolves.not.toThrow();
+  });
+
+  it('de una de otro workspace, no, aunque se acierte el identificador', async () => {
+    const [plantillaBruno] = await db.db
+      .insert(agentTemplates)
+      .values(plantilla(e.wsBruno, 'ajena'))
+      .returning({ id: agentTemplates.id });
+
+    const error = await fallo(() =>
+      db.db
+        .insert(agents)
+        .values({ ...agente(appAna, 'molde-ajeno'), templateId: plantillaBruno!.id }),
+    );
+    /*
+     * Se mira el mensaje y no solo que haya fallado: sin esto, el test pasaría
+     * igual si lo rechazara cualquier otra cosa —una clave ajena, un único— y
+     * dejaría de probar lo que dice probar.
+     */
+    expect(mensajeDe(error)).toContain('another workspace template');
+  });
+
+  it('borrar la plantilla deja al agente sin molde, pero no se lo lleva', async () => {
+    const [molde] = await db.db
+      .insert(agentTemplates)
+      .values(plantilla(e.wsAna, 'efimera'))
+      .returning({ id: agentTemplates.id });
+    await db.db.insert(agents).values({ ...agente(appAna, 'huerfano'), templateId: molde!.id });
+
+    await db.db.delete(agentTemplates).where(eq(agentTemplates.id, molde!.id));
+
+    const [sobrevive] = await db.db
+      .select()
+      .from(agents)
+      .where(and(eq(agents.appId, appAna), eq(agents.handle, 'huerfano')));
+    expect(sobrevive).toBeDefined();
+    expect(sobrevive!.templateId).toBeNull();
+  });
+});
+
 describe('lo que arrastra el workspace', () => {
-  it('borrarlo se lleva sus plantillas: no son de nadie más', async () => {
-    const antes = await db.db.select().from(agentTemplates);
-    expect(antes.length).toBeGreaterThan(0);
+  it('borrarlo se lleva sus plantillas y sus agentes: no son de nadie más', async () => {
+    expect((await db.db.select().from(agentTemplates)).length).toBeGreaterThan(0);
+    expect((await db.db.select().from(agents)).length).toBeGreaterThan(0);
 
     await db.db.execute(sql`DELETE FROM workspaces WHERE id = ${e.wsBruno}::uuid`);
 
-    const quedan = await db.db.select().from(agentTemplates);
-    expect(quedan.every((p) => p.workspaceId !== e.wsBruno)).toBe(true);
+    const plantillas = await db.db.select().from(agentTemplates);
+    expect(plantillas.every((p) => p.workspaceId !== e.wsBruno)).toBe(true);
+
+    const quedan = await db.db.select().from(agents);
+    expect(quedan.every((a) => a.appId !== appBruno)).toBe(true);
   });
 });

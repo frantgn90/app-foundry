@@ -1,6 +1,17 @@
 import { sql } from 'drizzle-orm';
-import { pgTable, text, timestamp, unique, uuid } from 'drizzle-orm/pg-core';
+import {
+  type AnyPgColumn,
+  boolean,
+  index,
+  pgTable,
+  text,
+  timestamp,
+  unique,
+  uniqueIndex,
+  uuid,
+} from 'drizzle-orm/pg-core';
 
+import { apps } from './apps.js';
 import { aiProviderEnum } from './enums.js';
 import { citext } from './types.js';
 import { users } from './users.js';
@@ -71,3 +82,76 @@ export const agentTemplates = pgTable(
 );
 
 export type AgentTemplateRow = typeof agentTemplates.$inferSelect;
+
+/**
+ * Un agente: la instancia de una plantilla dentro de una app (RF-1503).
+ *
+ * Es quien firma. Nace copiando los campos de su plantilla y a partir de ahí
+ * vive su vida: el prompt se ajusta para esta app sin tocar el molde (RF-1504),
+ * y editar el molde no vuelve aquí (RF-1505).
+ *
+ * `templateId` se pone a nulo si la plantilla se borra, en vez de arrastrar al
+ * agente con ella: lo que un agente escribió sigue siendo suyo aunque el molde
+ * del que salió ya no exista.
+ *
+ * Los agentes de una app **no** son visibles ni mencionables desde otra, aunque
+ * compartan plantilla y workspace (RF-1512). Eso lo sostiene el `app_id`: no
+ * hay ninguna consulta que llegue a un agente sin pasar por su app.
+ */
+export const agents = pgTable(
+  'agents',
+  {
+    id: uuid('id')
+      .primaryKey()
+      .default(sql`uuidv7()`),
+    appId: uuid('app_id')
+      .notNull()
+      .references(() => apps.id, { onDelete: 'cascade' }),
+    /** De qué molde salió, mientras el molde exista (RF-1504, RF-1509). */
+    templateId: uuid('template_id').references((): AnyPgColumn => agentTemplates.id, {
+      onDelete: 'set null',
+    }),
+    name: text('name').notNull(),
+    handle: citext('handle').notNull(),
+    iconEmoji: text('icon_emoji').notNull(),
+    iconColor: text('icon_color').notNull(),
+    provider: aiProviderEnum('provider'),
+    modelId: text('model_id'),
+    /**
+     * Callado sin retirarse (RF-1508).
+     *
+     * Deja de intervenir y sus comentarios se quedan donde están. Es distinto
+     * de `removedAt`: uno es un descanso y el otro una despedida, y lo que hay
+     * que hacer para deshacerlos no es lo mismo.
+     */
+    active: boolean('active').notNull().default(true),
+    /**
+     * Retirado de la app, sin borrar lo que escribió (RF-1509).
+     *
+     * Lógico y no físico por lo mismo que con una persona (RF-813): borrar la
+     * fila dejaría sus comentarios sin autoría, y la conversación en la que
+     * participó dejaría de entenderse.
+     */
+    removedAt: timestamp('removed_at', { withTimezone: true }),
+    addedBy: uuid('added_by').references(() => users.id, { onDelete: 'set null' }),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    /**
+     * Único entre los que siguen en la app, no entre todos los que pasaron por
+     * ella (RF-1506).
+     *
+     * Con un único total, retirar a `@po` dejaría ese handle quemado para
+     * siempre en esa app: nadie podría volver a tener uno, ni el mismo perfil
+     * al recuperarlo. Parcial, el nombre se libera al retirarse y lo escrito
+     * por el retirado conserva su autoría.
+     */
+    uniqueIndex('agents_app_handle_key')
+      .on(table.appId, table.handle)
+      .where(sql`${table.removedAt} IS NULL`),
+    index('agents_template_idx').on(table.templateId),
+  ],
+);
+
+export type AgentRow = typeof agents.$inferSelect;
