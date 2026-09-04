@@ -800,12 +800,26 @@ Solo se desglosa el hito en curso. H9 y H10 están cerradas; H11 está desglosad
 
 | # | Tarea | Verificación | Traza | Estado |
 |---|---|---|---|---|
-| AY1 | El esquema de una propuesta, en el subconjunto estricto | Todos los campos obligatorios, `additionalProperties: false`, lo opcional como unión con `null` | RF-1303, T-24 | ⬜ |
-| AY2 | Las restricciones, todas opcionales, en el prompt | Sin rellenar nada se propone igual | RF-1302 | ⬜ |
-| AY3 | Investigar y luego dar forma: dos llamadas cuando hay búsqueda web | La primera trae hallazgos con fuentes; la segunda da forma citándolas | RF-1304, T-25 | ⬜ |
-| AY4 | Sin búsqueda web, una sola llamada y el resultado va marcado | Se dice que sale del conocimiento del modelo, no de datos de mercado | RF-1305 | ⬜ |
-| AY5 | Otra tanda sin repetir lo ya visto | Los títulos vistos viajan como exclusiones | RF-1307 | ⬜ |
-| AY6 | Ruta de generación en streaming, por el paso común de invocación | Las propuestas llegan conforme se arman, con su cupo y su registro | RF-1301, RF-1306, RD-10 | ⬜ |
+| AY1 | El esquema de una propuesta, en el subconjunto estricto | Todos los campos obligatorios, `additionalProperties: false`, lo opcional como unión con `null` | RF-1303, T-24 | ✅ |
+| AY2 | Las restricciones, todas opcionales, en el prompt | Sin rellenar nada se propone igual | RF-1302 | ✅ |
+| AY3 | Investigar y luego dar forma: dos llamadas cuando hay búsqueda web | La primera trae hallazgos con fuentes; la segunda da forma citándolas | RF-1304, T-25 | ✅ |
+| AY4 | Sin búsqueda web, una sola llamada y el resultado va marcado | Se dice que sale del conocimiento del modelo, no de datos de mercado | RF-1305 | ✅ |
+| AY5 | Otra tanda sin repetir lo ya visto | Los títulos vistos viajan como exclusiones | RF-1307 | ✅ |
+| AY6 | Ruta de generación en streaming, por el paso común de invocación | Las propuestas llegan conforme se arman, con su cupo y su registro | RF-1301, RF-1306, RD-10 | ✅ |
+
+
+> **Sobre AY.** Dos llamadas cuando el modelo sabe buscar, y por tanto **dos invocaciones**: dos consumos de
+> tokens distintos, cada uno con su cupo y su fila. Contarlas como una sería mentir sobre lo que cuesta esta
+> función. Si la investigación falla, no se sigue: dar forma a unas propuestas «fundamentadas» sobre una
+> investigación que no llegó a hacerse es justo lo que RF-1305 prohíbe.
+>
+> Las propuestas salen conforme cierran su llave, no cuando termina el objeto entero: el JSON final no existe
+> hasta el último carácter, y esperarlo deja la pantalla en blanco toda la generación. El recorrido lleva estado
+> —una llave dentro de una cadena no abre nada, una comilla escapada no cierra— porque sin él una propuesta que
+> hable de «{}» partiría la lista por la mitad.
+>
+> Y los dos proveedores de mentira dejan de ser iguales: uno busca en la web y el otro no. Sin esa diferencia, la
+> rama de «esto no está fundamentado» se habría dado por buena sin ejecutarse nunca.
 
 ### Bloque AZ — De la propuesta a la app
 

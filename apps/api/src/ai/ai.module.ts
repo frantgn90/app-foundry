@@ -20,6 +20,8 @@ import { AiAssistController } from './assist.controller.js';
 import { AiAssistService } from './assist.service.js';
 import { AiCatalogRefresh } from './catalog.refresh.js';
 import { AiCircuitService } from './circuit.service.js';
+import { AiIdeasController } from './ideas.controller.js';
+import { AiIdeasService } from './ideas.service.js';
 import { AiCatalogService } from './catalog.service.js';
 import { AiProvidersController } from './providers.controller.js';
 import { AiProvidersService } from './providers.service.js';
@@ -33,13 +35,19 @@ import { WorkspaceAiController } from './workspace-ai.controller.js';
 
 @Module({
   imports: [NotificationsModule, DocumentsModule],
-  controllers: [AiProvidersController, WorkspaceAiController, AiAssistController],
+  controllers: [
+    AiProvidersController,
+    WorkspaceAiController,
+    AiAssistController,
+    AiIdeasController,
+  ],
   providers: [
     AiProvidersService,
     AiCatalogService,
     AiCatalogRefresh,
     AiTasksService,
     AiAssistService,
+    AiIdeasService,
     AiCircuitService,
     AiQuotaService,
     AiQuotaReconcile,
@@ -71,9 +79,17 @@ import { WorkspaceAiController } from './workspace-ai.controller.js';
             'AI_USE_FAKE_PROVIDER activo: ningún modelo real será invocado, ' +
               'las respuestas son de mentira',
           );
+          /*
+           * Los dos de mentira **no son iguales**: uno busca en la web y el otro
+           * no, igual que pasa entre proveedores de verdad. Es lo que permite
+           * que la suite recorra las dos ramas que dependen de esa capacidad
+           * —ideas fundamentadas y ideas que dicen no estarlo (RF-1304,
+           * RF-1305)— por el camino real, en vez de dar una por buena sin
+           * haberla ejecutado nunca.
+           */
           return createProviderRegistry([
             new FakeProvider({ id: AiProvider.ANTHROPIC }),
-            new FakeProvider({ id: AiProvider.GROQ }),
+            new FakeProvider({ id: AiProvider.GROQ, capabilities: { webSearch: false } }),
           ]);
         }
         return createProviderRegistry([new AnthropicProvider(), new GroqProvider()]);
@@ -104,6 +120,7 @@ import { WorkspaceAiController } from './workspace-ai.controller.js';
     AiCatalogService,
     AiTasksService,
     AiAssistService,
+    AiIdeasService,
     AiCircuitService,
     AiQuotaService,
     AiQuotaReconcile,

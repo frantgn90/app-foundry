@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 import {
   checkStrictSchema,
+  completeProposals,
   describeConstraints,
   IDEA_BATCH_SCHEMA,
   IDEAS_MAX,
@@ -162,5 +163,70 @@ describe('la visión sembrada', () => {
 
   it('sin fuentes no aparece esa sección vacía', () => {
     expect(seedVision(propuesta)).not.toMatch(/where this came from/i);
+  });
+});
+
+describe('las propuestas conforme llegan', () => {
+  const json = (n: number) =>
+    JSON.stringify({
+      proposals: Array.from({ length: n }, (_, i) => ({ ...propuesta, name: `Idea ${String(i)}` })),
+    });
+
+  /*
+   * El objeto final no existe hasta el último carácter, pero las propuestas se
+   * cierran de una en una. Sin esto, quien pide ideas mira una pantalla en
+   * blanco toda la generación y luego le aparecen cinco de golpe (RF-1306).
+   */
+  it('salen las que ya están cerradas, y la que va a medias no', () => {
+    const entero = json(3);
+    /* Justo detrás de la segunda llave que cierra: la tercera va a medias. */
+    const cortado = entero.slice(0, entero.lastIndexOf('},{') + 1);
+
+    expect(completeProposals(cortado)).toHaveLength(2);
+    expect(completeProposals(entero)).toHaveLength(3);
+  });
+
+  it('crece conforme crece el texto, sin saltos ni repeticiones', () => {
+    const entero = json(4);
+    const vistas = new Set<string>();
+    let ultimas = 0;
+
+    for (let corte = 0; corte <= entero.length + 7; corte += 7) {
+      const parciales = completeProposals(entero.slice(0, corte));
+      expect(parciales.length).toBeGreaterThanOrEqual(ultimas);
+      ultimas = parciales.length;
+      for (const p of parciales) vistas.add(p.name);
+    }
+
+    expect(ultimas).toBe(4);
+    expect(vistas.size).toBe(4);
+  });
+
+  /*
+   * Una llave dentro de una cadena no abre nada, y una comilla escapada no
+   * cierra la cadena: sin llevar ese estado, una propuesta que hable de «{}» o
+   * lleve comillas partiría el recorrido por la mitad.
+   */
+  it('las llaves y las comillas dentro del texto no confunden el recorrido', () => {
+    const rara = {
+      ...propuesta,
+      problem: 'Escribir { y } y una "cita" con \\ dentro',
+      name: 'Con llaves',
+    };
+    const texto = JSON.stringify({ proposals: [rara, propuesta] });
+
+    const sacadas = completeProposals(texto);
+    expect(sacadas).toHaveLength(2);
+    expect(sacadas[0]?.problem).toContain('{');
+  });
+
+  it('una propuesta a la que le falta un campo no se enseña', () => {
+    const coja = JSON.stringify({ proposals: [{ name: 'Solo el nombre' }, propuesta] });
+
+    expect(completeProposals(coja)).toHaveLength(1);
+  });
+
+  it('sin la lista todavía, no hay nada que enseñar', () => {
+    expect(completeProposals('{"prop')).toEqual([]);
   });
 });

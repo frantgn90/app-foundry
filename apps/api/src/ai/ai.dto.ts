@@ -1,5 +1,7 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import {
+  ArrayMaxSize,
+  IsArray,
   IsBoolean,
   IsIn,
   IsInt,
@@ -17,6 +19,8 @@ import {
   ASSIST_ACTIONS,
   type AssistAction,
   AssistScope,
+  type Monetisation,
+  MONETISATIONS,
 } from '@app-foundry/core';
 
 const PROVEEDORES = Object.values(AiProvider);
@@ -327,4 +331,58 @@ export class AssistEstimateDto {
 
   @ApiProperty({ description: 'Techo: entrada contada más salida al máximo' })
   estimatedTokens!: number;
+}
+
+/**
+ * Lo que acota una tanda de ideas (RF-1302).
+ *
+ * **Todo opcional, y eso es el requisito.** Quien llega sin saber qué construir
+ * tampoco sabe para quién ni con qué modelo de negocio: un campo obligatorio le
+ * pediría justo lo que ha venido a buscar.
+ */
+export class GenerateIdeasDto {
+  @ApiPropertyOptional({ description: 'Tema o dominio' })
+  @IsOptional()
+  @IsString()
+  @Length(1, 200)
+  topic?: string;
+
+  @ApiPropertyOptional({ description: 'Tiempo disponible, en palabras: «un fin de semana»' })
+  @IsOptional()
+  @IsString()
+  @Length(1, 120)
+  timeAvailable?: string;
+
+  @ApiPropertyOptional({ enum: MONETISATIONS })
+  @IsOptional()
+  @IsIn(MONETISATIONS)
+  monetisation?: Monetisation;
+
+  @ApiPropertyOptional({ description: 'Público objetivo' })
+  @IsOptional()
+  @IsString()
+  @Length(1, 200)
+  audience?: string;
+
+  @ApiPropertyOptional({ description: 'Plataforma' })
+  @IsOptional()
+  @IsString()
+  @Length(1, 120)
+  platform?: string;
+
+  @ApiPropertyOptional({ description: 'Notas libres' })
+  @IsOptional()
+  @IsString()
+  @Length(1, 1000)
+  notes?: string;
+
+  @ApiPropertyOptional({
+    type: [String],
+    description: 'Nombres ya propuestos, para que la siguiente tanda no los repita',
+  })
+  @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
+  @ArrayMaxSize(30)
+  exclude?: string[];
 }

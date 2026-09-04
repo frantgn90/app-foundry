@@ -275,3 +275,101 @@ export function monetisationLabel(monetisation: Monetisation): string {
       return 'Freemium';
   }
 }
+
+/**
+ * Las propuestas ya completas dentro de un JSON a medio llegar (RF-1306).
+ *
+ * El objeto final no existe hasta el último carácter, pero las propuestas se
+ * cierran de una en una: en cuanto una llave se equilibra, esa idea ya se puede
+ * enseñar. Sin esto, quien pide ideas mira una pantalla en blanco durante toda
+ * la generación y luego le aparecen cinco de golpe.
+ *
+ * Se recorre a mano y no con un analizador tolerante porque lo que hace falta es
+ * muy poco: saber dónde empieza y acaba cada objeto de la lista. Lo que obliga a
+ * llevar estado es que una llave dentro de una cadena —«{» en un texto— no
+ * cuenta, y una comilla escapada tampoco cierra la cadena.
+ */
+export function completeProposals(json: string): IdeaProposal[] {
+  const lista = json.indexOf('"proposals"');
+  if (lista === -1) return [];
+
+  const corchete = json.indexOf('[', lista);
+  if (corchete === -1) return [];
+
+  const propuestas: IdeaProposal[] = [];
+  let profundidad = 0;
+  let inicio = -1;
+  let enCadena = false;
+  let escapado = false;
+
+  for (let i = corchete + 1; i < json.length; i += 1) {
+    const c = json[i]!;
+
+    if (enCadena) {
+      if (escapado) escapado = false;
+      else if (c === '\\') escapado = true;
+      else if (c === '"') enCadena = false;
+      continue;
+    }
+
+    if (c === '"') {
+      enCadena = true;
+      continue;
+    }
+    if (c === '{') {
+      if (profundidad === 0) inicio = i;
+      profundidad += 1;
+      continue;
+    }
+    if (c === '}') {
+      profundidad -= 1;
+      if (profundidad !== 0 || inicio === -1) continue;
+
+      const candidata = parseProposal(json.slice(inicio, i + 1));
+      if (candidata) propuestas.push(candidata);
+      inicio = -1;
+      continue;
+    }
+    /* El cierre de la lista: lo que venga después ya no son propuestas. */
+    if (c === ']' && profundidad === 0) break;
+  }
+
+  return propuestas;
+}
+
+/**
+ * Una propuesta, si lo que hay lo es de verdad.
+ *
+ * Se comprueba aunque la decodificación esté restringida por esquema: lo que
+ * llega a mitad de un flujo no está garantizado por nada, y enseñar una ficha a
+ * medias con campos vacíos es peor que enseñarla un segundo más tarde.
+ */
+export function parseProposal(json: string): IdeaProposal | null {
+  let valor: unknown;
+  try {
+    valor = JSON.parse(json);
+  } catch {
+    return null;
+  }
+  return isIdeaProposal(valor) ? valor : null;
+}
+
+export function isIdeaProposal(value: unknown): value is IdeaProposal {
+  if (typeof value !== 'object' || value === null) return false;
+  const v = value as Record<string, unknown>;
+
+  const textos = [
+    'name',
+    'problem',
+    'audience',
+    'valueProposition',
+    'effort',
+    'mainRisk',
+    'shortDescription',
+  ];
+  if (!textos.every((campo) => typeof v[campo] === 'string' && v[campo].trim() !== '')) {
+    return false;
+  }
+  if (!MONETISATIONS.includes(v['monetisation'] as Monetisation)) return false;
+  return Array.isArray(v['tags']) && v['tags'].every((t) => typeof t === 'string');
+}
