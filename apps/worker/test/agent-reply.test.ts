@@ -31,6 +31,8 @@ let avisos: unknown[] = [];
 let falloProgramado: { kind: ProviderErrorKind; veces: number } | null = null;
 /** Lo que devuelve el modelo de mentira. Cambiarlo prueba qué se guarda. */
 let respuesta = 'Scope looks wider than the problem.';
+/** Y lo que se dijo a sí mismo, para el caso de quedarse sin sitio pensando. */
+let razonamientoDevuelto = '';
 
 /*
  * El entorno se compone con lo mínimo que el esquema exige. No se lee el `.env`
@@ -80,7 +82,7 @@ beforeAll(async () => {
       }
       return Promise.resolve({
         texto: respuesta,
-        razonamiento: '',
+        razonamiento: razonamientoDevuelto,
         provider: 'ANTHROPIC',
         modelId: 'fake-large',
       });
@@ -97,6 +99,7 @@ afterEach(() => {
   avisos = [];
   falloProgramado = null;
   respuesta = 'Scope looks wider than the problem.';
+  razonamientoDevuelto = '';
 });
 
 afterAll(async () => {
@@ -236,5 +239,37 @@ describe('qué se reintenta y qué no', () => {
     await aQueTermine();
 
     expect(peticiones).toHaveLength(1);
+  });
+});
+
+describe('cuando el modelo se queda sin sitio pensando', () => {
+  it('lo dice en el hilo en vez de callarse, y conserva lo pensado', async () => {
+    /*
+     * Pasó de verdad: `qwen3.6` se gastó el presupuesto entero deliberando y no
+     * llegó a contestar. Callar dejaba a quien preguntó mirando un hilo donde no
+     * pasaba nada, sin distinguir «se lo está pensando» de «se ha roto algo».
+     */
+    respuesta = '';
+    razonamientoDevuelto = 'Estaba dándole vueltas y me quedé sin sitio';
+
+    const provocador = await h.comentar('@po una pregunta que da que pensar');
+    await h.encolar({ triggerCommentId: provocador });
+    await aQueTermine();
+
+    const escrito = await h.loEscritoPorElAgente();
+    expect(escrito[escrito.length - 1]).toContain('ran out of room while thinking');
+  });
+
+  it('pero sin respuesta y sin razonamiento no escribe nada', async () => {
+    /* Ahí no hay nada que contar, y un comentario vacío es peor que ninguno. */
+    respuesta = '';
+    razonamientoDevuelto = '';
+
+    const antes = (await h.loEscritoPorElAgente()).length;
+    const provocador = await h.comentar('@po otra más');
+    await h.encolar({ triggerCommentId: provocador });
+    await aQueTermine();
+
+    expect((await h.loEscritoPorElAgente()).length).toBe(antes);
   });
 });

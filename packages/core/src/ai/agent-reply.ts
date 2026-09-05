@@ -69,10 +69,15 @@ filling the gap with something plausible, and never present a guess as a fact.
 Write plain prose: do not greet, do not sign, do not repeat what the thread
 already says. If you have nothing worth adding, say so in one line.
 
-Hard limit: your reply must fit in 150 words. This is a comment in a thread, not
-a report. If you think before answering, keep that short too — the budget covers
-your thinking and your reply together, and a reply that gets cut off mid-sentence
-helps nobody.`;
+Two hard limits, and the second one is the one people get wrong.
+
+Your reply must fit in 150 words. This is a comment in a thread, not a report.
+
+And if you reason before answering, that reasoning shares the same budget as the
+reply. Keep it to a few lines. Do not enumerate the whole document, do not
+rehearse several answers, do not restate your instructions back to yourself: if
+you spend the budget thinking, the reply never gets written and the person who
+asked gets nothing at all. Decide quickly and write.`;
 
 export function agentSystemPrompt(context: AgentReplyContext): string {
   return `${context.profile}\n\nYou are @${context.handle}.\n\n${REGLAS}`;
@@ -120,15 +125,35 @@ export function agentReplyMessages(context: AgentReplyContext): readonly PromptM
  * contestar. Lo que se publicaba era media deliberación, y con el razonamiento
  * ya separado lo que se publicaría es nada.
  *
- * Tres mil dan sitio para pensar y contestar. No es una cifra fina: es la que
- * deja de estrangular al caso que falló, y el tope de verdad lo pone la
- * instrucción de las reglas —ciento cincuenta palabras—, que es lo que se puede
- * decir en un prompt y no en un número de tokens.
+ * Tres mil tampoco bastaron: una pregunta algo más enredada le llevó a gastar
+ * los tres mil deliberando y a no contestar. Y perseguir la cifra es perder:
+ * siempre habrá una pregunta que dé para pensar un poco más.
+ *
+ * Así que se hacen dos cosas y ninguna es el número. El prompt le dice que lo
+ * que piense sale del mismo presupuesto y que si se lo gasta pensando, quien
+ * preguntó se queda sin nada; y cuando aun así ocurre, **se dice** en vez de
+ * callar (`AGENT_REPLY_OUT_OF_ROOM`). Seis mil es holgura para que sea raro, no
+ * una garantía.
  *
  * Un tope hay que ponerlo igualmente: es la mitad de la estimación previa (§10)
  * y lo que impide que un agente conteste con un ensayo.
  */
-export const AGENT_REPLY_MAX_OUTPUT_TOKENS = 3_000;
+export const AGENT_REPLY_MAX_OUTPUT_TOKENS = 6_000;
+
+/**
+ * Lo que se publica cuando el modelo se queda sin sitio pensando.
+ *
+ * Se escribe un comentario en vez de no escribir nada. Callar deja a quien
+ * preguntó mirando un hilo donde no pasa nada, sin forma de distinguir «se lo
+ * está pensando» de «se rompió algo»; y el razonamiento, que sí existe, se
+ * perdería con él.
+ *
+ * Es la misma decisión que tomó el asistente en H10 para este caso exacto: allí
+ * se dice «el modelo se gastó la respuesta pensando» y se deja su deliberación
+ * a la vista.
+ */
+export const AGENT_REPLY_OUT_OF_ROOM =
+  'I ran out of room while thinking and never got to an answer. My reasoning is below — ask me again and I will be briefer.';
 
 /**
  * Si a este agente le quedan turnos en este hilo (RF-1605).

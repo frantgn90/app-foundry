@@ -7,6 +7,7 @@ import {
   AGENT_REPLY_QUEUE,
   agentMaySpeak,
   AGENT_REPLY_MAX_OUTPUT_TOKENS,
+  AGENT_REPLY_OUT_OF_ROOM,
   agentReplyMessages,
   agentSystemPrompt,
   type AgentReplyJob,
@@ -236,12 +237,20 @@ async function responder(deps: AgentReplyDeps, trabajo: AgentReplyJob): Promise<
 
     const texto = respuesta.texto.trim();
     /*
-     * Sin respuesta no se escribe nada, ni siquiera para dejar constancia del
-     * razonamiento: un comentario vacío en un hilo es peor que ningún
-     * comentario. Con el presupuesto de generación bien puesto esto debería ser
-     * raro; cuando pasa, el motivo queda en el registro del worker.
+     * Si se quedó sin sitio pensando, se dice.
+     *
+     * Callar dejaba a quien preguntó mirando un hilo donde no pasaba nada, sin
+     * forma de distinguir «se lo está pensando» de «se ha roto algo», y tirando
+     * de paso el razonamiento, que es justo lo que explica qué ocurrió. Con
+     * deliberación pero sin respuesta se publica el aviso y se conserva lo
+     * pensado, plegado como siempre.
+     *
+     * Sin ninguna de las dos cosas no hay nada que contar, y ahí sí se calla.
      */
-    if (texto.length === 0) return 'el modelo no devolvió nada';
+    const cuerpo = texto.length > 0 ? texto : AGENT_REPLY_OUT_OF_ROOM;
+    if (texto.length === 0 && respuesta.razonamiento.trim().length === 0) {
+      return 'el modelo no devolvió nada';
+    }
 
     /*
      * La escritura va en esta misma transacción, con el perfil con el que se
@@ -254,7 +263,7 @@ async function responder(deps: AgentReplyDeps, trabajo: AgentReplyJob): Promise<
             cast(${trabajo.threadId} as uuid),
             cast(${trabajo.agentId} as uuid),
             cast(${perfil.id} as uuid),
-            cast(${texto} as text),
+            cast(${cuerpo} as text),
             cast(${trabajo.triggerCommentId} as uuid),
             cast(${respuesta.provider} as ai_provider),
             cast(${respuesta.modelId} as text),
@@ -269,7 +278,7 @@ async function responder(deps: AgentReplyDeps, trabajo: AgentReplyJob): Promise<
       workspaceId: contexto.workspaceId,
       agentHandle: contexto.agentHandle,
       appName: contexto.appName,
-      texto,
+      texto: cuerpo,
     });
 
     return null;
