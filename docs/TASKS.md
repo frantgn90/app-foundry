@@ -1023,7 +1023,7 @@ Solo se desglosa el hito en curso. H9, H10 y H11 están cerradas; **H12** está 
 | BF5 | Los agentes, mencionables desde el compositor | Distinguibles de una persona en la lista y en el texto | RF-1506, RF-815 | ✅ |
 | BF6 | Distintivo de IA en el comentario y en el panel de hilos | Sin depender del icono | RF-1611, RF-1701 | ✅ |
 | BF7 | La respuesta aparece sin recargar | Por el canal que ya alimenta los avisos | RF-1602, T-6 | ✅ |
-| BF8 | Distinguir los hilos con participación de IA | Y que cuenten como abiertos y se busquen igual que los demás | RF-1613, RF-811 | ✅ |
+| BF8 | Distinguir quién ha escrito cada comentario | Con el distintivo de cada uno; cuentan como abiertos y se buscan igual que los demás | RF-1613, RF-811 | ✅ |
 | BF9 | Un agente retirado, marcado allí donde escribió | Mismo criterio que con una persona | RF-1509, RF-813 | ✅ |
 | BF10 | Con qué proveedor y modelo se generó, a la vista | En el propio comentario | RF-1704 | ✅ |
 | BF11 | Borrar un hilo de agente, como cualquier otro | Lo hace el precursor de la app | RF-1705, RF-806 | ✅ |

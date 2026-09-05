@@ -4,7 +4,6 @@ import type { MentionableUser, OpenElsewhere, Thread } from '../lib/api.js';
 import { CommentThread } from './comment-thread.js';
 import { MentionInput, type MentionableAgent } from './mention-input.js';
 import { Button } from './ui/button.js';
-import { cn } from '../lib/utils.js';
 
 interface Props {
   /** Pliega el panel hacia la derecha. */
@@ -50,7 +49,6 @@ export function CommentsPanel({
   onDeleteComment,
 }: Props) {
   const [showResolved, setShowResolved] = useState(false);
-  const [soloIa, setSoloIa] = useState(false);
   const [draft, setDraft] = useState('');
   const [composing, setComposing] = useState(false);
 
@@ -58,16 +56,13 @@ export function CommentsPanel({
   const resolved = threads.filter((t) => t.status === 'RESOLVED');
 
   /*
-   * Hilos donde ha hablado una IA (RF-1613).
-   *
-   * Se calcula aquí y no lo manda el servidor porque los comentarios ya están
-   * en la respuesta: pedir un campo más obligaría a mantenerlo en dos sitios y
-   * a que se pudiera desincronizar con lo que se está pintando.
+   * Hubo aquí un filtro de «solo hilos con IA». Se quitó: en esta cabecera
+   * caben tres controles y ya iban cuatro, con los textos partidos en dos
+   * líneas y el último pegado al borde. Lo que hacía falta de RF-1613 —saber de
+   * un vistazo quién ha escrito— lo da el distintivo de cada comentario
+   * (RF-1611), que está donde se lee y no obliga a filtrar nada.
    */
-  const conIa = threads.filter((t) => t.comments.some((c) => c.authorKind === 'AGENT'));
-
-  const porEstado = showResolved ? threads : open;
-  const visible = soloIa ? porEstado.filter((t) => conIa.includes(t)) : porEstado;
+  const visible = showResolved ? threads : open;
 
   function post() {
     if (!draft.trim()) return;
@@ -95,29 +90,17 @@ export function CommentsPanel({
             </span>
           )}
         </h2>
-        <span className="flex items-center gap-1">
-          {/*
-            Filtrar por participación de IA, no ordenarlos ni marcarlos uno a
-            uno: en un documento con muchos hilos, lo que se busca es «qué han
-            dicho los agentes», y para eso hay que poder quedarse solo con esos.
-          */}
-          {conIa.length > 0 && (
-            <Button
-              variant="ghost"
-              className={cn('px-2 py-1 text-sm', soloIa && 'text-[var(--color-acento)]')}
-              title="Threads an agent has written in"
-              onClick={() => {
-                setSoloIa((v) => !v);
-              }}
-            >
-              {soloIa ? 'All threads' : `AI (${String(conIa.length)})`}
-            </Button>
-          )}
-
+        {/*
+          Los controles no se encogen y el título sí: al estrecharse la columna
+          lo que debe ceder es la palabra «Conversation», que se entiende
+          truncada, y no un botón cuyo texto se parta en dos líneas y descuadre
+          la fila entera.
+        */}
+        <span className="flex shrink-0 items-center gap-1">
           {resolved.length > 0 && (
             <Button
               variant="ghost"
-              className="px-2 py-1 text-sm"
+              className="whitespace-nowrap px-2 py-1 text-sm"
               onClick={() => {
                 setShowResolved((v) => !v);
               }}

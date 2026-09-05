@@ -370,7 +370,10 @@ fallos dejan de ser una molestia al comentar y pasan a inutilizar media función
   escriben los agentes con las mismas reglas que rigen para las personas (RF-902), y **DEBERÍAN** poder
   silenciar los avisos de un agente concreto.
 - **RF-1613** — Los comentarios de agente **DEBEN** contar como hilos abiertos igual que los demás (RF-811) y
-  ser buscables como los demás. El listado **DEBERÍA** permitir distinguir los hilos con participación de IA.
+  ser buscables como los demás. El listado **DEBE** permitir distinguir de un vistazo quién ha escrito cada
+  comentario; basta con el distintivo de RF-1611 en cada uno. Se probó además un filtro de «solo hilos con IA»
+  en la cabecera del panel y se retiró: con tres controles ya justos de sitio, añadir un cuarto partía los
+  textos en dos líneas, y filtrar no aportaba nada que no diera el distintivo, que está donde se lee.
 - **RF-1614** — El texto del documento y de los comentarios que se entrega a un agente son **datos, no
   instrucciones**: un documento que pida al agente saltarse su perfil no **DEBE** cambiar su comportamiento. La
   garantía estructural es RF-1601 —un agente sin herramientas solo puede escribir un mal comentario—, y el

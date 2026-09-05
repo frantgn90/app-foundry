@@ -619,8 +619,9 @@ esto sin trabajo adicional.
   descartar.
 - **Ficha de la app**: sección de agentes con icono, perfil y estado; botón de revisión con su estimación y su
   progreso.
-- **Comentarios**: los de agente llevan distintivo propio además del icono (RF-1611), y el panel permite
-  filtrar los hilos con participación de IA (RF-1613).
+- **Comentarios**: los de agente llevan distintivo propio además del icono (RF-1611), que es lo que distingue
+  quién ha escrito (RF-1613). La cabecera del panel se queda en tres controles: sin resolver, resueltos y
+  plegar.
 - **Ajustes del workspace**: proveedores, asignación por tarea, cupos y consumo.
 
 Todo lo relativo a IA se monta en **rutas y componentes con carga diferida**, y no se descarga siquiera cuando
