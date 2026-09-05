@@ -414,6 +414,12 @@ Y a nivel de workspace:
   existencia de usuarios fuera de él (coherente con RF-312).
 - **RF-816** — Si el mencionado pierde después el acceso al workspace, la mención **DEBE** seguir visible en el
   texto del comentario, pero deja de enlazar a nada que él pueda abrir.
+- **RF-818** — Cada app **DEBE** poder elegir **dónde se pone la conversación**: en una columna al lado del
+  documento, que es lo de fábrica, o **debajo**, con documento y comentarios a todo lo ancho. Es un ajuste de
+  la app y no de cada persona, vive con los demás de su pantalla de ajustes y lo cambia quien pueda editarla.
+  Existe porque la columna lateral se queda corta en cuanto los comentarios son largos —los de un agente lo
+  son casi siempre—: leer varios párrafos en una tira de veinte rems al lado de un documento que ocupa el
+  resto de la pantalla es peor que leerlos anchos y debajo.
 
 ### 5.9 Notificaciones
 

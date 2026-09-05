@@ -160,6 +160,7 @@ apps
   precursor_id → users NOT NULL              -- RF-401, transferible RF-409
   icon_emoji text NOT NULL, icon_color text NOT NULL   -- RF-415, RF-416
   repo_url text                              -- RF-417, opcional e informativo
+  comments_layout comments_layout NOT NULL DEFAULT 'SIDEBAR'  -- RF-818
   archived_at timestamptz                    -- RF-410
   search_tsv tsvector                        -- mantenido por trigger, §10
   UNIQUE (workspace_id, slug)                -- RF-412

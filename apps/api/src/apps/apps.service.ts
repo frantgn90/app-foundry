@@ -301,6 +301,7 @@ export class AppsService {
     if (body.repoUrl !== undefined) changes['repoUrl'] = body.repoUrl;
     if (body.iconEmoji !== undefined) changes['iconEmoji'] = body.iconEmoji;
     if (body.iconColor !== undefined) changes['iconColor'] = body.iconColor;
+    if (body.commentsLayout !== undefined) changes['commentsLayout'] = body.commentsLayout;
 
     const updated = await tx.update(apps).set(changes).where(eq(apps.id, appId)).returning();
     // La RLS deja pasar la sentencia pero no afecta a ninguna fila cuando no se
@@ -521,6 +522,7 @@ export class AppsService {
       shortDescription: app.shortDescription,
       status: app.status,
       accessLevel: app.accessLevel,
+      commentsLayout: app.commentsLayout,
       icon: { emoji: app.iconEmoji, color: app.iconColor },
       tags: tags.get(app.id) ?? [],
       repoUrl: app.repoUrl,

@@ -3636,6 +3636,14 @@
               "WORKSPACE_WRITE"
             ]
           },
+          "commentsLayout": {
+            "type": "string",
+            "enum": [
+              "SIDEBAR",
+              "STACKED"
+            ],
+            "description": "SIDEBAR: la conversación al lado. STACKED: debajo, a todo lo ancho"
+          },
           "icon": {
             "$ref": "#/components/schemas/AppIconDto"
           },
@@ -3680,6 +3688,7 @@
           "shortDescription",
           "status",
           "accessLevel",
+          "commentsLayout",
           "icon",
           "tags",
           "repoUrl",
@@ -3822,6 +3831,14 @@
               "orange",
               "slate"
             ]
+          },
+          "commentsLayout": {
+            "type": "string",
+            "enum": [
+              "SIDEBAR",
+              "STACKED"
+            ],
+            "description": "Dónde va la conversación de esta app"
           }
         }
       },

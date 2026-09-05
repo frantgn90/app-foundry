@@ -1,4 +1,4 @@
-import { type FormEvent, useState } from 'react';
+import { type FormEvent, type ReactNode, useState } from 'react';
 
 import {
   type AccessLevel,
@@ -22,6 +22,7 @@ import {
   CardTitle,
 } from '../components/ui/card.js';
 import { Input } from '../components/ui/input.js';
+import { cn } from '../lib/utils.js';
 
 const STATUSES = ['IDEA', 'DEFINING', 'IN_DEVELOPMENT', 'PUBLISHED', 'PAUSED'] as const;
 
@@ -52,6 +53,7 @@ export function AppSettingsPage({
   return (
     <div className="flex flex-col gap-6">
       <DetailsCard app={app} />
+      <LayoutCard app={app} />
       <AppAgents appId={app.id} workspaceId={workspaceId} puedeEditar={app.canEdit} />
       {/* Estas decisiones son del precursor y de nadie más (RF-406, RF-409..411). */}
       {app.isPrecursor && <AccessCard app={app} workspaceId={workspaceId} />}
@@ -62,6 +64,157 @@ export function AppSettingsPage({
         </p>
       )}
     </div>
+  );
+}
+
+/**
+ * Dónde se pone la conversación (RF-818).
+ *
+ * La columna lateral funciona mientras los comentarios son cortos. En cuanto un
+ * agente contesta con varios párrafos, veinte rems obligan a leer en una tira
+ * estrecha al lado de un documento que ocupa el resto de la pantalla.
+ *
+ * Es un ajuste de la app y no de cada persona, como el resto de esta pantalla:
+ * una app en la que se discute mucho se lee mejor apilada para todo el mundo.
+ */
+function LayoutCard({ app }: { app: App }) {
+  const update = useUpdateApp(app.id);
+  const disabled = !app.canEdit;
+
+  /*
+   * Se guarda al elegir, sin botón. Es una sola decisión de dos valores y su
+   * efecto se ve en la pestaña de al lado: obligar a confirmar un cambio que se
+   * deshace pulsando la otra opción sería un paso de más.
+   */
+  function elegir(commentsLayout: App['commentsLayout']) {
+    if (disabled || commentsLayout === app.commentsLayout) return;
+    update.mutate({ commentsLayout });
+  }
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>Layout</CardTitle>
+        <CardDescription>
+          Where the conversation goes when you are reading the vision. Long threads breathe better
+          underneath; short ones are handy on the side.
+        </CardDescription>
+      </CardHeader>
+      <CardContent className="flex flex-col gap-3">
+        <div className="grid gap-3 sm:grid-cols-2">
+          <LayoutOption
+            titulo="Beside the document"
+            ayuda="A column on the right, as it has always been."
+            elegido={app.commentsLayout === 'SIDEBAR'}
+            disabled={disabled}
+            onClick={() => {
+              elegir('SIDEBAR');
+            }}
+          >
+            <span className="flex h-16 gap-1.5">
+              <MiniBloque className="flex-1" lineas={4} />
+              <MiniBloque className="w-1/3" lineas={3} acento />
+            </span>
+          </LayoutOption>
+
+          <LayoutOption
+            titulo="Below the document"
+            ayuda="Both full width, one under the other."
+            elegido={app.commentsLayout === 'STACKED'}
+            disabled={disabled}
+            onClick={() => {
+              elegir('STACKED');
+            }}
+          >
+            <span className="flex h-16 flex-col gap-1.5">
+              <MiniBloque className="flex-1" lineas={2} />
+              <MiniBloque className="flex-1" lineas={2} acento />
+            </span>
+          </LayoutOption>
+        </div>
+
+        {update.isError && (
+          <p className="text-xs text-[var(--color-fallo)]">Could not save that. Try again.</p>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
+function LayoutOption({
+  titulo,
+  ayuda,
+  elegido,
+  disabled,
+  onClick,
+  children,
+}: {
+  titulo: string;
+  ayuda: string;
+  elegido: boolean;
+  disabled: boolean;
+  onClick: () => void;
+  children: ReactNode;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      disabled={disabled}
+      aria-pressed={elegido}
+      className={cn(
+        'flex flex-col gap-2 rounded-lg border p-3 text-left transition',
+        elegido
+          ? 'border-[var(--color-acento)] bg-[var(--color-acento)]/5'
+          : 'border-[var(--color-borde)] hover:border-[var(--color-acento)]/40',
+        disabled ? 'cursor-not-allowed opacity-60' : 'cursor-pointer',
+      )}
+    >
+      {children}
+      <span className="text-sm font-medium">{titulo}</span>
+      <span className="text-xs text-[var(--color-texto-suave)]">{ayuda}</span>
+    </button>
+  );
+}
+
+/**
+ * Un bloque del dibujito: un recuadro con rayas dentro.
+ *
+ * Se dibuja con divs y no con un icono porque lo que hay que ver es la
+ * **proporción** —qué ocupa el documento y qué la conversación—, y eso en un
+ * icono de veinte píxeles no se distingue.
+ */
+function MiniBloque({
+  className,
+  lineas,
+  acento = false,
+}: {
+  className?: string;
+  lineas: number;
+  acento?: boolean;
+}) {
+  return (
+    <span
+      className={cn(
+        'flex flex-col justify-center gap-1 rounded border p-1.5',
+        acento
+          ? 'border-[var(--color-acento)]/40 bg-[var(--color-acento)]/10'
+          : 'border-[var(--color-borde)] bg-[var(--color-superficie)]',
+        className,
+      )}
+      aria-hidden
+    >
+      {Array.from({ length: lineas }, (_, i) => (
+        <span
+          key={i}
+          className={cn(
+            'h-0.5 rounded-full',
+            acento ? 'bg-[var(--color-acento)]/40' : 'bg-[var(--color-borde)]',
+            i === lineas - 1 ? 'w-2/3' : 'w-full',
+          )}
+        />
+      ))}
+    </span>
   );
 }
 
@@ -316,15 +469,7 @@ function DangerCard({ app, onDeleted }: { app: App; onDeleted: () => void }) {
   );
 }
 
-function Field({
-  label,
-  hint,
-  children,
-}: {
-  label: string;
-  hint?: string;
-  children: React.ReactNode;
-}) {
+function Field({ label, hint, children }: { label: string; hint?: string; children: ReactNode }) {
   return (
     <label className="flex flex-col gap-1.5">
       <span className="text-sm font-medium">{label}</span>

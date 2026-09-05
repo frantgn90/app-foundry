@@ -13,7 +13,7 @@ import {
   uuid,
 } from 'drizzle-orm/pg-core';
 
-import { accessLevelEnum, appStatusEnum, documentTypeEnum } from './enums.js';
+import { accessLevelEnum, appStatusEnum, commentsLayoutEnum, documentTypeEnum } from './enums.js';
 import { citext } from './types.js';
 import { users } from './users.js';
 import { workspaces } from './workspaces.js';
@@ -46,6 +46,8 @@ export const apps = pgTable(
     iconColor: text('icon_color').notNull(),
     /** Informativo en v1: no sincroniza nada (RF-417). */
     repoUrl: text('repo_url'),
+    /** Dónde va la conversación: al lado o debajo, a todo lo ancho (RF-818). */
+    commentsLayout: commentsLayoutEnum('comments_layout').notNull().default('SIDEBAR'),
     archivedAt: timestamp('archived_at', { withTimezone: true }),
     /*
      * Lo que se busca, mantenido por la base de datos (RF-604, TRD §10).

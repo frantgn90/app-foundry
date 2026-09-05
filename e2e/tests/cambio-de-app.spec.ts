@@ -98,7 +98,10 @@ test('cambiar de app no arrastra el documento de la anterior', async ({ page, co
      * cambiado.
      */
     await page.reload();
-    await page.getByRole('button', { name: /Astrolabio/ }).first().click();
+    await page
+      .getByRole('button', { name: /Astrolabio/ })
+      .first()
+      .click();
     await comprobarDocumento(ASTROLABIO, SEXTANTE);
   });
 

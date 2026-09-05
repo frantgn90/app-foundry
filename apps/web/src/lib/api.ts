@@ -212,6 +212,8 @@ export interface App {
   shortDescription: string | null;
   status: string;
   accessLevel: string;
+  /** Dónde va la conversación: al lado del documento o debajo (RF-818). */
+  commentsLayout: 'SIDEBAR' | 'STACKED';
   icon: { emoji: string; color: string };
   tags: string[];
   repoUrl: string | null;

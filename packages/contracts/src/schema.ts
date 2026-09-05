@@ -1394,6 +1394,11 @@ export interface components {
             status: "IDEA" | "DEFINING" | "IN_DEVELOPMENT" | "PUBLISHED" | "PAUSED" | "ARCHIVED";
             /** @enum {string} */
             accessLevel: "PRIVATE" | "WORKSPACE_READ" | "WORKSPACE_WRITE";
+            /**
+             * @description SIDEBAR: la conversación al lado. STACKED: debajo, a todo lo ancho
+             * @enum {string}
+             */
+            commentsLayout: "SIDEBAR" | "STACKED";
             icon: components["schemas"]["AppIconDto"];
             tags: string[];
             repoUrl: string | null;
@@ -1430,6 +1435,11 @@ export interface components {
             iconEmoji?: "💡" | "✨" | "🌱" | "🔮" | "🚀" | "🧭" | "🛠️" | "⚙️" | "🧰" | "🔧" | "📐" | "🧪" | "📚" | "📝" | "🧠" | "🔍" | "🗺️" | "📊" | "💬" | "📣" | "📨" | "🤝" | "🎙️" | "📡" | "🏗️" | "🧱" | "🗂️" | "🎛️" | "🪟" | "🧩" | "🌊" | "🌲" | "⛰️" | "🌙" | "☀️" | "⏳" | "🎯" | "🎲" | "🎨" | "🎵" | "🏔️" | "🔥";
             /** @enum {string} */
             iconColor?: "amber" | "rose" | "violet" | "indigo" | "sky" | "teal" | "emerald" | "lime" | "orange" | "slate";
+            /**
+             * @description Dónde va la conversación de esta app
+             * @enum {string}
+             */
+            commentsLayout?: "SIDEBAR" | "STACKED";
         };
         ChangeAccessLevelDto: {
             /** @enum {string} */

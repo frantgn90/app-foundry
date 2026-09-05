@@ -23,6 +23,15 @@ export const accessLevelEnum = pgEnum('access_level', [
   'WORKSPACE_READ',
   'WORKSPACE_WRITE',
 ]);
+/**
+ * Dónde se pone la conversación de una app (RF-818).
+ *
+ * `SIDEBAR` es la columna de siempre, a la derecha del documento. `STACKED`
+ * pone la conversación debajo, con documento y comentarios a todo lo ancho:
+ * veinte rems se quedan cortos en cuanto un agente contesta con párrafos.
+ */
+export const commentsLayoutEnum = pgEnum('comments_layout', ['SIDEBAR', 'STACKED']);
+
 export const documentTypeEnum = pgEnum('document_type', ['VISION', 'PRD', 'TRD']);
 export const threadKindEnum = pgEnum('thread_kind', ['GENERAL', 'INLINE']);
 export const threadStatusEnum = pgEnum('thread_status', ['OPEN', 'RESOLVED']);

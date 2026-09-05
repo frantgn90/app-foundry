@@ -426,6 +426,8 @@ export function AppDetailPage({
     appDelBorrador.current === appId ? (draft ?? document.data.content) : document.data.content;
 
   const openThreads = (threads.data?.threads ?? []).filter((t) => t.status === 'OPEN').length;
+  /* Dónde va la conversación, según lo que tenga puesto la app (RF-818). */
+  const apilado = app.data.commentsLayout === 'STACKED';
   const hasUnsavedChanges = content !== document.data.content;
   const sinCommitear = document.data.uncommittedChanges;
   const mirandoCopiaDeTrabajo = versionElegida === null;
@@ -725,15 +727,21 @@ export function AppDetailPage({
          * Las dos vistas comparten la misma rejilla, así que la conversación
          * sigue al lado tanto si se mira el texto compuesto como el original.
          *
-         * Las dos cabeceras —los controles a la izquierda, el título de la
-         * conversación a la derecha— tienen la misma altura fija, de modo que lo
-         * que va debajo empieza al mismo nivel en ambas columnas: el borde
-         * superior de la caja y el del primer comentario coinciden.
+         * Con la conversación al lado, las dos cabeceras —los controles a la
+         * izquierda, el título de la conversación a la derecha— tienen la misma
+         * altura fija, de modo que lo que va debajo empieza al mismo nivel en
+         * ambas columnas: el borde superior de la caja y el del primer
+         * comentario coinciden.
+         *
+         * Apilada es una sola columna y el panel cae debajo por orden del
+         * documento (RF-818). No hace falta más que quitarle la segunda columna
+         * a la rejilla: el panel ya crece con su contenido y deja que sea la
+         * página la que haga scroll.
          */
         <div
           className={cn(
             'grid gap-6',
-            conversacionAbierta ? 'lg:grid-cols-[1fr_20rem]' : 'lg:grid-cols-1',
+            conversacionAbierta && !apilado ? 'lg:grid-cols-[1fr_20rem]' : 'lg:grid-cols-1',
           )}
         >
           <div className="flex flex-col gap-3">
@@ -1158,6 +1166,7 @@ export function AppDetailPage({
 
           {conversacionAbierta && (
             <CommentsPanel
+              apilado={apilado}
               onCollapse={() => {
                 setConversacionAbierta(false);
               }}

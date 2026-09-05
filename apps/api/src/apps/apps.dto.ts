@@ -16,6 +16,14 @@ import { type AccessLevel, APP_COLORS, APP_EMOJIS } from '@app-foundry/core';
 const APP_STATUSES = ['IDEA', 'DEFINING', 'IN_DEVELOPMENT', 'PUBLISHED', 'PAUSED', 'ARCHIVED'];
 const ACCESS_LEVELS = ['PRIVATE', 'WORKSPACE_READ', 'WORKSPACE_WRITE'];
 
+/**
+ * Dónde se pone la conversación (RF-818).
+ *
+ * De la app y no de cada persona: donde se discute mucho, apilado se lee mejor
+ * para todos, y el ajuste vive con los demás de la app.
+ */
+const COMMENTS_LAYOUTS = ['SIDEBAR', 'STACKED'] as const;
+
 export class AppIconDto {
   @ApiProperty({ description: 'Emoji de la selección curada' })
   emoji!: string;
@@ -31,6 +39,13 @@ export class AppSummaryDto {
   @ApiProperty({ nullable: true, type: String }) shortDescription!: string | null;
   @ApiProperty({ enum: APP_STATUSES }) status!: string;
   @ApiProperty({ enum: ACCESS_LEVELS }) accessLevel!: string;
+
+  @ApiProperty({
+    enum: COMMENTS_LAYOUTS,
+    description: 'SIDEBAR: la conversación al lado. STACKED: debajo, a todo lo ancho',
+  })
+  commentsLayout!: string;
+
   @ApiProperty({ type: AppIconDto }) icon!: AppIconDto;
   @ApiProperty({ type: [String] }) tags!: string[];
   @ApiProperty({ nullable: true, type: String }) repoUrl!: string | null;
@@ -107,6 +122,14 @@ export class UpdateAppDto {
   @IsOptional()
   @IsIn(APP_COLORS as readonly string[])
   iconColor?: string;
+
+  @ApiPropertyOptional({
+    enum: COMMENTS_LAYOUTS,
+    description: 'Dónde va la conversación de esta app',
+  })
+  @IsOptional()
+  @IsIn(COMMENTS_LAYOUTS)
+  commentsLayout?: (typeof COMMENTS_LAYOUTS)[number];
 }
 
 export class ChangeAccessLevelDto {

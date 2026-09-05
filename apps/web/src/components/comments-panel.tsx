@@ -4,9 +4,19 @@ import type { MentionableUser, OpenElsewhere, Thread } from '../lib/api.js';
 import { CommentThread } from './comment-thread.js';
 import { MentionInput, type MentionableAgent } from './mention-input.js';
 import { Button } from './ui/button.js';
+import { cn } from '../lib/utils.js';
 
 interface Props {
-  /** Pliega el panel hacia la derecha. */
+  /**
+   * Si la conversación va debajo del documento, a todo lo ancho (RF-818).
+   *
+   * Cambia dos cosas pequeñas y ninguna grande: la cabecera deja de reservar el
+   * alto que la alineaba con la fila de controles de la otra columna —debajo no
+   * hay nada con lo que alinearse— y la flecha de plegar apunta hacia abajo,
+   * que es hacia donde se va el panel.
+   */
+  apilado?: boolean;
+  /** Pliega el panel. */
   onCollapse: () => void;
   threads: Thread[];
   /** Conversaciones vivas que se quedaron en otras versiones (RF-817). */
@@ -33,6 +43,7 @@ interface Props {
  * se quedan a la vista con su cita, que es lo único que los hace recuperables.
  */
 export function CommentsPanel({
+  apilado = false,
   onCollapse,
   threads,
   openElsewhere,
@@ -73,10 +84,10 @@ export function CommentsPanel({
 
   return (
     <aside className="flex flex-col gap-3">
-      {/* Altura fija, la misma que la fila de controles de la otra columna: es
-          lo que hace que la caja del documento y el primer comentario empiecen
-          a la misma altura. */}
-      <header className="flex h-8 items-center justify-between gap-2">
+      {/* Altura fija cuando va al lado, que es la misma que la fila de controles
+          de la otra columna: es lo que hace que la caja del documento y el
+          primer comentario empiecen a la misma altura. Apilada sobra. */}
+      <header className={cn('flex items-center justify-between gap-2', !apilado && 'h-8')}>
         <h2 className="min-w-0 truncate text-sm font-medium">
           Conversation
           {open.length > 0 && (
@@ -117,7 +128,7 @@ export function CommentsPanel({
           >
             <svg
               viewBox="0 0 16 16"
-              className="size-3.5"
+              className={cn('size-3.5', apilado && 'rotate-90')}
               fill="none"
               stroke="currentColor"
               strokeWidth="1.5"
