@@ -33,6 +33,25 @@ const ACCIONES: Record<string, string> = {
   'comment.thread_resolved': 'resolved a thread',
   'comment.thread_reopened': 'reopened a thread',
   'comment.thread_deleted': 'deleted a thread',
+  /*
+   * IA y agentes. Faltaban las de la v2 desde H9: sin entrada aquí, la fila
+   * enseña el identificador crudo —`ai.provider_configured`— y se lee como un
+   * error de la página y no como lo que es.
+   */
+  'ai.egress_accepted': 'accepted sending content to a model provider',
+  'ai.toggled': 'turned AI on or off',
+  'ai.task_assigned': 'assigned a model to a task',
+  'ai.quota_changed': 'changed a token quota',
+  'ai.provider_configured': 'configured a model provider',
+  'ai.provider_verified': 'verified a provider credential',
+  'ai.provider_status_changed': 'enabled or disabled a provider',
+  'ai.provider_removed': 'removed a model provider',
+  'agent.template_created': 'created an agent template',
+  'agent.template_updated': 'edited an agent template',
+  'agent.template_deleted': 'deleted an agent template',
+  'agent.added': 'added an agent to an app',
+  'agent.updated': 'adjusted an agent',
+  'agent.removed': 'retired an agent from an app',
 };
 
 export function AuditList({ entradas }: { entradas: AuditEntry[] }) {

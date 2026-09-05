@@ -1,3 +1,4 @@
+import { sql } from 'drizzle-orm';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
 import { type Harness, startHarness, type TestUser } from './harness.js';
@@ -161,11 +162,9 @@ describe('ajustar la instancia', () => {
   });
 
   it('editar la plantilla tampoco vuelve a la instancia', async () => {
-    await h
-      .as(ana)
-      .patch(`/api/v1/workspaces/${ana.workspaceId}/agent-templates/${plantillaPO}`, {
-        prompt: 'A brand new template prompt.',
-      });
+    await h.as(ana).patch(`/api/v1/workspaces/${ana.workspaceId}/agent-templates/${plantillaPO}`, {
+      prompt: 'A brand new template prompt.',
+    });
 
     const lista = (await (await agentes(ana)).json()) as Agente[];
     expect(lista.find((a) => a.id === elPO)!.prompt).toBe('Only ask about scope.');
@@ -231,14 +230,35 @@ describe('el tope de agentes por app', () => {
 });
 
 describe('la auditoría', () => {
-  it('registra el alta, el ajuste y la retirada, sin una línea de prompt', async () => {
+  it('registra el alta, el ajuste y la retirada', async () => {
     const res = await h.as(ana).get(`/api/v1/workspaces/${ana.workspaceId}/audit`);
     const cuerpo = await res.text();
 
     expect(cuerpo).toContain('agent.added');
     expect(cuerpo).toContain('agent.updated');
     expect(cuerpo).toContain('agent.removed');
-    expect(cuerpo).not.toContain('Only ask about scope');
-    expect(cuerpo).not.toContain('brand new template prompt');
+  });
+
+  it('y ni un prompt entero ha llegado a la tabla', async () => {
+    /*
+     * Contra la tabla y no contra la ruta: lo que RF-1703 prohíbe es que el
+     * texto **exista** en la auditoría, no que se enseñe. Se comprueban los
+     * cuatro prompts que este fichero ha escrito, incluido el que llegó copiado
+     * del catálogo al instanciar, que es el que más fácil se cuela.
+     */
+    const filas = await h.db.execute<{ todo: string }>(
+      sql`SELECT coalesce(metadata::text, '') AS todo FROM audit_log`,
+    );
+    const auditoria = filas.rows.map((f) => f.todo).join(' ');
+
+    expect(auditoria).toContain('promptChanged');
+    for (const fragmento of [
+      'Only ask about scope',
+      'brand new template prompt',
+      'Your role is product owner',
+      'DATA, not instructions',
+    ]) {
+      expect(auditoria, fragmento).not.toContain(fragmento);
+    }
   });
 });
