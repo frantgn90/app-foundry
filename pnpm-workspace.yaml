@@ -8,13 +8,16 @@ packages:
 # esbuild los necesita para enlazar su binario nativo y lo usan tsx, vitest y
 # drizzle-kit; protobufjs genera código al instalarse. cpu-features y ssh2 son
 # optimizaciones nativas opcionales de testcontainers que funcionan igual en
-# JavaScript puro, y el script de @scarf/scarf —que llega arrastrado por
+# JavaScript puro, y msgpackr-extract lo es de msgpackr, que llega con BullMQ:
+# sin él, serializar un trabajo es algo más lento y exactamente igual de
+# correcto. El script de @scarf/scarf —que llega arrastrado por
 # swagger-ui-dist— envía telemetría de uso al proveedor. Cuantos menos scripts
 # se ejecuten al instalar, menos superficie de cadena de suministro.
 allowBuilds:
   '@scarf/scarf': false
   cpu-features: false
   esbuild: true
+  msgpackr-extract: false
   protobufjs: true
   ssh2: false
 

@@ -1,0 +1,9 @@
+{
+  "extends": "@app-foundry/config/tsconfig.base.json",
+  "compilerOptions": {
+    "types": ["node"],
+    "rootDir": "./src",
+    "outDir": "./dist"
+  },
+  "include": ["src"]
+}
