@@ -599,9 +599,16 @@ export interface Comment {
   id: string;
   parentId: string | null;
   body: string;
+  /** Quién lo escribió. Un agente lleva distintivo propio además del icono (RF-1611). */
+  authorKind: 'USER' | 'AGENT';
   authorHandle: string;
   authorDisplayName: string;
   authorAvatarUrl: string | null;
+  /** Solo en agentes: su icono, que es el de su plantilla. */
+  authorIconEmoji: string | null;
+  authorIconColor: string | null;
+  /** Un agente retirado sigue firmando lo que escribió (RF-1509). */
+  authorRetired: boolean;
   isMine: boolean;
   isDeleted: boolean;
   isEdited: boolean;
@@ -1319,4 +1326,276 @@ export function useAiAvailability(workspaceId: string | undefined) {
 export function useAiTaskAvailable(workspaceId: string | undefined, task: AiTaskId): boolean {
   const disponibilidad = useAiAvailability(workspaceId);
   return disponibilidad.data?.tasks.find((t) => t.task === task)?.available ?? false;
+}
+
+/* ── Agentes ──────────────────────────────────────────────────────────────── */
+
+export interface AgentModel {
+  provider: 'ANTHROPIC' | 'GROQ';
+  modelId: string;
+}
+
+export interface AgentTemplate {
+  id: string;
+  name: string;
+  handle: string;
+  iconEmoji: string;
+  iconColor: string;
+  prompt: string;
+  model: AgentModel | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+/** Un perfil del catálogo de fábrica, tal como se ofrece (RF-1513). */
+export interface CatalogAgent {
+  key: string;
+  name: string;
+  handle: string;
+  iconEmoji: string;
+  iconColor: string;
+  summary: string;
+  prompt: string;
+  /** Si el handle sugerido ya lo tiene otra plantilla de aquí (RF-1515). */
+  handleTaken: boolean;
+  availableHandle: string;
+}
+
+export interface Agent {
+  id: string;
+  name: string;
+  handle: string;
+  iconEmoji: string;
+  iconColor: string;
+  prompt: string;
+  promptRevision: number;
+  active: boolean;
+  model: AgentModel | null;
+  template: { id: string; name: string; drifted: boolean } | null;
+  createdAt: string;
+}
+
+export function useAgentTemplates(workspaceId: string | undefined) {
+  return useQuery<AgentTemplate[]>({
+    queryKey: ['agent-templates', workspaceId],
+    enabled: Boolean(workspaceId),
+    queryFn: async () => {
+      const { data, error } = await api.GET('/api/v1/workspaces/{id}/agent-templates', {
+        params: { path: { id: workspaceId! } },
+      });
+      if (error || !data) throw new Error('Could not load agent templates');
+      return data;
+    },
+  });
+}
+
+/**
+ * El catálogo de fábrica.
+ *
+ * No depende de tener plantillas: es lo que se ofrece **en lugar** del estado
+ * vacío, así que se pide siempre que se mire la pantalla (RF-1515).
+ */
+export function useAgentCatalog(workspaceId: string | undefined) {
+  return useQuery<CatalogAgent[]>({
+    queryKey: ['agent-catalog', workspaceId],
+    enabled: Boolean(workspaceId),
+    queryFn: async () => {
+      const { data, error } = await api.GET('/api/v1/workspaces/{id}/agent-templates/catalog', {
+        params: { path: { id: workspaceId! } },
+      });
+      if (error || !data) throw new Error('Could not load the catalog');
+      return data;
+    },
+  });
+}
+
+export function useAdoptAgentTemplate(workspaceId: string) {
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: async (input: { key: string; handle?: string }) => {
+      const { data, error } = await api.POST(
+        '/api/v1/workspaces/{id}/agent-templates/catalog/{key}',
+        {
+          params: { path: { id: workspaceId, key: input.key } },
+          body: input.handle ? { handle: input.handle } : {},
+        },
+      );
+      if (error || !data) throw new Error('Could not adopt that profile');
+      return data;
+    },
+    onSuccess: async () => {
+      await client.invalidateQueries({ queryKey: ['agent-templates', workspaceId] });
+      await client.invalidateQueries({ queryKey: ['agent-catalog', workspaceId] });
+    },
+  });
+}
+
+export function useCreateAgentTemplate(workspaceId: string) {
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: async (input: { name: string; handle: string; prompt: string }) => {
+      const { data, error } = await api.POST('/api/v1/workspaces/{id}/agent-templates', {
+        params: { path: { id: workspaceId } },
+        /* El icono no se pide: con seis perfiles de fábrica delante, quien
+         * escribe uno propio está pensando en qué debe decir, no en el emoji. */
+        body: { ...input, iconEmoji: '🧩', iconColor: 'slate' },
+      });
+      if (error || !data) throw new Error('Could not create that template');
+      return data;
+    },
+    onSuccess: async () => {
+      await client.invalidateQueries({ queryKey: ['agent-templates', workspaceId] });
+      await client.invalidateQueries({ queryKey: ['agent-catalog', workspaceId] });
+    },
+  });
+}
+
+export function useUpdateAgentTemplate(workspaceId: string) {
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: async (input: { id: string; prompt?: string; name?: string }) => {
+      const { id, ...cambios } = input;
+      const { data, error } = await api.PATCH(
+        '/api/v1/workspaces/{id}/agent-templates/{templateId}',
+        { params: { path: { id: workspaceId, templateId: id } }, body: cambios },
+      );
+      if (error || !data) throw new Error('Could not save that template');
+      return data;
+    },
+    onSuccess: async () => {
+      await client.invalidateQueries({ queryKey: ['agent-templates', workspaceId] });
+    },
+  });
+}
+
+export function useDeleteAgentTemplate(workspaceId: string) {
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: async (templateId: string) => {
+      const { error } = await api.DELETE('/api/v1/workspaces/{id}/agent-templates/{templateId}', {
+        params: { path: { id: workspaceId, templateId } },
+      });
+      if (error) throw new Error('Could not delete that template');
+    },
+    onSuccess: async () => {
+      await client.invalidateQueries({ queryKey: ['agent-templates', workspaceId] });
+      await client.invalidateQueries({ queryKey: ['agent-catalog', workspaceId] });
+    },
+  });
+}
+
+export function useAgents(appId: string | undefined) {
+  return useQuery<Agent[]>({
+    queryKey: ['agents', appId],
+    enabled: Boolean(appId),
+    queryFn: async () => {
+      const { data, error } = await api.GET('/api/v1/apps/{id}/agents', {
+        params: { path: { id: appId! } },
+      });
+      if (error || !data) throw new Error('Could not load agents');
+      return data;
+    },
+  });
+}
+
+export function useAddAgent(appId: string) {
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: async (input: { templateId: string; handle?: string }) => {
+      const { data, error } = await api.POST('/api/v1/apps/{id}/agents', {
+        params: { path: { id: appId } },
+        body: input,
+      });
+      if (error || !data) throw new Error('Could not add that agent');
+      return data;
+    },
+    onSuccess: async () => {
+      await client.invalidateQueries({ queryKey: ['agents', appId] });
+      /* Un agente nuevo pasa a ser mencionable en el acto. */
+      await client.invalidateQueries({ queryKey: ['mentionable', appId] });
+    },
+  });
+}
+
+export function useUpdateAgent(appId: string) {
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: async (input: { id: string; active?: boolean; prompt?: string }) => {
+      const { id, ...cambios } = input;
+      const { data, error } = await api.PATCH('/api/v1/apps/{id}/agents/{agentId}', {
+        params: { path: { id: appId, agentId: id } },
+        body: cambios,
+      });
+      if (error || !data) throw new Error('Could not save that agent');
+      return data;
+    },
+    onSuccess: async () => {
+      await client.invalidateQueries({ queryKey: ['agents', appId] });
+      await client.invalidateQueries({ queryKey: ['mentionable', appId] });
+    },
+  });
+}
+
+/** Trae el prompt actual de su plantilla como revisión nueva (RF-1505). */
+export function useAdoptTemplateChange(appId: string) {
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: async (agentId: string) => {
+      const { data, error } = await api.POST('/api/v1/apps/{id}/agents/{agentId}/adopt-template', {
+        params: { path: { id: appId, agentId } },
+      });
+      if (error || !data) throw new Error('Could not adopt that change');
+      return data;
+    },
+    onSuccess: async () => {
+      await client.invalidateQueries({ queryKey: ['agents', appId] });
+    },
+  });
+}
+
+export function useRemoveAgent(appId: string) {
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: async (agentId: string) => {
+      const { error } = await api.DELETE('/api/v1/apps/{id}/agents/{agentId}', {
+        params: { path: { id: appId, agentId } },
+      });
+      if (error) throw new Error('Could not remove that agent');
+    },
+    onSuccess: async () => {
+      await client.invalidateQueries({ queryKey: ['agents', appId] });
+      await client.invalidateQueries({ queryKey: ['mentionable', appId] });
+    },
+  });
+}
+
+/** A qué agentes ha silenciado quien mira (RF-1612). */
+export function useMutedAgents(appId: string | undefined) {
+  return useQuery<string[]>({
+    queryKey: ['muted-agents', appId],
+    enabled: Boolean(appId),
+    queryFn: async () => {
+      const { data, error } = await api.GET('/api/v1/apps/{id}/agents/muted', {
+        params: { path: { id: appId! } },
+      });
+      if (error || !data) throw new Error('Could not load muted agents');
+      return data;
+    },
+  });
+}
+
+export function useMuteAgent(appId: string) {
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: async (input: { agentId: string; muted: boolean }) => {
+      const params = { params: { path: { id: appId, agentId: input.agentId } } };
+      const { error } = input.muted
+        ? await api.PUT('/api/v1/apps/{id}/agents/{agentId}/mute', params)
+        : await api.DELETE('/api/v1/apps/{id}/agents/{agentId}/mute', params);
+      if (error) throw new Error('Could not change that');
+    },
+    onSuccess: async () => {
+      await client.invalidateQueries({ queryKey: ['muted-agents', appId] });
+    },
+  });
 }

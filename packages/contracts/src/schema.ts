@@ -854,6 +854,164 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/workspaces/{id}/agent-templates": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Plantillas de agente del workspace. Las ve cualquier miembro */
+        get: operations["AgentTemplatesController_list"];
+        put?: never;
+        /** Crear una plantilla. Solo el dueño */
+        post: operations["AgentTemplatesController_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/workspaces/{id}/agent-templates/catalog": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Catálogo de plantillas de fábrica */
+        get: operations["AgentTemplatesController_catalog"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/workspaces/{id}/agent-templates/catalog/{key}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Adoptar un perfil de fábrica: lo copia al workspace. Solo el dueño */
+        post: operations["AgentTemplatesController_adopt"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/workspaces/{id}/agent-templates/{templateId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Borrar una plantilla. Sus agentes se quedan donde están */
+        delete: operations["AgentTemplatesController_remove"];
+        options?: never;
+        head?: never;
+        /** Editar una plantilla, sin tocar sus instancias. Solo el dueño */
+        patch: operations["AgentTemplatesController_update"];
+        trace?: never;
+    };
+    "/api/v1/apps/{id}/agents": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Agentes de la app. Los ve quien ve la app */
+        get: operations["AgentsController_list"];
+        put?: never;
+        /** Instanciar una plantilla aquí. Quien pueda editar la app */
+        post: operations["AgentsController_add"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/apps/{id}/agents/{agentId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Retirarlo de la app. Lo que escribió se queda */
+        delete: operations["AgentsController_remove"];
+        options?: never;
+        head?: never;
+        /** Ajustarlo para esta app, sin tocar la plantilla */
+        patch: operations["AgentsController_update"];
+        trace?: never;
+    };
+    "/api/v1/apps/{id}/agents/{agentId}/adopt-template": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Traer el prompt actual de su plantilla como revisión nueva */
+        post: operations["AgentsController_adoptTemplate"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/apps/{id}/agents/{agentId}/mute": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Dejar de recibir avisos de este agente. Solo para quien lo pide */
+        put: operations["AgentsController_mute"];
+        post?: never;
+        /** Volver a recibir avisos de este agente */
+        delete: operations["AgentsController_unmute"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/apps/{id}/agents/muted": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** A qué agentes de esta app ha silenciado quien pregunta */
+        get: operations["AgentsController_muted"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/apps/{appId}/threads": {
         parameters: {
             query?: never;
@@ -1543,6 +1701,117 @@ export interface components {
             /** @description Cuántas versiones ha escrito */
             versionCount: number;
         };
+        AgentModelDto: {
+            /** @enum {string} */
+            provider: "ANTHROPIC" | "GROQ";
+            modelId: string;
+        };
+        AgentTemplateDto: {
+            /** Format: uuid */
+            id: string;
+            name: string;
+            /** @description Con lo que se le llama en un comentario */
+            handle: string;
+            iconEmoji: string;
+            iconColor: string;
+            /** @description La personalidad, en texto */
+            prompt: string;
+            /** @description Modelo propio. Nulo si usa el asignado a la tarea */
+            model: components["schemas"]["AgentModelDto"] | null;
+            /** Format: date-time */
+            createdAt: string;
+            /** Format: date-time */
+            updatedAt: string;
+        };
+        CatalogAgentDto: {
+            /** @description Clave estable de la entrada, para adoptarla */
+            key: string;
+            name: string;
+            /** @description Handle sugerido */
+            handle: string;
+            iconEmoji: string;
+            iconColor: string;
+            /** @description Una línea para elegir sin leerse el prompt entero */
+            summary: string;
+            /** @description El prompt que se copiaría al adoptarla */
+            prompt: string;
+            /** @description Si el handle sugerido ya lo tiene otra plantilla de aquí */
+            handleTaken: boolean;
+            /** @description El que se usaría al adoptarla: el sugerido, o el primero libre a partir de él */
+            availableHandle: string;
+        };
+        AdoptAgentTemplateDto: {
+            /** @description Deja el sugerido si no se manda */
+            handle?: string;
+        };
+        CreateAgentTemplateDto: {
+            name: string;
+            /** @description Letras, números y guiones interiores; hasta 39 caracteres */
+            handle: string;
+            /** @enum {string} */
+            iconEmoji: "💡" | "✨" | "🌱" | "🔮" | "🚀" | "🧭" | "🛠️" | "⚙️" | "🧰" | "🔧" | "📐" | "🧪" | "📚" | "📝" | "🧠" | "🔍" | "🗺️" | "📊" | "💬" | "📣" | "📨" | "🤝" | "🎙️" | "📡" | "🏗️" | "🧱" | "🗂️" | "🎛️" | "🪟" | "🧩" | "🌊" | "🌲" | "⛰️" | "🌙" | "☀️" | "⏳" | "🎯" | "🎲" | "🎨" | "🎵" | "🏔️" | "🔥";
+            /** @enum {string} */
+            iconColor: "amber" | "rose" | "violet" | "indigo" | "sky" | "teal" | "emerald" | "lime" | "orange" | "slate";
+            prompt: string;
+            model?: components["schemas"]["AgentModelDto"] | null;
+        };
+        UpdateAgentTemplateDto: {
+            name?: string;
+            handle?: string;
+            /** @enum {string} */
+            iconEmoji?: "💡" | "✨" | "🌱" | "🔮" | "🚀" | "🧭" | "🛠️" | "⚙️" | "🧰" | "🔧" | "📐" | "🧪" | "📚" | "📝" | "🧠" | "🔍" | "🗺️" | "📊" | "💬" | "📣" | "📨" | "🤝" | "🎙️" | "📡" | "🏗️" | "🧱" | "🗂️" | "🎛️" | "🪟" | "🧩" | "🌊" | "🌲" | "⛰️" | "🌙" | "☀️" | "⏳" | "🎯" | "🎲" | "🎨" | "🎵" | "🏔️" | "🔥";
+            /** @enum {string} */
+            iconColor?: "amber" | "rose" | "violet" | "indigo" | "sky" | "teal" | "emerald" | "lime" | "orange" | "slate";
+            prompt?: string;
+            model?: components["schemas"]["AgentModelDto"] | null;
+        };
+        AgentTemplateOriginDto: {
+            /** Format: uuid */
+            id: string;
+            name: string;
+            /** @description Si el prompt vigente ya no es el de la plantilla */
+            drifted: boolean;
+        };
+        AgentDto: {
+            /** Format: uuid */
+            id: string;
+            name: string;
+            handle: string;
+            iconEmoji: string;
+            iconColor: string;
+            /** @description El prompt vigente: la revisión de número más alto */
+            prompt: string;
+            /** @description Qué número de revisión es */
+            promptRevision: number;
+            /** @description Un agente inactivo no interviene, y lo suyo sigue donde está */
+            active: boolean;
+            model: components["schemas"]["AgentModelDto"] | null;
+            /** @description Nulo si la plantilla de la que salió ya no existe */
+            template: components["schemas"]["AgentTemplateOriginDto"] | null;
+            /** Format: date-time */
+            createdAt: string;
+        };
+        AddAgentDto: {
+            /**
+             * Format: uuid
+             * @description La plantilla del workspace que se instancia
+             */
+            templateId: string;
+            /** @description Deja el de la plantilla si no se manda */
+            handle?: string;
+            name?: string;
+            /** @description Ajustado para esta app. Deja el de la plantilla si falta */
+            prompt?: string;
+        };
+        UpdateAgentDto: {
+            name?: string;
+            handle?: string;
+            /** @description Cambiarlo añade una revisión, no reescribe la que hay */
+            prompt?: string;
+            /** @description Callar sin retirar */
+            active?: boolean;
+            model?: components["schemas"]["AgentModelDto"] | null;
+        };
         CommentDto: {
             /** Format: uuid */
             id: string;
@@ -1550,9 +1819,20 @@ export interface components {
             parentId: string | null;
             /** @description Vacío si el comentario fue borrado */
             body: string;
+            /**
+             * @description Quién lo escribió. Un agente se distingue sin deducirlo (RF-1611)
+             * @enum {string}
+             */
+            authorKind: "USER" | "AGENT";
             authorHandle: string;
             authorDisplayName: string;
             authorAvatarUrl: string | null;
+            /** @description Solo en agentes */
+            authorIconEmoji: string | null;
+            /** @description Solo en agentes */
+            authorIconColor: string | null;
+            /** @description Un agente retirado sigue firmando lo que escribió (RF-1509) */
+            authorRetired: boolean;
             isMine: boolean;
             isDeleted: boolean;
             isEdited: boolean;
@@ -2961,6 +3241,320 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+        };
+    };
+    AgentTemplatesController_list: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AgentTemplateDto"][];
+                };
+            };
+        };
+    };
+    AgentTemplatesController_create: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateAgentTemplateDto"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AgentTemplateDto"];
+                };
+            };
+        };
+    };
+    AgentTemplatesController_catalog: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CatalogAgentDto"][];
+                };
+            };
+        };
+    };
+    AgentTemplatesController_adopt: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+                key: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AdoptAgentTemplateDto"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AgentTemplateDto"];
+                };
+            };
+        };
+    };
+    AgentTemplatesController_remove: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+                templateId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    AgentTemplatesController_update: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+                templateId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateAgentTemplateDto"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AgentTemplateDto"];
+                };
+            };
+        };
+    };
+    AgentsController_list: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AgentDto"][];
+                };
+            };
+        };
+    };
+    AgentsController_add: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AddAgentDto"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AgentDto"];
+                };
+            };
+        };
+    };
+    AgentsController_remove: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+                agentId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    AgentsController_update: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+                agentId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateAgentDto"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AgentDto"];
+                };
+            };
+        };
+    };
+    AgentsController_adoptTemplate: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+                agentId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AgentDto"];
+                };
+            };
+        };
+    };
+    AgentsController_mute: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+                agentId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    AgentsController_unmute: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+                agentId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    AgentsController_muted: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": string[];
+                };
             };
         };
     };

@@ -37,7 +37,20 @@ describe('el papel y el material van por separado', () => {
   });
 
   it('y el papel dice que lo que viene después son datos, no órdenes', () => {
-    expect(agentSystemPrompt(BASE)).toContain('DATA');
+    /*
+     * Esto va aquí y no en la plantilla a propósito: si viviera en el prompt del
+     * agente, editarlo podría borrarlo. Lo pone quien arma la petición, siempre,
+     * sea cual sea el perfil (RF-1614).
+     */
+    const papel = agentSystemPrompt(BASE);
+    expect(papel).toContain('DATA');
+    expect(papel).toContain('only thing you can do is write a comment');
+  });
+
+  it('la cabecera se pone aunque el perfil venga vacío', () => {
+    const papel = agentSystemPrompt({ ...BASE, profile: '' });
+    expect(papel).toContain('DATA');
+    expect(papel).toContain('only thing you can do is write a comment');
   });
 });
 

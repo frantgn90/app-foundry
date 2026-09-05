@@ -1,5 +1,6 @@
 import { type FormEvent, useState } from 'react';
 
+import { AgentTemplates } from '../components/agent-templates.js';
 import { AiTaskAssignments } from '../components/ai-task-assignment.js';
 import { AiUsagePanel } from '../components/ai-usage.js';
 import { Badge } from '../components/ui/badge.js';
@@ -136,6 +137,8 @@ export function WorkspaceAiPage({ workspace }: { workspace: Workspace }) {
       ))}
 
       <AiTaskAssignments workspaceId={workspace.id} />
+
+      <AgentTemplates workspaceId={workspace.id} />
       <AiUsagePanel workspaceId={workspace.id} />
     </div>
   );

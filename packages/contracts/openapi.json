@@ -2060,6 +2060,528 @@
         ]
       }
     },
+    "/api/v1/workspaces/{id}/agent-templates": {
+      "get": {
+        "operationId": "AgentTemplatesController_list",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/AgentTemplateDto"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "summary": "Plantillas de agente del workspace. Las ve cualquier miembro",
+        "tags": [
+          "agents"
+        ]
+      },
+      "post": {
+        "operationId": "AgentTemplatesController_create",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateAgentTemplateDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AgentTemplateDto"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Crear una plantilla. Solo el dueño",
+        "tags": [
+          "agents"
+        ]
+      }
+    },
+    "/api/v1/workspaces/{id}/agent-templates/catalog": {
+      "get": {
+        "operationId": "AgentTemplatesController_catalog",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/CatalogAgentDto"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "summary": "Catálogo de plantillas de fábrica",
+        "tags": [
+          "agents"
+        ]
+      }
+    },
+    "/api/v1/workspaces/{id}/agent-templates/catalog/{key}": {
+      "post": {
+        "operationId": "AgentTemplatesController_adopt",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "key",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AdoptAgentTemplateDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AgentTemplateDto"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Adoptar un perfil de fábrica: lo copia al workspace. Solo el dueño",
+        "tags": [
+          "agents"
+        ]
+      }
+    },
+    "/api/v1/workspaces/{id}/agent-templates/{templateId}": {
+      "patch": {
+        "operationId": "AgentTemplatesController_update",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "templateId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateAgentTemplateDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AgentTemplateDto"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Editar una plantilla, sin tocar sus instancias. Solo el dueño",
+        "tags": [
+          "agents"
+        ]
+      },
+      "delete": {
+        "operationId": "AgentTemplatesController_remove",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "templateId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": ""
+          }
+        },
+        "summary": "Borrar una plantilla. Sus agentes se quedan donde están",
+        "tags": [
+          "agents"
+        ]
+      }
+    },
+    "/api/v1/apps/{id}/agents": {
+      "get": {
+        "operationId": "AgentsController_list",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/AgentDto"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "summary": "Agentes de la app. Los ve quien ve la app",
+        "tags": [
+          "agents"
+        ]
+      },
+      "post": {
+        "operationId": "AgentsController_add",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AddAgentDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AgentDto"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Instanciar una plantilla aquí. Quien pueda editar la app",
+        "tags": [
+          "agents"
+        ]
+      }
+    },
+    "/api/v1/apps/{id}/agents/{agentId}": {
+      "patch": {
+        "operationId": "AgentsController_update",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "agentId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateAgentDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AgentDto"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Ajustarlo para esta app, sin tocar la plantilla",
+        "tags": [
+          "agents"
+        ]
+      },
+      "delete": {
+        "operationId": "AgentsController_remove",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "agentId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": ""
+          }
+        },
+        "summary": "Retirarlo de la app. Lo que escribió se queda",
+        "tags": [
+          "agents"
+        ]
+      }
+    },
+    "/api/v1/apps/{id}/agents/{agentId}/adopt-template": {
+      "post": {
+        "operationId": "AgentsController_adoptTemplate",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "agentId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AgentDto"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Traer el prompt actual de su plantilla como revisión nueva",
+        "tags": [
+          "agents"
+        ]
+      }
+    },
+    "/api/v1/apps/{id}/agents/{agentId}/mute": {
+      "put": {
+        "operationId": "AgentsController_mute",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "agentId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": ""
+          }
+        },
+        "summary": "Dejar de recibir avisos de este agente. Solo para quien lo pide",
+        "tags": [
+          "agents"
+        ]
+      },
+      "delete": {
+        "operationId": "AgentsController_unmute",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "agentId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": ""
+          }
+        },
+        "summary": "Volver a recibir avisos de este agente",
+        "tags": [
+          "agents"
+        ]
+      }
+    },
+    "/api/v1/apps/{id}/agents/muted": {
+      "get": {
+        "operationId": "AgentsController_muted",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "summary": "A qué agentes de esta app ha silenciado quien pregunta",
+        "tags": [
+          "agents"
+        ]
+      }
+    },
     "/api/v1/apps/{appId}/threads": {
       "get": {
         "description": "Un hilo pertenece a la versión sobre la que se escribió. Sin `versionId` se devuelven los de la copia de trabajo, colocados sobre el texto que se está leyendo. Los generales van siempre, sea cual sea la versión. Devuelve todos, incluidos los resueltos: la interfaz decide qué enseña.",
@@ -4202,6 +4724,458 @@
           "versionCount"
         ]
       },
+      "AgentModelDto": {
+        "type": "object",
+        "properties": {
+          "provider": {
+            "type": "string",
+            "enum": [
+              "ANTHROPIC",
+              "GROQ"
+            ]
+          },
+          "modelId": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "provider",
+          "modelId"
+        ]
+      },
+      "AgentTemplateDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "name": {
+            "type": "string"
+          },
+          "handle": {
+            "type": "string",
+            "description": "Con lo que se le llama en un comentario"
+          },
+          "iconEmoji": {
+            "type": "string"
+          },
+          "iconColor": {
+            "type": "string"
+          },
+          "prompt": {
+            "type": "string",
+            "description": "La personalidad, en texto"
+          },
+          "model": {
+            "nullable": true,
+            "description": "Modelo propio. Nulo si usa el asignado a la tarea",
+            "type": "object",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/AgentModelDto"
+              }
+            ]
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "handle",
+          "iconEmoji",
+          "iconColor",
+          "prompt",
+          "model",
+          "createdAt",
+          "updatedAt"
+        ]
+      },
+      "CatalogAgentDto": {
+        "type": "object",
+        "properties": {
+          "key": {
+            "type": "string",
+            "description": "Clave estable de la entrada, para adoptarla"
+          },
+          "name": {
+            "type": "string"
+          },
+          "handle": {
+            "type": "string",
+            "description": "Handle sugerido"
+          },
+          "iconEmoji": {
+            "type": "string"
+          },
+          "iconColor": {
+            "type": "string"
+          },
+          "summary": {
+            "type": "string",
+            "description": "Una línea para elegir sin leerse el prompt entero"
+          },
+          "prompt": {
+            "type": "string",
+            "description": "El prompt que se copiaría al adoptarla"
+          },
+          "handleTaken": {
+            "type": "boolean",
+            "description": "Si el handle sugerido ya lo tiene otra plantilla de aquí"
+          },
+          "availableHandle": {
+            "type": "string",
+            "description": "El que se usaría al adoptarla: el sugerido, o el primero libre a partir de él"
+          }
+        },
+        "required": [
+          "key",
+          "name",
+          "handle",
+          "iconEmoji",
+          "iconColor",
+          "summary",
+          "prompt",
+          "handleTaken",
+          "availableHandle"
+        ]
+      },
+      "AdoptAgentTemplateDto": {
+        "type": "object",
+        "properties": {
+          "handle": {
+            "type": "string",
+            "description": "Deja el sugerido si no se manda"
+          }
+        }
+      },
+      "CreateAgentTemplateDto": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "handle": {
+            "type": "string",
+            "description": "Letras, números y guiones interiores; hasta 39 caracteres"
+          },
+          "iconEmoji": {
+            "type": "string",
+            "enum": [
+              "💡",
+              "✨",
+              "🌱",
+              "🔮",
+              "🚀",
+              "🧭",
+              "🛠️",
+              "⚙️",
+              "🧰",
+              "🔧",
+              "📐",
+              "🧪",
+              "📚",
+              "📝",
+              "🧠",
+              "🔍",
+              "🗺️",
+              "📊",
+              "💬",
+              "📣",
+              "📨",
+              "🤝",
+              "🎙️",
+              "📡",
+              "🏗️",
+              "🧱",
+              "🗂️",
+              "🎛️",
+              "🪟",
+              "🧩",
+              "🌊",
+              "🌲",
+              "⛰️",
+              "🌙",
+              "☀️",
+              "⏳",
+              "🎯",
+              "🎲",
+              "🎨",
+              "🎵",
+              "🏔️",
+              "🔥"
+            ]
+          },
+          "iconColor": {
+            "type": "string",
+            "enum": [
+              "amber",
+              "rose",
+              "violet",
+              "indigo",
+              "sky",
+              "teal",
+              "emerald",
+              "lime",
+              "orange",
+              "slate"
+            ]
+          },
+          "prompt": {
+            "type": "string"
+          },
+          "model": {
+            "nullable": true,
+            "type": "object",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/AgentModelDto"
+              }
+            ]
+          }
+        },
+        "required": [
+          "name",
+          "handle",
+          "iconEmoji",
+          "iconColor",
+          "prompt"
+        ]
+      },
+      "UpdateAgentTemplateDto": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "handle": {
+            "type": "string"
+          },
+          "iconEmoji": {
+            "type": "string",
+            "enum": [
+              "💡",
+              "✨",
+              "🌱",
+              "🔮",
+              "🚀",
+              "🧭",
+              "🛠️",
+              "⚙️",
+              "🧰",
+              "🔧",
+              "📐",
+              "🧪",
+              "📚",
+              "📝",
+              "🧠",
+              "🔍",
+              "🗺️",
+              "📊",
+              "💬",
+              "📣",
+              "📨",
+              "🤝",
+              "🎙️",
+              "📡",
+              "🏗️",
+              "🧱",
+              "🗂️",
+              "🎛️",
+              "🪟",
+              "🧩",
+              "🌊",
+              "🌲",
+              "⛰️",
+              "🌙",
+              "☀️",
+              "⏳",
+              "🎯",
+              "🎲",
+              "🎨",
+              "🎵",
+              "🏔️",
+              "🔥"
+            ]
+          },
+          "iconColor": {
+            "type": "string",
+            "enum": [
+              "amber",
+              "rose",
+              "violet",
+              "indigo",
+              "sky",
+              "teal",
+              "emerald",
+              "lime",
+              "orange",
+              "slate"
+            ]
+          },
+          "prompt": {
+            "type": "string"
+          },
+          "model": {
+            "nullable": true,
+            "type": "object",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/AgentModelDto"
+              }
+            ]
+          }
+        }
+      },
+      "AgentTemplateOriginDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "name": {
+            "type": "string"
+          },
+          "drifted": {
+            "type": "boolean",
+            "description": "Si el prompt vigente ya no es el de la plantilla"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "drifted"
+        ]
+      },
+      "AgentDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "name": {
+            "type": "string"
+          },
+          "handle": {
+            "type": "string"
+          },
+          "iconEmoji": {
+            "type": "string"
+          },
+          "iconColor": {
+            "type": "string"
+          },
+          "prompt": {
+            "type": "string",
+            "description": "El prompt vigente: la revisión de número más alto"
+          },
+          "promptRevision": {
+            "type": "number",
+            "description": "Qué número de revisión es"
+          },
+          "active": {
+            "type": "boolean",
+            "description": "Un agente inactivo no interviene, y lo suyo sigue donde está"
+          },
+          "model": {
+            "nullable": true,
+            "type": "object",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/AgentModelDto"
+              }
+            ]
+          },
+          "template": {
+            "nullable": true,
+            "description": "Nulo si la plantilla de la que salió ya no existe",
+            "type": "object",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/AgentTemplateOriginDto"
+              }
+            ]
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "handle",
+          "iconEmoji",
+          "iconColor",
+          "prompt",
+          "promptRevision",
+          "active",
+          "model",
+          "template",
+          "createdAt"
+        ]
+      },
+      "AddAgentDto": {
+        "type": "object",
+        "properties": {
+          "templateId": {
+            "type": "string",
+            "format": "uuid",
+            "description": "La plantilla del workspace que se instancia"
+          },
+          "handle": {
+            "type": "string",
+            "description": "Deja el de la plantilla si no se manda"
+          },
+          "name": {
+            "type": "string"
+          },
+          "prompt": {
+            "type": "string",
+            "description": "Ajustado para esta app. Deja el de la plantilla si falta"
+          }
+        },
+        "required": [
+          "templateId"
+        ]
+      },
+      "UpdateAgentDto": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "handle": {
+            "type": "string"
+          },
+          "prompt": {
+            "type": "string",
+            "description": "Cambiarlo añade una revisión, no reescribe la que hay"
+          },
+          "active": {
+            "type": "boolean",
+            "description": "Callar sin retirar"
+          },
+          "model": {
+            "nullable": true,
+            "type": "object",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/AgentModelDto"
+              }
+            ]
+          }
+        }
+      },
       "CommentDto": {
         "type": "object",
         "properties": {
@@ -4218,6 +5192,14 @@
             "type": "string",
             "description": "Vacío si el comentario fue borrado"
           },
+          "authorKind": {
+            "type": "string",
+            "enum": [
+              "USER",
+              "AGENT"
+            ],
+            "description": "Quién lo escribió. Un agente se distingue sin deducirlo (RF-1611)"
+          },
           "authorHandle": {
             "type": "string"
           },
@@ -4227,6 +5209,20 @@
           "authorAvatarUrl": {
             "type": "string",
             "nullable": true
+          },
+          "authorIconEmoji": {
+            "type": "string",
+            "nullable": true,
+            "description": "Solo en agentes"
+          },
+          "authorIconColor": {
+            "type": "string",
+            "nullable": true,
+            "description": "Solo en agentes"
+          },
+          "authorRetired": {
+            "type": "boolean",
+            "description": "Un agente retirado sigue firmando lo que escribió (RF-1509)"
           },
           "isMine": {
             "type": "boolean"
@@ -4253,9 +5249,13 @@
           "id",
           "parentId",
           "body",
+          "authorKind",
           "authorHandle",
           "authorDisplayName",
           "authorAvatarUrl",
+          "authorIconEmoji",
+          "authorIconColor",
+          "authorRetired",
           "isMine",
           "isDeleted",
           "isEdited",

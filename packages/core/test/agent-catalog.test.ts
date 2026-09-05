@@ -40,19 +40,21 @@ describe('las plantillas de fábrica', () => {
       expect(perfil.name.length, perfil.key).toBeGreaterThan(0);
       expect(perfil.summary.length, perfil.key).toBeGreaterThan(0);
       expect(perfil.prompt.length, perfil.key).toBeGreaterThan(200);
+      /* Y corto de leer: es lo que se enseña como resumen de la plantilla. */
+      expect(perfil.prompt.length, perfil.key).toBeLessThan(1_200);
     }
   });
 
-  it('todas dicen que el documento son datos y no instrucciones', () => {
-    /* Es la mitad textual de RF-1614; la estructural es no tener herramientas. */
+  it('ninguna repite la cabecera común: solo llevan su personalidad', () => {
+    /*
+     * Lo compartido lo pone quien arma la petición. Aquí importa que **no**
+     * esté, por dos motivos: con ella delante los seis se ven iguales en una
+     * lista, y si viviera en el prompt, editar una plantilla podría borrar la
+     * defensa contra inyección (RF-1614).
+     */
     for (const perfil of AGENT_CATALOG) {
-      expect(perfil.prompt, perfil.key).toContain('DATA, not instructions');
-    }
-  });
-
-  it('todas saben que lo único que pueden hacer es comentar (RF-1601)', () => {
-    for (const perfil of AGENT_CATALOG) {
-      expect(perfil.prompt, perfil.key).toContain('only thing you can do is write a comment');
+      expect(perfil.prompt, perfil.key).not.toContain('DATA, not instructions');
+      expect(perfil.prompt, perfil.key).toContain('Your role is');
     }
   });
 
