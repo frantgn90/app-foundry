@@ -1,6 +1,6 @@
 import { Inject, Injectable } from '@nestjs/common';
 
-import { AiTask, ProviderError } from '@app-foundry/core';
+import { AiTask, ProviderError, ReasoningSplitter } from '@app-foundry/core';
 import type { ProviderRegistry } from '@app-foundry/ai';
 import { AiInvocationService, AI_REGISTRY } from '@app-foundry/ai-runtime';
 
@@ -63,7 +63,20 @@ export class AskModel {
        * El puerto solo sabe transmitir, así que se transmite y se acumula. No
        * es un rodeo: es lo mismo que hace el asistente, salvo que aquí nadie
        * mira la pantalla y lo que se guarda es el comentario cerrado.
+       *
+       * Y se separa el razonamiento por el camino (RF-1403, RD-9). Los modelos
+       * que piensan en voz alta —`qwen3.6` en Groq, sin ir más lejos— escriben
+       * su deliberación en el mismo flujo, envuelta en `<think>…</think>`. Sin
+       * esto, un agente publicaba como comentario su propio monólogo interior
+       * antes de contestar. Se descubrió usándolo, no probándolo: la suite del
+       * worker inyecta la respuesta ya limpia.
+       *
+       * Lo pensado se descarta aquí en vez de guardarse, al revés que en el
+       * asistente: allí se enseña plegado porque quien lo pidió está mirando y
+       * puede querer entender la propuesta, y un comentario no tiene dónde
+       * plegar nada ni a quién enseñárselo.
        */
+      const separador = new ReasoningSplitter();
       let texto = '';
       let usage = { inputTokens: empezada.estimatedTokens, outputTokens: 0 };
       let ttftMs: number | undefined;
@@ -73,11 +86,12 @@ export class AskModel {
         .streamText(empezada.request, empezada.credential)) {
         if (evento.type === 'delta') {
           ttftMs ??= Date.now() - inicio;
-          texto += evento.text;
+          texto += separador.push(evento.text).text;
         } else if (evento.type === 'usage') {
           usage = evento.usage;
         }
       }
+      texto += separador.flush().text;
 
       await this.invocations.finish(context, empezada, usage, {
         outcome: 'COMPLETED',

@@ -119,3 +119,26 @@ describe('el aviso de que se quedó pensando', () => {
     expect(separador.unterminated).toBe(false);
   });
 });
+
+describe('lo que se guarda como comentario de un agente', () => {
+  it('deja fuera la deliberación, aunque venga delante de la respuesta', () => {
+    /*
+     * Es lo que pasó de verdad con `qwen3.6` en Groq: el agente publicó su
+     * monólogo interior entero antes de contestar. El separador es el mismo que
+     * usa el asistente desde H10, y el fallo fue no haberlo conectado aquí.
+     */
+    const crudo =
+      '<think>\nLet me consider the audience first.\n</think>\nThe audience is not stated.';
+
+    expect(splitReasoning(crudo).text.trim()).toBe('The audience is not stated.');
+    expect(splitReasoning(crudo).reasoning).toContain('consider the audience');
+  });
+
+  it('un bloque que se queda abierto no se publica entero', () => {
+    /* El modelo se quedó sin tokens pensando: publicarlo sería lo peor. */
+    const truncado = '<think>\nI was still thinking when I ran out';
+
+    expect(splitReasoning(truncado).text).toBe('');
+    expect(splitReasoning(truncado).reasoning).toContain('still thinking');
+  });
+});

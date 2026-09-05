@@ -29,6 +29,8 @@ let peticiones: { agentId: string; system: string; material: string }[] = [];
 let avisos: unknown[] = [];
 /** Si está puesto, la siguiente llamada al modelo falla así. */
 let falloProgramado: { kind: ProviderErrorKind; veces: number } | null = null;
+/** Lo que devuelve el modelo de mentira. Cambiarlo prueba qué se guarda. */
+let respuesta = 'Scope looks wider than the problem.';
 
 /*
  * El entorno se compone con lo mínimo que el esquema exige. No se lee el `.env`
@@ -76,11 +78,7 @@ beforeAll(async () => {
         falloProgramado.veces -= 1;
         return Promise.reject(new ProviderError(falloProgramado.kind, 'de mentira'));
       }
-      return Promise.resolve({
-        texto: 'Scope looks wider than the problem.',
-        provider: 'ANTHROPIC',
-        modelId: 'fake-large',
-      });
+      return Promise.resolve({ texto: respuesta, provider: 'ANTHROPIC', modelId: 'fake-large' });
     },
     notify: (aviso) => {
       avisos.push(aviso);
@@ -93,6 +91,7 @@ afterEach(() => {
   peticiones = [];
   avisos = [];
   falloProgramado = null;
+  respuesta = 'Scope looks wider than the problem.';
 });
 
 afterAll(async () => {
