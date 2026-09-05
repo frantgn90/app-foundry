@@ -11,13 +11,19 @@
  */
 import { and, eq, sql } from 'drizzle-orm';
 
+import { AGENT_CATALOG } from '@app-foundry/core';
+import { CredentialCipher, parseKeyRing } from '@app-foundry/ai';
+
 import { createDb, type Database } from './client.js';
 import {
+  agentTemplates,
   apps,
   appTags,
   documents,
   documentVersions,
   users,
+  workspaceAiCredentials,
+  workspaceAiProviders,
   workspaceInvitations,
   workspaceMembers,
   workspaces,
@@ -159,6 +165,89 @@ async function createApp(
   }
 }
 
+/**
+ * Deja el workspace listo para probar los agentes sin configurar nada (RNF-1003).
+ *
+ * Dos perfiles del catálogo de fábrica, adoptados igual que los adoptaría su
+ * dueño: copiando. No se inventa aquí una segunda colección de prompts porque
+ * envejecería sola, y el día que el catálogo mejorase el *seed* seguiría
+ * enseñando lo de antes.
+ */
+async function ensureAgentTemplates(db: Database, workspaceId: string, ownerId: string) {
+  for (const key of ['product-owner', 'tech-lead']) {
+    const perfil = AGENT_CATALOG.find((entrada) => entrada.key === key);
+    if (!perfil) continue;
+
+    await db
+      .insert(agentTemplates)
+      .values({
+        workspaceId,
+        name: perfil.name,
+        handle: perfil.handle,
+        iconEmoji: perfil.iconEmoji,
+        iconColor: perfil.iconColor,
+        prompt: perfil.prompt,
+        createdBy: ownerId,
+      })
+      .onConflictDoNothing();
+  }
+}
+
+/**
+ * El proveedor de mentira, configurado y con su credencial (RNF-1003, T-36).
+ *
+ * Suplanta a uno real en el registro de adaptadores cuando
+ * `AI_USE_FAKE_PROVIDER` está encendido, de modo que la base de datos y el
+ * código recorren exactamente el mismo camino que en producción. Aquí se le
+ * pone una clave de mentira, porque el flujo la exige aunque nadie la use.
+ *
+ * Necesita llavero. Sin `AI_CREDENTIAL_KEYS` no se puede cifrar nada, así que
+ * se salta diciéndolo: dejar el proveedor sin credencial sería peor que no
+ * dejarlo, porque la IA aparecería configurada y fallaría al primer uso.
+ */
+async function ensureFakeProvider(db: Database, workspaceId: string, ownerId: string) {
+  const llavero = process.env['AI_CREDENTIAL_KEYS'];
+  if (!llavero) {
+    console.log('   (sin AI_CREDENTIAL_KEYS: no se configura el proveedor de mentira)');
+    return;
+  }
+
+  /* Consentir el envío a terceros es requisito para configurar (RF-1011). */
+  await db
+    .update(workspaces)
+    .set({ aiEgressAcceptedAt: new Date(), aiEgressAcceptedBy: ownerId })
+    .where(eq(workspaces.id, workspaceId));
+
+  const [proveedor] = await db
+    .insert(workspaceAiProviders)
+    .values({
+      workspaceId,
+      provider: 'ANTHROPIC',
+      credentialHint: 'ntir',
+      createdBy: ownerId,
+      verifiedAt: new Date(),
+    })
+    .onConflictDoNothing()
+    .returning({ id: workspaceAiProviders.id });
+  if (!proveedor) return;
+
+  const cifrado = new CredentialCipher(parseKeyRing(llavero)).encrypt('sk-de-mentira', {
+    workspaceId,
+    provider: 'ANTHROPIC',
+  });
+
+  await db
+    .insert(workspaceAiCredentials)
+    .values({
+      workspaceId,
+      provider: 'ANTHROPIC',
+      ciphertext: cifrado.ciphertext,
+      nonce: cifrado.nonce,
+      keyVersion: cifrado.keyVersion,
+    })
+    .onConflictDoNothing();
+}
+
 export async function seed(connectionString: string): Promise<void> {
   const { db, close } = createDb(connectionString, 2);
   try {
@@ -215,6 +304,9 @@ export async function seed(connectionString: string): Promise<void> {
       tags: ['docs'],
       vision: '# The problem\n\nNobody reads release notes because nobody writes them.\n',
     });
+
+    await ensureAgentTemplates(db, wsAna, anaId);
+    await ensureFakeProvider(db, wsAna, anaId);
 
     // Al usuario real se le invita, para que pueda ver el escenario desde su
     // propia sesión en lugar de tener que creerse que existe.

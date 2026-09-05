@@ -379,6 +379,9 @@ importers:
         specifier: 8.23.0
         version: 8.23.0
     devDependencies:
+      '@app-foundry/ai':
+        specifier: workspace:*
+        version: link:../ai
       '@app-foundry/config':
         specifier: workspace:*
         version: link:../config

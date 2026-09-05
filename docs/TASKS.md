@@ -941,7 +941,7 @@ Solo se desglosa el hito en curso. H9, H10 y H11 están cerradas; **H12** está 
 | BD8 | De qué plantilla desciende y si se ha desviado de ella | Y adoptar el cambio de la plantilla cuando se quiera | RF-1504, RF-1505 | ✅ |
 | BD9 | Tope de agentes por app, configurable de instancia | Cinco por defecto; el sexto se rechaza diciendo por qué | RF-1507, RNF-1002 | ✅ |
 | BD10 | Auditoría de plantillas y agentes, sin cuerpo de prompt | Se registra que cambió, no lo que dice | RF-1702, RF-1703 | ✅ |
-| BD11 | El *seed* trae el proveedor de mentira y dos plantillas del catálogo | El flujo se prueba sin configurar nada ni gastar cuota de nadie | RNF-1003, RF-1513 | ⬜ |
+| BD11 | El *seed* trae el proveedor de mentira y dos plantillas del catálogo | El flujo se prueba sin configurar nada ni gastar cuota de nadie | RNF-1003, RF-1513 | ✅ |
 
 > **Sobre BD2, BD3 y BD4 — el catálogo de fábrica.** Nadie debería tener que redactar un prompt de personalidad
 > para poder probar la función por primera vez, así que el producto trae seis perfiles que no se pisan: quién
