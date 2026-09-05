@@ -94,6 +94,15 @@ export const envSchema = z.object({
   AI_MAX_INVOCATIONS_PER_MEMBER_HOUR: z.coerce.number().int().positive().default(60),
 
   /** Tope de agentes por app y de turnos por hilo (RF-1507, RF-1605). */
+  /**
+   * Cuántos trabajos de IA atiende el worker a la vez.
+   *
+   * Bajo a propósito: el límite real no es la CPU sino el del proveedor, y una
+   * concurrencia alta agotaría su tasa y tumbaría de paso al asistente de
+   * escritura de otro workspace (RNF-705).
+   */
+  AI_WORKER_CONCURRENCY: z.coerce.number().int().positive().default(4),
+
   AI_MAX_AGENTS_PER_APP: z.coerce.number().int().positive().default(5),
   AI_MAX_AGENT_TURNS_PER_THREAD: z.coerce.number().int().positive().default(3),
 
