@@ -40,6 +40,10 @@ export const AuditAction = {
   AI_PROVIDER_VERIFIED: 'ai.provider_verified',
   AI_PROVIDER_STATUS_CHANGED: 'ai.provider_status_changed',
   AI_PROVIDER_REMOVED: 'ai.provider_removed',
+  /* Agentes (H12). Del prompt se registra que cambió, nunca lo que dice. */
+  AGENT_TEMPLATE_CREATED: 'agent.template_created',
+  AGENT_TEMPLATE_UPDATED: 'agent.template_updated',
+  AGENT_TEMPLATE_DELETED: 'agent.template_deleted',
 } as const;
 export type AuditAction = (typeof AuditAction)[keyof typeof AuditAction];
 

@@ -12,6 +12,7 @@ export * from './ai/assist.js';
 export * from './ai/reasoning.js';
 export * from './ai/ideas.js';
 export * from './ai/redact.js';
+export * from './ai/agent-handle.js';
 export * from './privacy/ip.js';
 export * from './apps/icon.js';
 export * from './apps/slug.js';

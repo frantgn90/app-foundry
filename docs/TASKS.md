@@ -931,7 +931,7 @@ Solo se desglosa el hito en curso. H9, H10 y H11 están cerradas; **H12** está 
 
 | # | Tarea | Verificación | Traza | Estado |
 |---|---|---|---|---|
-| BD1 | Alta, edición y borrado de plantillas, solo del `OWNER` | Un miembro no las escribe ni por la API | RF-1501, RF-1502 | ⬜ |
+| BD1 | Alta, edición y borrado de plantillas, solo del `OWNER` | Un miembro no las escribe ni por la API | RF-1501, RF-1502 | ✅ |
 | BD2 | El catálogo de fábrica, seis perfiles, como datos en `core` | Product owner, marketing, dirección técnica, diseño, abogado del diablo, y datos y métricas | RF-1513, RF-1514 | ⬜ |
 | BD3 | Adoptar una del catálogo la copia al workspace | Y ahí se corta el vínculo: editar la copia no toca el catálogo, ni al revés | RF-1514 | ⬜ |
 | BD4 | Adoptar es crear, así que lo hace el `OWNER` | Un miembro con edición no puede, ni por la API | RF-1502, RF-1514 | ⬜ |
