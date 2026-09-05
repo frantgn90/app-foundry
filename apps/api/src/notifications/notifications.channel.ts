@@ -4,8 +4,8 @@ import type { Request, Response } from 'express';
 
 import { type Database, notifications } from '@app-foundry/db';
 
-import { conIdentidad } from '../database/con-identidad.js';
-import { currentTx } from '../database/request-context.js';
+import { conIdentidad } from '@app-foundry/ai-runtime';
+import { currentTx } from '@app-foundry/ai-runtime';
 import { DATABASE } from '../infrastructure/tokens.js';
 import { MetricsService } from '../observability/metrics.service.js';
 import type { EventoAviso } from './notifications.stream.js';

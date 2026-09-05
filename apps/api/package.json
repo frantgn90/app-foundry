@@ -16,6 +16,7 @@
   },
   "dependencies": {
     "@app-foundry/ai": "workspace:*",
+    "@app-foundry/ai-runtime": "workspace:*",
     "@app-foundry/core": "workspace:*",
     "@app-foundry/db": "workspace:*",
     "@app-foundry/env": "workspace:*",

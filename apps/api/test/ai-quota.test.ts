@@ -1,7 +1,7 @@
 import { Redis } from 'ioredis';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
-import { AiQuotaService, QuotaExceededError, RateLimitedError } from '../src/ai/quota.service.js';
+import { AiQuotaService, QuotaExceededError, RateLimitedError } from '@app-foundry/ai-runtime';
 import { type Harness, startHarness } from './harness.js';
 
 /**

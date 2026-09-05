@@ -21,7 +21,7 @@ import {
 import { AuditAction, AuditService } from '../audit/audit.service.js';
 import { NotificationsService } from '../notifications/notifications.service.js';
 import { MetricsService } from '../observability/metrics.service.js';
-import { currentTx } from '../database/request-context.js';
+import { currentTx } from '@app-foundry/ai-runtime';
 import type {
   CommitDocumentDto,
   ContributorDto,

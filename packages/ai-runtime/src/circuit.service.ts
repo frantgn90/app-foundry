@@ -3,8 +3,8 @@ import { Redis } from 'ioredis';
 
 import { type AiProvider, ProviderErrorKind } from '@app-foundry/core';
 
-import { REDIS } from '../infrastructure/tokens.js';
-import { MetricsService } from '../observability/metrics.service.js';
+import { AI_METRICS, REDIS } from './tokens.js';
+import type { AiMetricsPort } from './ports.js';
 
 /** Cuántos fallos seguidos hacen falta para dejar de intentarlo. */
 const UMBRAL = 5;
@@ -48,7 +48,7 @@ export class AiCircuitService {
 
   constructor(
     @Inject(REDIS) private readonly redis: Redis,
-    private readonly metrics: MetricsService,
+    @Inject(AI_METRICS) private readonly metrics: AiMetricsPort,
   ) {}
 
   /**

@@ -13,7 +13,7 @@ import {
   workspaceMembers,
 } from '@app-foundry/db';
 
-import { currentTx, trasCommit } from '../database/request-context.js';
+import { currentTx, trasCommit } from '@app-foundry/ai-runtime';
 import { MetricsService } from '../observability/metrics.service.js';
 import type { NotificationDto, NotificationListDto } from './notifications.dto.js';
 import { NotificationsChannel } from './notifications.channel.js';

@@ -108,7 +108,13 @@ export async function startHarness(): Promise<Harness> {
   process.env['AI_USE_FAKE_PROVIDER'] = 'true';
   process.env['AI_CREDENTIAL_KEYS'] = `1:${Buffer.alloc(32, 7).toString('base64')}`;
 
-  const app = await NestFactory.create(AppModule, { logger: false });
+  /*
+   * `abortOnError: false` y no el `logger: false` de antes: con el logger
+   * apagado, un fallo de resolución del contenedor hacía que Nest llamara a
+   * `process.abort()` y el proceso del test moría sin decir por qué. Ahora el
+   * fallo llega como excepción, que es lo que un test puede leer.
+   */
+  const app = await NestFactory.create(AppModule, { logger: false, abortOnError: false });
   app.setGlobalPrefix('api/v1', { exclude: ['health/live', 'health/ready'] });
   app.useGlobalPipes(
     new ValidationPipe({ whitelist: true, forbidNonWhitelisted: true, transform: true }),

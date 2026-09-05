@@ -18,7 +18,7 @@ import {
 } from '@app-foundry/db';
 
 import { AuditAction, AuditService } from '../audit/audit.service.js';
-import { currentTx } from '../database/request-context.js';
+import { currentTx } from '@app-foundry/ai-runtime';
 import { ENV } from '../infrastructure/tokens.js';
 import type { AddAgentDto, AgentDto, UpdateAgentDto } from './agents.dto.js';
 

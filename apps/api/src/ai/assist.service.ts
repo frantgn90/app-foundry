@@ -28,18 +28,18 @@ import {
 import type { ProviderRegistry } from '@app-foundry/ai';
 import { apps, type Database } from '@app-foundry/db';
 
-import { conIdentidad } from '../database/con-identidad.js';
+import { conIdentidad } from '@app-foundry/ai-runtime';
 import type { AssistEstimateDto } from './ai.dto.js';
-import { currentTx } from '../database/request-context.js';
+import { currentTx } from '@app-foundry/ai-runtime';
 import { DocumentsService } from '../documents/documents.service.js';
 import { DATABASE } from '../infrastructure/tokens.js';
 import { AI_REGISTRY } from './ai.tokens.js';
-import { providerMessage } from './provider-http.js';
+import { providerMessage } from '@app-foundry/ai-runtime';
 import {
   AiInvocationService,
   type InvocationCandidate,
   type StartedInvocation,
-} from './invocation.service.js';
+} from '@app-foundry/ai-runtime';
 
 /** Lo mínimo que se manda a reescribir. Menos que esto no es un texto. */
 const MINIMO_CARACTERES = 3;

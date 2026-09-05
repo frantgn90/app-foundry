@@ -5,7 +5,7 @@ import type { AiProvider, ModelInfo } from '@app-foundry/core';
 import type { ProviderRegistry } from '@app-foundry/ai';
 import { aiModels, workspaces, workspaceTaskModels } from '@app-foundry/db';
 
-import { currentTx } from '../database/request-context.js';
+import { currentTx } from '@app-foundry/ai-runtime';
 import { NotificationsService } from '../notifications/notifications.service.js';
 import { AI_REGISTRY } from './ai.tokens.js';
 import type { AiModelDto } from './ai.dto.js';

@@ -2,7 +2,7 @@ import { Global, Injectable, Module } from '@nestjs/common';
 
 import { auditLog } from '@app-foundry/db';
 
-import { currentTx } from '../database/request-context.js';
+import { currentTx } from '@app-foundry/ai-runtime';
 
 /** Acciones registrables. Enumerarlas evita cadenas sueltas por el código. */
 export const AuditAction = {

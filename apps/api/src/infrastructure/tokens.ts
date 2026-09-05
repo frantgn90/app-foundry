@@ -1,10 +1,18 @@
 /**
  * Tokens de inyección.
  *
- * `Database` y `Redis` son tipos, no clases: la inyección por tipo de Nest no
- * puede resolverlos, así que se inyectan por token explícito.
+ * Se reexportan del paquete de runtime y no se declaran aquí: son **símbolos**,
+ * y dos símbolos con el mismo nombre no son el mismo token. Declarándolos en
+ * los dos sitios, lo que la API provee y lo que el paso común de invocación
+ * pide dejarían de ser lo mismo, y el fallo aparecería al arrancar.
  */
-export const ENV = Symbol('ENV');
-export const DB_HANDLE = Symbol('DB_HANDLE');
-export const DATABASE = Symbol('DATABASE');
-export const REDIS = Symbol('REDIS');
+export {
+  AI_CIPHER,
+  AI_METRICS,
+  AI_NOTIFIER,
+  AI_REGISTRY,
+  DATABASE,
+  DB_HANDLE,
+  ENV,
+  REDIS,
+} from '@app-foundry/ai-runtime';

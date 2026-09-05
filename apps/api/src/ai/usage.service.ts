@@ -2,8 +2,8 @@ import { Injectable } from '@nestjs/common';
 
 import type { AiUsageDto } from './ai.dto.js';
 import { AiProvidersService } from './providers.service.js';
-import { AiQuotaService } from './quota.service.js';
-import { AiUsageRepository } from './usage.repository.js';
+import { AiQuotaService } from '@app-foundry/ai-runtime';
+import { AiUsageRepository } from '@app-foundry/ai-runtime';
 
 /**
  * Qué se ha consumido este mes (RF-1208).

@@ -12,7 +12,7 @@ import {
 
 import { AuditAction, AuditService } from '../audit/audit.service.js';
 import { SessionService } from '../auth/session.service.js';
-import { currentTx, trasCommit } from '../database/request-context.js';
+import { currentTx, trasCommit } from '@app-foundry/ai-runtime';
 import type {
   AdminUserDto,
   AuditEntryDto,

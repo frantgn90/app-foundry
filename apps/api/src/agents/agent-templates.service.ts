@@ -10,7 +10,7 @@ import { AGENT_CATALOG, catalogAgent } from '@app-foundry/core';
 import { agentTemplates, workspaces } from '@app-foundry/db';
 
 import { AuditAction, AuditService } from '../audit/audit.service.js';
-import { currentTx } from '../database/request-context.js';
+import { currentTx } from '@app-foundry/ai-runtime';
 import type {
   AdoptAgentTemplateDto,
   AgentTemplateDto,

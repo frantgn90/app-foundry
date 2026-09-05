@@ -22,22 +22,20 @@ import type { Env } from '@app-foundry/env';
 import type { ProviderRegistry } from '@app-foundry/ai';
 import { aiInvocations, type Database } from '@app-foundry/db';
 
-import { conIdentidad } from '../database/con-identidad.js';
-import { currentTx } from '../database/request-context.js';
-import { DATABASE, ENV } from '../infrastructure/tokens.js';
-import { AI_REGISTRY } from './ai.tokens.js';
+import { conIdentidad } from './con-identidad.js';
+import { currentTx } from './tx-context.js';
+import { AI_METRICS, AI_NOTIFIER, AI_REGISTRY, DATABASE, ENV } from './tokens.js';
 import { AiCircuitService } from './circuit.service.js';
 import { toProviderHttpException } from './provider-http.js';
-import { MetricsService } from '../observability/metrics.service.js';
-import { NotificationsService } from '../notifications/notifications.service.js';
-import { AiProvidersService } from './providers.service.js';
+import type { AiMetricsPort, AiNotifierPort } from './ports.js';
+import { AiProviderAccessService } from './provider-access.service.js';
 import {
   AiQuotaService,
   QuotaExceededError,
   RateLimitedError,
   type Reservation,
 } from './quota.service.js';
-import { AiTasksService, type TaskPlan } from './tasks.service.js';
+import { AiTaskPlanService, type TaskPlan } from './task-plan.service.js';
 
 /**
  * Una forma de plantear la misma petición.
@@ -116,12 +114,13 @@ export class AiInvocationService {
   private readonly logger = new Logger(AiInvocationService.name);
 
   constructor(
-    private readonly tasks: AiTasksService,
-    private readonly providers: AiProvidersService,
+    private readonly tasks: AiTaskPlanService,
+    private readonly providers: AiProviderAccessService,
     private readonly circuit: AiCircuitService,
     private readonly quota: AiQuotaService,
-    private readonly notifications: NotificationsService,
-    private readonly metrics: MetricsService,
+    /* Los dos enganches hacia fuera van por token: son interfaces, no clases. */
+    @Inject(AI_NOTIFIER) private readonly notifications: AiNotifierPort,
+    @Inject(AI_METRICS) private readonly metrics: AiMetricsPort,
     @Inject(AI_REGISTRY) private readonly registry: ProviderRegistry,
     @Inject(DATABASE) private readonly db: Database,
     @Inject(ENV) private readonly env: Env,

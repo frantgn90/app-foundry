@@ -2,7 +2,7 @@ import { sql } from 'drizzle-orm';
 
 import type { Database } from '@app-foundry/db';
 
-import { requestContext } from './request-context.js';
+import { requestContext } from './tx-context.js';
 
 /**
  * Abre una transacción corta con la identidad del usuario.

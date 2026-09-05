@@ -21,7 +21,7 @@ import type { ProviderRegistry } from '@app-foundry/ai';
 import { users, workspaceAiCredentials, workspaceAiProviders, workspaces } from '@app-foundry/db';
 
 import { AuditAction, AuditService } from '../audit/audit.service.js';
-import { currentTx } from '../database/request-context.js';
+import { currentTx } from '@app-foundry/ai-runtime';
 import { AI_CIPHER, AI_REGISTRY } from './ai.tokens.js';
 import type {
   AiEgressConsentDto,

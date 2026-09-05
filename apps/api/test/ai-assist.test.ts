@@ -6,7 +6,7 @@ import { AiProvider } from '@app-foundry/core';
 import { aiInvocations } from '@app-foundry/db';
 
 import { AI_REGISTRY } from '../src/ai/ai.tokens.js';
-import { AiCircuitService } from '../src/ai/circuit.service.js';
+import { AiCircuitService } from '@app-foundry/ai-runtime';
 import { type Harness, startHarness, type TestUser } from './harness.js';
 
 /**

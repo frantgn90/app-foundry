@@ -12,7 +12,7 @@ import type { AiProvider } from '@app-foundry/core';
 import type { Database } from '@app-foundry/db';
 
 import { DATABASE, REDIS } from '../infrastructure/tokens.js';
-import { AiQuotaService } from './quota.service.js';
+import { AiQuotaService } from '@app-foundry/ai-runtime';
 
 /** Una vez al día basta: corrige un desfase, no lleva la cuenta. */
 const CADA_MS = 24 * 60 * 60 * 1000;

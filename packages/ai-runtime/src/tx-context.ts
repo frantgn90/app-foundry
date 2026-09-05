@@ -12,11 +12,17 @@ export interface RequestContext {
 }
 
 /**
- * Contexto de la petición en curso.
+ * Contexto de la transacción en curso.
  *
  * Se usa AsyncLocalStorage y no providers request-scoped de Nest: estos
  * reinstancian el árbol de dependencias en cada petición y penalizan latencia y
  * memoria sin aportar nada aquí (TRD §6.2).
+ *
+ * Vive aquí y no en la API porque no es solo de las peticiones: el worker
+ * también abre transacciones con identidad y consulta dentro de ellas, y todo
+ * lo que se movió a este paquete lo hace a través de `currentTx()`. Si el
+ * almacén viviera en `apps/api`, el worker tendría el suyo propio y las
+ * consultas del paso común de invocación no encontrarían ninguno.
  */
 export const requestContext = new AsyncLocalStorage<RequestContext>();
 

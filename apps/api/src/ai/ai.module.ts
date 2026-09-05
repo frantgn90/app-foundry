@@ -12,30 +12,106 @@ import {
 import { AiProvider } from '@app-foundry/core';
 import type { Env } from '@app-foundry/env';
 
+import { AiRuntimeModule, AI_METRICS, AI_NOTIFIER } from '@app-foundry/ai-runtime';
+
 import { AppsModule } from '../apps/apps.module.js';
 import { DocumentsModule } from '../documents/documents.module.js';
+import { MetricsService } from '../observability/metrics.service.js';
 import { NotificationsModule } from '../notifications/notifications.module.js';
+import { NotificationsService } from '../notifications/notifications.service.js';
 import { ENV } from '../infrastructure/tokens.js';
 import { AI_CIPHER, AI_REGISTRY } from './ai.tokens.js';
 import { AiAssistController } from './assist.controller.js';
 import { AiAssistService } from './assist.service.js';
 import { AiCatalogRefresh } from './catalog.refresh.js';
-import { AiCircuitService } from './circuit.service.js';
 import { AiIdeasController } from './ideas.controller.js';
 import { AiIdeasService } from './ideas.service.js';
 import { AiCatalogService } from './catalog.service.js';
 import { AiProvidersController } from './providers.controller.js';
 import { AiProvidersService } from './providers.service.js';
-import { AiInvocationService } from './invocation.service.js';
 import { AiQuotaReconcile } from './quota.reconcile.js';
-import { AiQuotaService } from './quota.service.js';
-import { AiUsageRepository } from './usage.repository.js';
 import { AiUsageService } from './usage.service.js';
 import { AiTasksService } from './tasks.service.js';
 import { WorkspaceAiController } from './workspace-ai.controller.js';
 
 @Module({
-  imports: [NotificationsModule, DocumentsModule, AppsModule],
+  imports: [
+    AiRuntimeModule.forRoot({
+      imports: [NotificationsModule],
+      providers: [
+        /*
+         * Los dos enganches del paquete de runtime. Medir es de observabilidad y
+         * avisar es del producto: el paso común de invocación los pide como
+         * puertos y aquí se enchufan los servicios que la API ya tiene.
+         */
+        { provide: AI_METRICS, useExisting: MetricsService },
+        { provide: AI_NOTIFIER, useExisting: NotificationsService },
+        {
+          provide: AI_REGISTRY,
+          inject: [ENV],
+          useFactory: (env: Env): ProviderRegistry => {
+            /*
+             * El proveedor de mentira entra por aquí y por ningún otro sitio (T-36):
+             * suplanta a los reales bajo su propio identificador, de modo que la
+             * base de datos, la API y la interfaz recorren el mismo camino que en
+             * producción. Nunca en producción, pase lo que pase en el entorno.
+             */
+            if (env.AI_USE_FAKE_PROVIDER && env.NODE_ENV !== 'production') {
+              /*
+               * Y se dice al arrancar, en alto.
+               *
+               * Suplantar es justo lo que lo hace útil: la credencial se guarda, el
+               * catálogo es el de verdad y el modelo asignado es el de verdad, así
+               * que por pantalla no se distingue **nada** hasta que llega la
+               * respuesta y dice «texto de mentira». Sin esta línea, una instancia
+               * arrancada así se diagnostica leyendo código; con ella, mirando el
+               * primer renglón del arranque.
+               */
+              new Logger('AiModule').warn(
+                'AI_USE_FAKE_PROVIDER activo: ningún modelo real será invocado, ' +
+                  'las respuestas son de mentira',
+              );
+              /*
+               * Los dos de mentira **no son iguales**: uno busca en la web y el otro
+               * no, igual que pasa entre proveedores de verdad. Es lo que permite
+               * que la suite recorra las dos ramas que dependen de esa capacidad
+               * —ideas fundamentadas y ideas que dicen no estarlo (RF-1304,
+               * RF-1305)— por el camino real, en vez de dar una por buena sin
+               * haberla ejecutado nunca.
+               */
+              return createProviderRegistry([
+                new FakeProvider({ id: AiProvider.ANTHROPIC }),
+                new FakeProvider({ id: AiProvider.GROQ, capabilities: { webSearch: false } }),
+              ]);
+            }
+            return createProviderRegistry([new AnthropicProvider(), new GroqProvider()]);
+          },
+        },
+        {
+          provide: AI_CIPHER,
+          inject: [ENV],
+          useFactory: (env: Env): CredentialCipher | null => {
+            /*
+             * Sin llavero no hay cifrado y, por tanto, no se pueden guardar
+             * credenciales. No es un fallo: la IA es opcional y el resto del
+             * producto funciona igual (RD-12). Se registra al arrancar para que la
+             * ausencia sea una decisión visible y no una sorpresa.
+             */
+            if (!env.AI_CREDENTIAL_KEYS) {
+              new Logger('AiModule').log(
+                'Sin AI_CREDENTIAL_KEYS: no se podrán guardar credenciales de proveedor',
+              );
+              return null;
+            }
+            return new CredentialCipher(parseKeyRing(env.AI_CREDENTIAL_KEYS));
+          },
+        },
+      ],
+    }),
+    NotificationsModule,
+    DocumentsModule,
+    AppsModule,
+  ],
   controllers: [
     AiProvidersController,
     WorkspaceAiController,
@@ -49,72 +125,8 @@ import { WorkspaceAiController } from './workspace-ai.controller.js';
     AiTasksService,
     AiAssistService,
     AiIdeasService,
-    AiCircuitService,
-    AiQuotaService,
     AiQuotaReconcile,
-    AiInvocationService,
-    AiUsageRepository,
     AiUsageService,
-    {
-      provide: AI_REGISTRY,
-      inject: [ENV],
-      useFactory: (env: Env): ProviderRegistry => {
-        /*
-         * El proveedor de mentira entra por aquí y por ningún otro sitio (T-36):
-         * suplanta a los reales bajo su propio identificador, de modo que la
-         * base de datos, la API y la interfaz recorren el mismo camino que en
-         * producción. Nunca en producción, pase lo que pase en el entorno.
-         */
-        if (env.AI_USE_FAKE_PROVIDER && env.NODE_ENV !== 'production') {
-          /*
-           * Y se dice al arrancar, en alto.
-           *
-           * Suplantar es justo lo que lo hace útil: la credencial se guarda, el
-           * catálogo es el de verdad y el modelo asignado es el de verdad, así
-           * que por pantalla no se distingue **nada** hasta que llega la
-           * respuesta y dice «texto de mentira». Sin esta línea, una instancia
-           * arrancada así se diagnostica leyendo código; con ella, mirando el
-           * primer renglón del arranque.
-           */
-          new Logger('AiModule').warn(
-            'AI_USE_FAKE_PROVIDER activo: ningún modelo real será invocado, ' +
-              'las respuestas son de mentira',
-          );
-          /*
-           * Los dos de mentira **no son iguales**: uno busca en la web y el otro
-           * no, igual que pasa entre proveedores de verdad. Es lo que permite
-           * que la suite recorra las dos ramas que dependen de esa capacidad
-           * —ideas fundamentadas y ideas que dicen no estarlo (RF-1304,
-           * RF-1305)— por el camino real, en vez de dar una por buena sin
-           * haberla ejecutado nunca.
-           */
-          return createProviderRegistry([
-            new FakeProvider({ id: AiProvider.ANTHROPIC }),
-            new FakeProvider({ id: AiProvider.GROQ, capabilities: { webSearch: false } }),
-          ]);
-        }
-        return createProviderRegistry([new AnthropicProvider(), new GroqProvider()]);
-      },
-    },
-    {
-      provide: AI_CIPHER,
-      inject: [ENV],
-      useFactory: (env: Env): CredentialCipher | null => {
-        /*
-         * Sin llavero no hay cifrado y, por tanto, no se pueden guardar
-         * credenciales. No es un fallo: la IA es opcional y el resto del
-         * producto funciona igual (RD-12). Se registra al arrancar para que la
-         * ausencia sea una decisión visible y no una sorpresa.
-         */
-        if (!env.AI_CREDENTIAL_KEYS) {
-          new Logger('AiModule').log(
-            'Sin AI_CREDENTIAL_KEYS: no se podrán guardar credenciales de proveedor',
-          );
-          return null;
-        }
-        return new CredentialCipher(parseKeyRing(env.AI_CREDENTIAL_KEYS));
-      },
-    },
   ],
   exports: [
     AiProvidersService,
@@ -122,14 +134,14 @@ import { WorkspaceAiController } from './workspace-ai.controller.js';
     AiTasksService,
     AiAssistService,
     AiIdeasService,
-    AiCircuitService,
-    AiQuotaService,
     AiQuotaReconcile,
-    AiInvocationService,
-    AiUsageRepository,
     AiUsageService,
-    AI_REGISTRY,
-    AI_CIPHER,
+    /*
+     * Lo del paso común de invocación se reexporta **como módulo**: sus
+     * servicios no son de este módulo, son del paquete, y Nest no deja exportar
+     * un proveedor ajeno. Quien importe `AiModule` sigue viendo lo mismo.
+     */
+    AiRuntimeModule,
   ],
 })
 export class AiModule implements OnModuleInit {

@@ -3,7 +3,7 @@ import { Redis } from 'ioredis';
 
 import type { AiProvider } from '@app-foundry/core';
 
-import { REDIS } from '../infrastructure/tokens.js';
+import { REDIS } from './tokens.js';
 import { AiUsageRepository } from './usage.repository.js';
 import { CONCILIAR, LIQUIDAR, RESERVAR } from './quota.scripts.js';
 

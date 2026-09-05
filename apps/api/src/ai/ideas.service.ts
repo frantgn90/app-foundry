@@ -24,12 +24,12 @@ import {
 import type { ProviderRegistry } from '@app-foundry/ai';
 import { type Database, workspaceMembers } from '@app-foundry/db';
 
-import { conIdentidad } from '../database/con-identidad.js';
-import { currentTx } from '../database/request-context.js';
+import { conIdentidad } from '@app-foundry/ai-runtime';
+import { currentTx } from '@app-foundry/ai-runtime';
 import { DATABASE } from '../infrastructure/tokens.js';
 import { AI_REGISTRY } from './ai.tokens.js';
-import { AiInvocationService, type InvocationCandidate } from './invocation.service.js';
-import { providerMessage } from './provider-http.js';
+import { AiInvocationService, type InvocationCandidate } from '@app-foundry/ai-runtime';
+import { providerMessage } from '@app-foundry/ai-runtime';
 import { AiTasksService } from './tasks.service.js';
 import type { AppSummaryDto } from '../apps/apps.dto.js';
 import { AppsService } from '../apps/apps.service.js';
