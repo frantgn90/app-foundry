@@ -1,7 +1,8 @@
 import { useState } from 'react';
 
 import type { Comment, MentionableUser, Thread } from '../lib/api.js';
-import { MentionInput } from './mention-input.js';
+import { MentionInput, type MentionableAgent } from './mention-input.js';
+import { AgentIcon } from './agent-icon.js';
 import { Avatar } from './ui/avatar.js';
 import { Badge } from './ui/badge.js';
 import { Button } from './ui/button.js';
@@ -10,6 +11,7 @@ import { cn } from '../lib/utils.js';
 interface Props {
   thread: Thread;
   people: MentionableUser[];
+  agents: MentionableAgent[];
   isSelected: boolean;
   onSelect: () => void;
   onReply: (body: string) => void;
@@ -21,6 +23,7 @@ interface Props {
 export function CommentThread({
   thread,
   people,
+  agents,
   isSelected,
   onSelect,
   onReply,
@@ -143,6 +146,7 @@ export function CommentThread({
             onChange={setDraft}
             onSubmit={send}
             people={people}
+            agents={agents}
             placeholder="Reply…"
             autoFocus
           />
@@ -178,12 +182,35 @@ function CommentBody({ comment, onDelete }: { comment: Comment; onDelete: () => 
     );
   }
 
+  const deAgente = comment.authorKind === 'AGENT';
+
   return (
     <div className={cn('flex gap-2', comment.parentId && 'ml-5')}>
-      <Avatar src={comment.authorAvatarUrl} name={comment.authorDisplayName} className="size-6" />
+      {/*
+        Un agente lleva su icono cuadrado y no un avatar redondo: la primera
+        diferencia que se ve tiene que ser la forma, porque nadie debe confundirlo
+        con un compañero (RF-1506).
+      */}
+      {deAgente ? (
+        <AgentIcon
+          emoji={comment.authorIconEmoji ?? '🤖'}
+          color={comment.authorIconColor ?? 'slate'}
+          size="sm"
+        />
+      ) : (
+        <Avatar src={comment.authorAvatarUrl} name={comment.authorDisplayName} className="size-6" />
+      )}
       <div className="min-w-0 flex-1">
-        <div className="flex items-baseline gap-2">
+        <div className="flex flex-wrap items-baseline gap-2">
           <span className="text-xs font-medium">@{comment.authorHandle}</span>
+          {/*
+            Y además del icono, dicho con palabras (RF-1611): un emoji de colores
+            lo tiene también una persona, y quien no distingue colores necesita
+            leerlo.
+          */}
+          {deAgente && <Badge tone="ai">AI</Badge>}
+          {/* Retirado de la app, pero lo que escribió sigue siendo suyo (RF-1509). */}
+          {comment.authorRetired && <Badge>retired</Badge>}
           <span className="text-xs text-[var(--color-texto-suave)]">
             {new Date(comment.createdAt).toLocaleDateString()}
             {comment.isEdited && ' · edited'}

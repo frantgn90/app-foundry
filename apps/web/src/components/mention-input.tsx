@@ -1,17 +1,35 @@
 import { type KeyboardEvent, useMemo, useRef, useState } from 'react';
 
 import type { MentionableUser } from '../lib/api.js';
+import { AgentIcon } from './agent-icon.js';
 import { Avatar } from './ui/avatar.js';
+import { Badge } from './ui/badge.js';
 import { cn } from '../lib/utils.js';
+
+/** Un agente de esta app, tal como se ofrece al escribir `@`. */
+export interface MentionableAgent {
+  id: string;
+  handle: string;
+  name: string;
+  iconEmoji: string;
+  iconColor: string;
+}
 
 interface Props {
   value: string;
   onChange: (value: string) => void;
   onSubmit: () => void;
   people: MentionableUser[];
+  /** Los agentes activos de la app. Mencionarlos los invoca (RF-1602). */
+  agents?: MentionableAgent[];
   placeholder?: string;
   autoFocus?: boolean;
 }
+
+/** Lo que se ofrece al escribir `@`: personas y agentes, distinguibles. */
+type Sugerencia =
+  | { clase: 'persona'; handle: string; nombre: string; avatarUrl: string | null }
+  | { clase: 'agente'; handle: string; nombre: string; emoji: string; color: string };
 
 /**
  * Campo de comentario con autocompletado de menciones.
@@ -25,6 +43,7 @@ export function MentionInput({
   onChange,
   onSubmit,
   people,
+  agents = [],
   placeholder = 'Write a comment…',
   autoFocus = false,
 }: Props) {
@@ -32,11 +51,38 @@ export function MentionInput({
   const [query, setQuery] = useState<string | null>(null);
   const [highlighted, setHighlighted] = useState(0);
 
-  const matches = useMemo(() => {
+  const matches = useMemo((): Sugerencia[] => {
     if (query === null) return [];
     const needle = query.toLowerCase();
-    return people.filter((p) => p.handle.toLowerCase().startsWith(needle)).slice(0, 5);
-  }, [query, people]);
+
+    /*
+     * Los agentes van primero.
+     *
+     * No es un capricho de orden: mencionar a un agente **gasta tokens y
+     * escribe**, mientras que mencionar a una persona solo avisa. Lo que tiene
+     * consecuencias se enseña donde se mira, no al final de una lista.
+     */
+    const deAgentes: Sugerencia[] = agents
+      .filter((a) => a.handle.toLowerCase().startsWith(needle))
+      .map((a) => ({
+        clase: 'agente' as const,
+        handle: a.handle,
+        nombre: a.name,
+        emoji: a.iconEmoji,
+        color: a.iconColor,
+      }));
+
+    const dePersonas: Sugerencia[] = people
+      .filter((p) => p.handle.toLowerCase().startsWith(needle))
+      .map((p) => ({
+        clase: 'persona' as const,
+        handle: p.handle,
+        nombre: p.displayName,
+        avatarUrl: p.avatarUrl,
+      }));
+
+    return [...deAgentes, ...dePersonas].slice(0, 6);
+  }, [query, people, agents]);
 
   /** Detecta si el cursor está justo después de un `@palabra` sin cerrar. */
   function updateQuery(text: string, caret: number) {
@@ -120,8 +166,8 @@ export function MentionInput({
             'border border-[var(--color-borde)] bg-[var(--color-superficie)] shadow-lg',
           )}
         >
-          {matches.map((person, index) => (
-            <li key={person.userId}>
+          {matches.map((sugerencia, index) => (
+            <li key={`${sugerencia.clase}:${sugerencia.handle}`}>
               <button
                 type="button"
                 role="option"
@@ -130,7 +176,7 @@ export function MentionInput({
                   // mousedown y no click: el click llega después de que el
                   // textarea pierda el foco y la selección ya se habría movido.
                   e.preventDefault();
-                  complete(person.handle);
+                  complete(sugerencia.handle);
                 }}
                 className={cn(
                   'flex w-full items-center gap-2 px-3 py-1.5 text-left text-sm',
@@ -139,11 +185,21 @@ export function MentionInput({
                     : 'hover:bg-[var(--color-fondo)]',
                 )}
               >
-                <Avatar src={person.avatarUrl} name={person.displayName} className="size-5" />
-                <span className="font-medium">@{person.handle}</span>
+                {sugerencia.clase === 'agente' ? (
+                  <AgentIcon emoji={sugerencia.emoji} color={sugerencia.color} size="sm" />
+                ) : (
+                  <Avatar src={sugerencia.avatarUrl} name={sugerencia.nombre} className="size-5" />
+                )}
+                <span className="font-medium">@{sugerencia.handle}</span>
                 <span className="truncate text-xs text-[var(--color-texto-suave)]">
-                  {person.displayName}
+                  {sugerencia.nombre}
                 </span>
+                {/* Se dice cuál es cuál antes de elegir, no después (RF-1506). */}
+                {sugerencia.clase === 'agente' && (
+                  <Badge tone="ai" className="ml-auto">
+                    AI
+                  </Badge>
+                )}
               </button>
             </li>
           ))}

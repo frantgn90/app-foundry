@@ -1018,16 +1018,16 @@ Solo se desglosa el hito en curso. H9, H10 y H11 están cerradas; **H12** está 
 |---|---|---|---|---|
 | BF1 | Plantillas en los ajustes del workspace | Solo para el `OWNER`, con icono como el de las apps | RF-1501, RF-1502, D-14 | ✅ |
 | BF2 | Sin plantillas propias, el catálogo en lugar del estado vacío | Y adoptar una es un solo gesto | RF-1515 | ✅ |
-| BF3 | Sección de agentes en la ficha de la app | Icono, perfil y estado; y sin colarse en los contribuidores | RF-1511 | ⬜ |
-| BF4 | Aviso de que la plantilla de origen cambió, y adoptarlo | En la app afectada, no en la plantilla | RF-1505 | ⬜ |
-| BF5 | Los agentes, mencionables desde el compositor | Distinguibles de una persona en la lista y en el texto | RF-1506, RF-815 | ⬜ |
-| BF6 | Distintivo de IA en el comentario y en el panel de hilos | Sin depender del icono | RF-1611, RF-1701 | ⬜ |
+| BF3 | Sección de agentes en la ficha de la app | Icono, perfil y estado; y sin colarse en los contribuidores | RF-1511 | ✅ |
+| BF4 | Aviso de que la plantilla de origen cambió, y adoptarlo | En la app afectada, no en la plantilla | RF-1505 | ✅ |
+| BF5 | Los agentes, mencionables desde el compositor | Distinguibles de una persona en la lista y en el texto | RF-1506, RF-815 | ✅ |
+| BF6 | Distintivo de IA en el comentario y en el panel de hilos | Sin depender del icono | RF-1611, RF-1701 | ✅ |
 | BF7 | La respuesta aparece sin recargar | Por el canal que ya alimenta los avisos | RF-1602, T-6 | ⬜ |
 | BF8 | Distinguir los hilos con participación de IA | Y que cuenten como abiertos y se busquen igual que los demás | RF-1613, RF-811 | ⬜ |
-| BF9 | Un agente retirado, marcado allí donde escribió | Mismo criterio que con una persona | RF-1509, RF-813 | ⬜ |
+| BF9 | Un agente retirado, marcado allí donde escribió | Mismo criterio que con una persona | RF-1509, RF-813 | ✅ |
 | BF10 | Con qué proveedor y modelo se generó, a la vista | En el propio comentario | RF-1704 | ⬜ |
 | BF11 | Borrar un hilo de agente, como cualquier otro | Lo hace el precursor de la app | RF-1705, RF-806 | ⬜ |
-| BF12 | Sin disponibilidad, los agentes no se ofrecen | Ni con la IA apagada, ni sin modelo asignado a su tarea | RF-1010 | ⬜ |
+| BF12 | Sin disponibilidad, los agentes no se ofrecen | Ni con la IA apagada, ni sin modelo asignado a su tarea | RF-1010 | ✅ |
 
 > **Sobre BF7.** Es la primera vez que algo aparece en el panel de comentarios **sin que quien mira haya hecho
 > nada**: el agente contesta cuando el worker termina, que puede ser diez segundos después de mandar la mención.

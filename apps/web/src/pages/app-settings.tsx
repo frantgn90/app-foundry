@@ -13,6 +13,7 @@ import {
 import { type Icon, IconPicker } from '../components/icon-picker.js';
 import { Badge } from '../components/ui/badge.js';
 import { Button } from '../components/ui/button.js';
+import { AppAgents } from '../components/app-agents.js';
 import {
   Card,
   CardContent,
@@ -51,6 +52,7 @@ export function AppSettingsPage({
   return (
     <div className="flex flex-col gap-6">
       <DetailsCard app={app} />
+      <AppAgents appId={app.id} workspaceId={workspaceId} puedeEditar={app.canEdit} />
       {/* Estas decisiones son del precursor y de nadie más (RF-406, RF-409..411). */}
       {app.isPrecursor && <AccessCard app={app} workspaceId={workspaceId} />}
       {app.isPrecursor && <DangerCard app={app} onDeleted={onDeleted} />}

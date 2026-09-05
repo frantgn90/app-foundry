@@ -2,7 +2,7 @@ import { useState } from 'react';
 
 import type { MentionableUser, OpenElsewhere, Thread } from '../lib/api.js';
 import { CommentThread } from './comment-thread.js';
-import { MentionInput } from './mention-input.js';
+import { MentionInput, type MentionableAgent } from './mention-input.js';
 import { Button } from './ui/button.js';
 
 interface Props {
@@ -15,6 +15,7 @@ interface Props {
   versionMirada: number | null;
   onIrAVersion: (versionId: string) => void;
   people: MentionableUser[];
+  agents: MentionableAgent[];
   selectedId: string | null;
   onSelect: (threadId: string | null) => void;
   onNewGeneral: (body: string) => void;
@@ -37,6 +38,7 @@ export function CommentsPanel({
   openElsewhere,
   versionMirada,
   onIrAVersion,
+  agents,
   people,
   selectedId,
   onSelect,
@@ -160,6 +162,7 @@ export function CommentsPanel({
             key={thread.id}
             thread={thread}
             people={people}
+            agents={agents}
             isSelected={thread.id === selectedId}
             onSelect={() => {
               onSelect(thread.id === selectedId ? null : thread.id);
@@ -186,6 +189,7 @@ export function CommentsPanel({
               onChange={setDraft}
               onSubmit={post}
               people={people}
+              agents={agents}
               placeholder="Leave a general comment…"
               autoFocus
             />

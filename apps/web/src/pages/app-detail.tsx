@@ -3,6 +3,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   ConflictError,
   type SaveConflict,
+  useAgents,
   useApp,
   useCommitDocument,
   useCreateThread,
@@ -212,6 +213,26 @@ export function AppDetailPage({
    */
   const threads = useThreads(appId, versionElegida);
   const people = useMentionable(appId);
+  /*
+   * A quién más se puede llamar escribiendo `@`.
+   *
+   * Solo los activos: mencionar a uno pausado no lo invocaría —el disparo lo
+   * descarta— y ofrecerlo sería prometer una respuesta que no va a llegar.
+   */
+  const agentesDeLaApp = useAgents(appId);
+  const agentesMencionables = useMemo(
+    () =>
+      (agentesDeLaApp.data ?? [])
+        .filter((a) => a.active)
+        .map((a) => ({
+          id: a.id,
+          handle: a.handle,
+          name: a.name,
+          iconEmoji: a.iconEmoji,
+          iconColor: a.iconColor,
+        })),
+    [agentesDeLaApp.data],
+  );
   const createThread = useCreateThread(appId);
   const reply = useReply(appId);
   const resolveThread = useResolveThread(appId);
@@ -990,6 +1011,7 @@ export function AppDetailPage({
                         postInlineComment();
                       }}
                       people={people.data ?? []}
+                      agents={agentesMencionables}
                       autoFocus
                     />
                     <div className="flex gap-2">
@@ -1148,6 +1170,7 @@ export function AppDetailPage({
               }}
               versionMirada={versionElegida === null ? null : (elegida.data?.versionNo ?? null)}
               people={people.data ?? []}
+              agents={agentesMencionables}
               selectedId={selectedThread}
               onSelect={(id) => {
                 setSelectedThread(id);
