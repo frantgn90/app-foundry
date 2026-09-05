@@ -8,8 +8,14 @@
  * forma, que es lo único que ambos necesitan compartir.
  */
 
-/** Respuestas de agente. Las revisiones van a su propia cola, en H13. */
-export const AGENT_REPLY_QUEUE = 'ai:agent-reply';
+/**
+ * Respuestas de agente. Las revisiones van a su propia cola, en H13.
+ *
+ * Con guion y no con dos puntos, aunque el TRD la llamara `ai:agent-reply`:
+ * BullMQ usa `:` para componer sus claves de Redis y rechaza un nombre que lo
+ * lleve. Se descubrió arrancando el worker, no compilando.
+ */
+export const AGENT_REPLY_QUEUE = 'ai-agent-reply';
 
 /**
  * Qué le hace falta al worker para escribir una respuesta.

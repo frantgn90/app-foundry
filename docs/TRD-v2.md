@@ -477,8 +477,11 @@ invocación se registra como `CANCELLED` con los tokens consumidos hasta ese pun
 
 ### 11.2 En cola
 
-Revisiones y respuestas de agente van a dos colas BullMQ: `ai:review` y `ai:agent-reply`. Ambas son
+Revisiones y respuestas de agente van a dos colas BullMQ: `ai-review` y `ai-agent-reply`. Ambas son
 asíncronas por naturaleza —nadie espera mirando a que un agente conteste a una mención—.
+
+Los nombres llevan guion y no dos puntos, que es como estaban escritos aquí hasta que se arrancó el worker:
+BullMQ compone sus claves de Redis con `:` y rechaza en el arranque cualquier cola que lo lleve en el nombre.
 
 - **Concurrencia**: limitada globalmente y **por proveedor**, para que una revisión de cinco agentes no agote
   el límite de tasa del proveedor y tumbe de paso al asistente de escritura de otro workspace (RNF-705).

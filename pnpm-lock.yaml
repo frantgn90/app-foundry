@@ -274,6 +274,12 @@ importers:
 
   apps/worker:
     dependencies:
+      '@app-foundry/ai':
+        specifier: workspace:*
+        version: link:../../packages/ai
+      '@app-foundry/ai-runtime':
+        specifier: workspace:*
+        version: link:../../packages/ai-runtime
       '@app-foundry/core':
         specifier: workspace:*
         version: link:../../packages/core
@@ -283,6 +289,18 @@ importers:
       '@app-foundry/env':
         specifier: workspace:*
         version: link:../../packages/env
+      '@app-foundry/notifications':
+        specifier: workspace:*
+        version: link:../../packages/notifications
+      '@app-foundry/platform':
+        specifier: workspace:*
+        version: link:../../packages/platform
+      '@nestjs/common':
+        specifier: 12.0.1
+        version: 12.0.1(class-transformer@0.5.1)(class-validator@0.15.1)(reflect-metadata@0.2.2)(rxjs@7.8.2)(supports-color@10.2.2)
+      '@nestjs/core':
+        specifier: 12.0.1
+        version: 12.0.1(@nestjs/common@12.0.1(class-transformer@0.5.1)(class-validator@0.15.1)(reflect-metadata@0.2.2)(rxjs@7.8.2)(supports-color@10.2.2))(@nestjs/platform-express@12.0.1)(reflect-metadata@0.2.2)(rxjs@7.8.2)
       bullmq:
         specifier: 5.66.0
         version: 5.66.0(supports-color@10.2.2)
@@ -292,9 +310,9 @@ importers:
       ioredis:
         specifier: 5.11.1
         version: 5.11.1(supports-color@10.2.2)
-      pino:
-        specifier: 10.3.1
-        version: 10.3.1
+      reflect-metadata:
+        specifier: 0.2.2
+        version: 0.2.2
     devDependencies:
       '@app-foundry/config':
         specifier: workspace:*

@@ -6,17 +6,25 @@
   "scripts": {
     "build": "tsc -p tsconfig.build.json",
     "clean": "rm -rf dist .turbo",
+    "dev": "tsc -p tsconfig.build.json --watch --preserveWatchOutput & node --watch dist/main.js",
     "lint": "eslint src",
+    "start": "node dist/main.js",
     "typecheck": "tsc -p tsconfig.json"
   },
   "dependencies": {
+    "@app-foundry/ai": "workspace:*",
+    "@app-foundry/ai-runtime": "workspace:*",
     "@app-foundry/core": "workspace:*",
     "@app-foundry/db": "workspace:*",
     "@app-foundry/env": "workspace:*",
+    "@app-foundry/notifications": "workspace:*",
+    "@app-foundry/platform": "workspace:*",
+    "@nestjs/common": "12.0.1",
+    "@nestjs/core": "12.0.1",
     "bullmq": "5.66.0",
     "drizzle-orm": "0.45.2",
     "ioredis": "5.11.1",
-    "pino": "10.3.1"
+    "reflect-metadata": "0.2.2"
   },
   "devDependencies": {
     "@app-foundry/config": "workspace:*",

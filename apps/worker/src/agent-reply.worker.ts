@@ -1,6 +1,6 @@
 import { UnrecoverableError, Worker } from 'bullmq';
 import type { Redis } from 'ioredis';
-import type { Logger } from 'pino';
+import type { Logger } from '@nestjs/common';
 import { and, asc, desc, eq, isNull, sql } from 'drizzle-orm';
 
 import {
@@ -92,7 +92,7 @@ export function startAgentReplyWorker(deps: AgentReplyDeps): Worker<AgentReplyJo
          * fallo: un trabajo «fallido» invitaría a reintentarlo, y reintentar
          * un silencio deliberado sería empeñarse.
          */
-        deps.log.info({ jobId: job.id, motivo }, 'el agente no responde');
+        deps.log.log(`el agente no responde (${job.id ?? '?'}): ${motivo}`);
       }
     },
     {
@@ -108,7 +108,7 @@ export function startAgentReplyWorker(deps: AgentReplyDeps): Worker<AgentReplyJo
   );
 
   worker.on('failed', (job, error) => {
-    deps.log.error({ jobId: job?.id, err: error.message }, 'trabajo de agente fallido');
+    deps.log.error(`trabajo de agente fallido (${job?.id ?? '?'}): ${error.message}`);
   });
 
   return worker;
