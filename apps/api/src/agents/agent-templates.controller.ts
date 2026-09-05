@@ -15,6 +15,7 @@ import { ApiNoContentResponse, ApiOkResponse, ApiOperation, ApiTags } from '@nes
 import { CurrentUserId } from '../auth/current-user.decorator.js';
 import { AgentTemplatesService } from './agent-templates.service.js';
 import {
+  AdoptAgentTemplateDto,
   AgentTemplateDto,
   CatalogAgentDto,
   CreateAgentTemplateDto,
@@ -50,9 +51,10 @@ export class AgentTemplatesController {
   adopt(
     @Param('id', ParseUUIDPipe) workspaceId: string,
     @Param('key') key: string,
+    @Body() body: AdoptAgentTemplateDto,
     @CurrentUserId() userId: string,
   ): Promise<AgentTemplateDto> {
-    return this.plantillas.adopt(workspaceId, key, userId);
+    return this.plantillas.adopt(workspaceId, key, body, userId);
   }
 
   @Post()

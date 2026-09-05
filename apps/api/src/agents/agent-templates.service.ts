@@ -12,6 +12,7 @@ import { agentTemplates, workspaces } from '@app-foundry/db';
 import { AuditAction, AuditService } from '../audit/audit.service.js';
 import { currentTx } from '../database/request-context.js';
 import type {
+  AdoptAgentTemplateDto,
   AgentTemplateDto,
   CatalogAgentDto,
   CreateAgentTemplateDto,
@@ -56,7 +57,26 @@ export class AgentTemplatesService {
    */
   async catalog(workspaceId: string): Promise<CatalogAgentDto[]> {
     await this.assertVisible(workspaceId);
-    return AGENT_CATALOG.map((perfil) => ({ ...perfil }));
+
+    /*
+     * Se dice de antemano qué handles chocan y con cuál se adoptaría (RF-1515).
+     * Enterarse por un 409 después de elegir es peor: obliga a inventar un
+     * nombre en el momento en que uno solo quería empezar a probar.
+     */
+    const cogidos = new Set(
+      (
+        await currentTx()
+          .select({ handle: agentTemplates.handle })
+          .from(agentTemplates)
+          .where(eq(agentTemplates.workspaceId, workspaceId))
+      ).map((f) => f.handle.toLowerCase()),
+    );
+
+    return AGENT_CATALOG.map((perfil) => ({
+      ...perfil,
+      handleTaken: cogidos.has(perfil.handle.toLowerCase()),
+      availableHandle: primeroLibre(perfil.handle, cogidos),
+    }));
   }
 
   /**
@@ -72,17 +92,43 @@ export class AgentTemplatesService {
    * (RF-1502). La consecuencia, que conviene conocer: un workspace recién
    * creado necesita un gesto suyo antes de que ninguna app pueda tener agentes.
    */
-  async adopt(workspaceId: string, key: string, userId: string): Promise<AgentTemplateDto> {
+  async adopt(
+    workspaceId: string,
+    key: string,
+    body: AdoptAgentTemplateDto,
+    userId: string,
+  ): Promise<AgentTemplateDto> {
     await this.assertOwner(workspaceId, userId);
 
     const perfil = catalogAgent(key);
     if (!perfil) throw new NotFoundException('There is no such profile in the catalog');
 
+    /*
+     * Si el handle elegido ya está, se dice **y se ofrece uno libre** (RF-1515).
+     * Renombrar por nuestra cuenta sería más cómodo y peor: quien adopta un
+     * perfil espera encontrarse el handle que vio, no uno parecido que nadie le
+     * enseñó. Y sobrescribir la plantilla que había queda descartado de raíz.
+     */
+    const elegido = body.handle ?? perfil.handle;
+    const cogidos = new Set(
+      (
+        await currentTx()
+          .select({ handle: agentTemplates.handle })
+          .from(agentTemplates)
+          .where(eq(agentTemplates.workspaceId, workspaceId))
+      ).map((f) => f.handle.toLowerCase()),
+    );
+    if (cogidos.has(elegido.toLowerCase())) {
+      throw new ConflictException(
+        `@${elegido} is already taken here. @${primeroLibre(elegido, cogidos)} is free`,
+      );
+    }
+
     return this.create(
       workspaceId,
       {
         name: perfil.name,
-        handle: perfil.handle,
+        handle: body.handle ?? perfil.handle,
         iconEmoji: perfil.iconEmoji,
         iconColor: perfil.iconColor,
         prompt: perfil.prompt,
@@ -292,4 +338,21 @@ function esHandleRepetido(error: unknown): boolean {
     actual = actual.cause;
   }
   return false;
+}
+
+/**
+ * El primer handle libre a partir del sugerido: `po`, `po-2`, `po-3`…
+ *
+ * Sufijo numérico y no un nombre distinto porque quien adopta un segundo
+ * «product owner» quiere justamente eso, y `po-2` se lee al vuelo. El tope de
+ * cien es para que no haya bucle: con esa cifra el problema ya no es el nombre.
+ */
+function primeroLibre(sugerido: string, cogidos: ReadonlySet<string>): string {
+  if (!cogidos.has(sugerido.toLowerCase())) return sugerido;
+
+  for (let n = 2; n <= 100; n += 1) {
+    const candidato = `${sugerido}-${n}`;
+    if (!cogidos.has(candidato.toLowerCase())) return candidato;
+  }
+  return sugerido;
 }

@@ -935,7 +935,7 @@ Solo se desglosa el hito en curso. H9, H10 y H11 están cerradas; **H12** está 
 | BD2 | El catálogo de fábrica, seis perfiles, como datos en `core` | Product owner, marketing, dirección técnica, diseño, abogado del diablo, y datos y métricas | RF-1513, RF-1514 | ✅ |
 | BD3 | Adoptar una del catálogo la copia al workspace | Y ahí se corta el vínculo: editar la copia no toca el catálogo, ni al revés | RF-1514 | ✅ |
 | BD4 | Adoptar es crear, así que lo hace el `OWNER` | Un miembro con edición no puede, ni por la API | RF-1502, RF-1514 | ✅ |
-| BD5 | Un handle que ya existe se avisa y se deja elegir otro | Nunca se sobrescribe la plantilla que había | RF-1515, RF-1506 | ⬜ |
+| BD5 | Un handle que ya existe se avisa y se deja elegir otro | Nunca se sobrescribe la plantilla que había | RF-1515, RF-1506 | ✅ |
 | BD6 | Añadir y quitar agentes lo hace quien pueda editar la app | Con lectura no; el invitado con edición sí | RF-1503 | ⬜ |
 | BD7 | El prompt se ajusta para esa app sin tocar la plantilla | Editar la instancia no cambia la plantilla, ni la plantilla las instancias | RF-1504, RF-1505 | ⬜ |
 | BD8 | De qué plantilla desciende y si se ha desviado de ella | Y adoptar el cambio de la plantilla cuando se quiera | RF-1504, RF-1505 | ⬜ |

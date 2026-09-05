@@ -85,8 +85,10 @@ describe('el catálogo de fábrica', () => {
   const catalogo = (quien: TestUser) =>
     h.as(quien).get(`/api/v1/workspaces/${ana.workspaceId}/agent-templates/catalog`);
 
-  const adoptar = (quien: TestUser, key: string) =>
-    h.as(quien).post(`/api/v1/workspaces/${ana.workspaceId}/agent-templates/catalog/${key}`);
+  const adoptar = (quien: TestUser, key: string, body?: unknown) =>
+    h
+      .as(quien)
+      .post(`/api/v1/workspaces/${ana.workspaceId}/agent-templates/catalog/${key}`, body ?? {});
 
   it('trae los seis perfiles, con su resumen y su prompt', async () => {
     const res = await catalogo(ana);
@@ -128,6 +130,42 @@ describe('el catálogo de fábrica', () => {
     expect(original.prompt).toContain('tech lead');
   });
 
+  it('avisa de antemano de qué handles chocan, y de con cuál se adoptaría', async () => {
+    /* `po` la creó Ana a mano al principio de este fichero. */
+    const perfiles = (await (await catalogo(ana)).json()) as {
+      key: string;
+      handleTaken: boolean;
+      availableHandle: string;
+    }[];
+
+    const po = perfiles.find((p) => p.key === 'product-owner')!;
+    expect(po.handleTaken).toBe(true);
+    expect(po.availableHandle).toBe('po-2');
+
+    const marketing = perfiles.find((p) => p.key === 'marketing')!;
+    expect(marketing.handleTaken).toBe(false);
+    expect(marketing.availableHandle).toBe('marketing');
+  });
+
+  it('adoptar uno cuyo handle está cogido se rechaza diciendo cuál queda libre', async () => {
+    const res = await adoptar(ana, 'product-owner');
+    expect(res.status).toBe(409);
+    expect(await res.text()).toContain('@po-2 is free');
+  });
+
+  it('la que había no se toca: nunca se sobrescribe', async () => {
+    const propias = (await (await plantillas(ana)).json()) as { handle: string; name: string }[];
+    const po = propias.find((p) => p.handle === 'po')!;
+    expect(po.name).toBe('Product Owner');
+    expect(propias.filter((p) => p.handle === 'po')).toHaveLength(1);
+  });
+
+  it('y se adopta eligiendo otro handle', async () => {
+    const res = await adoptar(ana, 'product-owner', { handle: 'po-2' });
+    expect(res.status).toBe(201);
+    expect(((await res.json()) as { handle: string }).handle).toBe('po-2');
+  });
+
   it('un perfil que no existe no se adopta', async () => {
     expect((await adoptar(ana, 'no-existe')).status).toBe(404);
   });
@@ -152,7 +190,7 @@ describe('quién las ve', () => {
     expect(res.status).toBe(200);
 
     const suyas = (await res.json()) as { handle: string }[];
-    expect(suyas.map((p) => p.handle)).toEqual(['po', 'techlead']);
+    expect(suyas.map((p) => p.handle)).toEqual(['po', 'po-2', 'techlead']);
   });
 
   it('un extraño no ve el workspace, así que tampoco sus plantillas', async () => {

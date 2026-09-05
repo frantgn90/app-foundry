@@ -142,4 +142,23 @@ export class CatalogAgentDto {
   summary!: string;
 
   @ApiProperty({ description: 'El prompt que se copiaría al adoptarla' }) prompt!: string;
+
+  @ApiProperty({ description: 'Si el handle sugerido ya lo tiene otra plantilla de aquí' })
+  handleTaken!: boolean;
+
+  @ApiProperty({
+    description: 'El que se usaría al adoptarla: el sugerido, o el primero libre a partir de él',
+  })
+  availableHandle!: string;
+}
+
+/** Al adoptar: con qué handle, si el sugerido no sirve (RF-1515). */
+export class AdoptAgentTemplateDto {
+  @ApiPropertyOptional({ description: 'Deja el sugerido si no se manda' })
+  @IsOptional()
+  @IsString()
+  @Matches(AGENT_HANDLE_PATTERN, {
+    message: 'handle must be letters, digits and inner hyphens, up to 39 characters',
+  })
+  handle?: string;
 }
