@@ -1,8 +1,10 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import {
+  IsBoolean,
   IsIn,
   IsOptional,
   IsString,
+  IsUUID,
   Length,
   Matches,
   ValidateIf,
@@ -161,4 +163,100 @@ export class AdoptAgentTemplateDto {
     message: 'handle must be letters, digits and inner hyphens, up to 39 characters',
   })
   handle?: string;
+}
+
+/** De qué plantilla desciende un agente, y si se ha apartado de ella (RF-1504). */
+export class AgentTemplateOriginDto {
+  @ApiProperty({ format: 'uuid' }) id!: string;
+  @ApiProperty() name!: string;
+
+  @ApiProperty({ description: 'Si el prompt vigente ya no es el de la plantilla' })
+  drifted!: boolean;
+}
+
+export class AgentDto {
+  @ApiProperty({ format: 'uuid' }) id!: string;
+  @ApiProperty() name!: string;
+  @ApiProperty() handle!: string;
+  @ApiProperty() iconEmoji!: string;
+  @ApiProperty() iconColor!: string;
+
+  @ApiProperty({ description: 'El prompt vigente: la revisión de número más alto' })
+  prompt!: string;
+
+  @ApiProperty({ description: 'Qué número de revisión es' }) promptRevision!: number;
+
+  @ApiProperty({ description: 'Un agente inactivo no interviene, y lo suyo sigue donde está' })
+  active!: boolean;
+
+  @ApiProperty({ type: AgentModelDto, nullable: true }) model!: AgentModelDto | null;
+
+  @ApiProperty({
+    type: AgentTemplateOriginDto,
+    nullable: true,
+    description: 'Nulo si la plantilla de la que salió ya no existe',
+  })
+  template!: AgentTemplateOriginDto | null;
+
+  @ApiProperty({ format: 'date-time' }) createdAt!: string;
+}
+
+export class AddAgentDto {
+  @ApiProperty({ format: 'uuid', description: 'La plantilla del workspace que se instancia' })
+  @IsUUID()
+  templateId!: string;
+
+  @ApiPropertyOptional({ description: 'Deja el de la plantilla si no se manda' })
+  @IsOptional()
+  @IsString()
+  @Matches(AGENT_HANDLE_PATTERN, {
+    message: 'handle must be letters, digits and inner hyphens, up to 39 characters',
+  })
+  handle?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  @Length(1, 80)
+  name?: string;
+
+  @ApiPropertyOptional({ description: 'Ajustado para esta app. Deja el de la plantilla si falta' })
+  @IsOptional()
+  @IsString()
+  @Length(1, 8000)
+  prompt?: string;
+}
+
+export class UpdateAgentDto {
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  @Length(1, 80)
+  name?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  @Matches(AGENT_HANDLE_PATTERN, {
+    message: 'handle must be letters, digits and inner hyphens, up to 39 characters',
+  })
+  handle?: string;
+
+  @ApiPropertyOptional({ description: 'Cambiarlo añade una revisión, no reescribe la que hay' })
+  @IsOptional()
+  @IsString()
+  @Length(1, 8000)
+  prompt?: string;
+
+  @ApiPropertyOptional({ description: 'Callar sin retirar' })
+  @IsOptional()
+  @IsBoolean()
+  active?: boolean;
+
+  @ApiPropertyOptional({ type: AgentModelDto, nullable: true })
+  @IsOptional()
+  @ValidateIf((_, value) => value !== null)
+  @ValidateNested()
+  @Type(() => AgentModelDto)
+  model?: AgentModelDto | null;
 }

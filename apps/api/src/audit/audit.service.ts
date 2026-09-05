@@ -44,6 +44,9 @@ export const AuditAction = {
   AGENT_TEMPLATE_CREATED: 'agent.template_created',
   AGENT_TEMPLATE_UPDATED: 'agent.template_updated',
   AGENT_TEMPLATE_DELETED: 'agent.template_deleted',
+  AGENT_ADDED: 'agent.added',
+  AGENT_UPDATED: 'agent.updated',
+  AGENT_REMOVED: 'agent.removed',
 } as const;
 export type AuditAction = (typeof AuditAction)[keyof typeof AuditAction];
 
