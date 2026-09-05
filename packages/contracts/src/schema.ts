@@ -1716,6 +1716,8 @@ export interface components {
             iconColor: string;
             /** @description La personalidad, en texto */
             prompt: string;
+            /** @description Palabras como mucho en una respuesta. 0, lo de fábrica, es sin límite */
+            replyWordLimit: number;
             /** @description Modelo propio. Nulo si usa el asignado a la tarea */
             model: components["schemas"]["AgentModelDto"] | null;
             /** Format: date-time */
@@ -1753,6 +1755,8 @@ export interface components {
             /** @enum {string} */
             iconColor: "amber" | "rose" | "violet" | "indigo" | "sky" | "teal" | "emerald" | "lime" | "orange" | "slate";
             prompt: string;
+            /** @description Palabras como mucho en una respuesta. 0, lo de fábrica, es sin límite */
+            replyWordLimit?: number;
             model?: components["schemas"]["AgentModelDto"] | null;
         };
         UpdateAgentTemplateDto: {
@@ -1763,6 +1767,8 @@ export interface components {
             /** @enum {string} */
             iconColor?: "amber" | "rose" | "violet" | "indigo" | "sky" | "teal" | "emerald" | "lime" | "orange" | "slate";
             prompt?: string;
+            /** @description Palabras como mucho en una respuesta. 0, lo de fábrica, es sin límite */
+            replyWordLimit?: number;
             model?: components["schemas"]["AgentModelDto"] | null;
         };
         AgentTemplateOriginDto: {
@@ -1785,6 +1791,8 @@ export interface components {
             promptRevision: number;
             /** @description Un agente inactivo no interviene, y lo suyo sigue donde está */
             active: boolean;
+            /** @description Palabras como mucho en una respuesta. 0, lo de fábrica, es sin límite */
+            replyWordLimit: number;
             model: components["schemas"]["AgentModelDto"] | null;
             /** @description Nulo si la plantilla de la que salió ya no existe */
             template: components["schemas"]["AgentTemplateOriginDto"] | null;
@@ -1810,6 +1818,8 @@ export interface components {
             prompt?: string;
             /** @description Callar sin retirar */
             active?: boolean;
+            /** @description Palabras como mucho en una respuesta. 0, lo de fábrica, es sin límite */
+            replyWordLimit?: number;
             model?: components["schemas"]["AgentModelDto"] | null;
         };
         CommentDto: {

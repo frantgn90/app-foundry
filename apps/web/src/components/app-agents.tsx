@@ -17,6 +17,7 @@ import { AgentIcon } from './agent-icon.js';
 import { Badge } from './ui/badge.js';
 import { Button } from './ui/button.js';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/card.js';
+import { limiteAEnviar, MAX_REPLY_WORDS, WordLimitField } from './word-limit-field.js';
 
 /**
  * Los agentes de esta app (RF-1511).
@@ -132,6 +133,7 @@ function AgenteDeLaApp({
 }) {
   const [editando, setEditando] = useState(false);
   const [prompt, setPrompt] = useState(agente.prompt);
+  const [limite, setLimite] = useState(String(agente.replyWordLimit));
   const guardar = useUpdateAgent(appId);
   const adoptar = useAdoptTemplateChange(appId);
   const retirar = useRemoveAgent(appId);
@@ -151,6 +153,8 @@ function AgenteDeLaApp({
           <p className="text-xs text-[var(--color-texto-suave)]">
             {agente.template ? `From ${agente.template.name}` : 'Its template was deleted'}
             {agente.template?.drifted ? ' · edited for this app' : ''}
+            {/* Solo cuando lo hay: «no limit» en cada fila sería ruido (RF-1516). */}
+            {agente.replyWordLimit > 0 ? ` · up to ${String(agente.replyWordLimit)} words` : ''}
           </p>
         </div>
 
@@ -184,6 +188,7 @@ function AgenteDeLaApp({
               className="shrink-0 text-xs"
               onClick={() => {
                 setPrompt(agente.prompt);
+                setLimite(String(agente.replyWordLimit));
                 setEditando(!editando);
               }}
             >
@@ -239,12 +244,21 @@ function AgenteDeLaApp({
               setPrompt(evento.target.value);
             }}
           />
+
+          {/* Junto al prompt, que es lo otro que decide cómo contesta (RF-1516). */}
+          <WordLimitField value={limite} onChange={setLimite} />
+
           <div className="flex items-center gap-2">
             <Button
               className="text-xs"
-              disabled={guardar.isPending || prompt.trim().length === 0}
+              disabled={
+                guardar.isPending || prompt.trim().length === 0 || Number(limite) > MAX_REPLY_WORDS
+              }
               onClick={() => {
-                guardar.mutate({ id: agente.id, prompt }, { onSuccess: () => setEditando(false) });
+                guardar.mutate(
+                  { id: agente.id, prompt, replyWordLimit: limiteAEnviar(limite) },
+                  { onSuccess: () => setEditando(false) },
+                );
               }}
             >
               Save

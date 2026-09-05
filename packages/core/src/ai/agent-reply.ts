@@ -36,6 +36,14 @@ export interface AgentReplyContext {
   readonly document: string | null;
   /** El hilo entero, del primero al último. */
   readonly thread: readonly ThreadEntry[];
+  /**
+   * Cuántas palabras como mucho, o cero si no hay límite.
+   *
+   * Cero no se traduce a «escribe lo que quieras»: sencillamente no se dice
+   * nada del largo. Pedirle que sea breve cuando nadie lo ha pedido sería
+   * decidir por quien configuró el agente.
+   */
+  readonly replyWordLimit: number;
 }
 
 /**
@@ -51,6 +59,12 @@ export interface AgentReplyContext {
  * donde están las instrucciones, y distinguirlos dependería de la buena
  * voluntad del modelo.
  */
+/** El largo de la respuesta, solo si alguien lo ha pedido. */
+function limiteDePalabras(palabras: number): string {
+  if (palabras <= 0) return '';
+  return `\n\nYour reply must fit in ${String(palabras)} words.`;
+}
+
 const REGLAS = `You are reviewing a product vision document inside App Foundry, a
 space where people think through app ideas before building them, and you are
 replying in a comment thread about it. Reply once, briefly, in the voice of your
@@ -69,9 +83,7 @@ filling the gap with something plausible, and never present a guess as a fact.
 Write plain prose: do not greet, do not sign, do not repeat what the thread
 already says. If you have nothing worth adding, say so in one line.
 
-Two hard limits, and the second one is the one people get wrong.
-
-Your reply must fit in 150 words. This is a comment in a thread, not a report.
+This is a comment in a thread, not a report.
 
 And if you reason before answering, that reasoning shares the same budget as the
 reply. Keep it to a few lines. Do not enumerate the whole document, do not
@@ -80,7 +92,9 @@ you spend the budget thinking, the reply never gets written and the person who
 asked gets nothing at all. Decide quickly and write.`;
 
 export function agentSystemPrompt(context: AgentReplyContext): string {
-  return `${context.profile}\n\nYou are @${context.handle}.\n\n${REGLAS}`;
+  return `${context.profile}\n\nYou are @${context.handle}.\n\n${REGLAS}${limiteDePalabras(
+    context.replyWordLimit,
+  )}`;
 }
 
 /**

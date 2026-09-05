@@ -150,6 +150,7 @@ async function responder(deps: AgentReplyDeps, trabajo: AgentReplyJob): Promise<
         appDescription: apps.shortDescription,
         workspaceId: apps.workspaceId,
         agentHandle: agents.handle,
+        agentWordLimit: agents.replyWordLimit,
         agentActive: agents.active,
         agentRemovedAt: agents.removedAt,
       })
@@ -223,6 +224,8 @@ async function responder(deps: AgentReplyDeps, trabajo: AgentReplyJob): Promise<
       appDescription: contexto.appDescription,
       document: documento,
       thread: hilo,
+      /* Lo que se le pidió de largo a este agente; 0 es sin límite (RF-1516). */
+      replyWordLimit: contexto.agentWordLimit,
     };
 
     const respuesta = await deps.ask({

@@ -328,6 +328,15 @@ fallos dejan de ser una molestia al comentar y pasan a inutilizar media función
 - **RF-1515** — Un workspace sin plantillas propias **DEBE** ofrecer el catálogo en lugar de un estado vacío, y
   adoptar una **DEBERÍA** ser un solo gesto. Si el handle de la plantilla adoptada ya existe en ese workspace,
   el sistema **DEBE** decirlo y dejar elegir otro, nunca sobrescribir la que había.
+- **RF-1516** — Cada plantilla y cada agente **DEBEN** llevar un **límite de longitud de la respuesta**,
+  expresado en palabras y configurable por quien los administra. Cero, que es el valor de fábrica, significa
+  **sin límite**: lo normal es querer que el agente conteste lo que tenga que contestar, y el recorte se pone
+  cuando un perfil concreto se va por las ramas. Una instancia **DEBE** heredar el de su plantilla al crearse
+  y **PUEDE** cambiarlo después sin tocarla, igual que con el prompt (RF-1504).
+  El límite **DEBE** pedírsele al modelo en el prompt del sistema y **NO DEBE** aplicarse recortando el texto
+  ya generado: cortar deja una respuesta mutilada a mitad de frase, y pedirlo antes da una respuesta corta.
+  No sustituye al techo de tokens de generación, que es la salvaguarda del sistema (RNF-1003) y no una
+  preferencia de estilo.
 
 ### 5.7 Agentes: cuándo hablan y qué escriben
 

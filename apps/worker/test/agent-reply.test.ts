@@ -273,3 +273,27 @@ describe('cuando el modelo se queda sin sitio pensando', () => {
     expect((await h.loEscritoPorElAgente()).length).toBe(antes);
   });
 });
+
+describe('el límite de palabras de la respuesta', () => {
+  /*
+   * Al final del fichero a propósito: contestar consume un turno del hilo, y
+   * el tope de turnos se comprueba más arriba contando los que lleva. Un test
+   * que habla en medio le cambia la cuenta al de al lado.
+   */
+  it('si su configuración pide brevedad, se le pide en el papel', async () => {
+    /*
+     * El límite se le dice al modelo y no se recorta después (RF-1516): cortar
+     * el texto daría una respuesta mutilada a mitad de frase, y pedirlo antes
+     * da una corta. De fábrica es cero, y entonces no se le dice nada.
+     */
+    await h.db.execute(
+      sql`UPDATE agents SET reply_word_limit = 60 WHERE id = ${h.escenario.agentId}::uuid`,
+    );
+
+    const provocador = await h.comentar('@po y esta vez corto');
+    await h.encolar({ triggerCommentId: provocador });
+    await aQueTermine();
+
+    expect(peticiones[0]!.system).toContain('must fit in 60 words');
+  });
+});

@@ -248,6 +248,7 @@ agent_templates                              -- RF-1501, RF-1502
   id, workspace_id → workspaces
   name text, handle citext, icon_emoji text, icon_color text
   prompt text NOT NULL
+  reply_word_limit int NOT NULL DEFAULT 0    -- 0 = sin límite (RF-1516)
   provider, model_id                         -- null → el de la tarea (RF-1104)
   archived_at, created_by → users
   UNIQUE (workspace_id, handle)
@@ -257,6 +258,7 @@ agents                                       -- instancia en una app (RF-1503)
   template_id → agent_templates ON DELETE SET NULL   -- RF-1505, RF-1509
   name, handle citext, icon_emoji, icon_color
   active bool NOT NULL DEFAULT true          -- RF-1508
+  reply_word_limit int NOT NULL DEFAULT 0    -- heredado de la plantilla (RF-1516)
   removed_at timestamptz                     -- retirada lógica (RF-1509)
   added_by → users
   UNIQUE (app_id, handle)                    -- RF-1506, RF-1512
@@ -266,6 +268,13 @@ agent_prompt_revisions                       -- RF-1510
   prompt text NOT NULL, created_at, created_by → users
   UNIQUE (agent_id, revision)
 ```
+
+`reply_word_limit` va en las dos tablas y no solo en la plantilla, por lo mismo que el prompt: la plantilla
+propone y la instancia decide. Viaja al **prompt del sistema** —«tu respuesta debe caber en N palabras»— y no
+recorta el texto generado: truncar dejaría una frase a medias, que es peor respuesta que una corta. Con cero no
+se le dice nada, para no pedir brevedad en nombre de quien no la pidió. El `CHECK (0..5000)` acota el número
+escrito por error, no a quien de verdad quiera respuestas largas, y es independiente del techo de tokens de
+generación, que es la salvaguarda del sistema (RNF-1003).
 
 El prompt vigente es la revisión de número más alto. Cada comentario guarda **la revisión concreta** con la
 que se escribió, no una copia del texto: duplicar kilobytes por línea escrita sería tirar el espacio.
@@ -696,7 +705,7 @@ contra la documentación se comporta como dice cuando hay alguien al otro lado.
 | RF-1201..1210 consumo y cupos | §7.4, §9, §10 |
 | RF-1301..1312 ideas | §12.1 |
 | RF-1401..1416 asistente y menú de selección | §12.2, §12.2.1 |
-| RF-1501..1515 agentes y catálogo de fábrica | §7.2, §13, §14 |
+| RF-1501..1516 agentes, catálogo de fábrica y límite de respuesta | §7.2, §13, §14 |
 | RF-1601..1614 conversación de agentes | §12.3, §8.4 |
 | RF-1701..1705 transparencia y auditoría | §7.4, §14, §15 |
 | RNF-601..607 seguridad | §8 |

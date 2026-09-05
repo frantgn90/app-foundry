@@ -61,6 +61,19 @@ export const agentTemplates = pgTable(
      */
     prompt: text('prompt').notNull(),
     /**
+     * Cuántas palabras como mucho puede escribir en una respuesta.
+     *
+     * **Cero es sin límite**, y es lo que viene de fábrica: la mayoría de las
+     * veces lo que se quiere es que conteste lo que tenga que contestar. Se
+     * pone un número cuando un perfil concreto se va por las ramas, que es una
+     * decisión sobre *ese* agente y no sobre todos.
+     *
+     * Va aquí y no en la configuración de la instancia porque no es una
+     * salvaguarda del sistema —esa es el techo de tokens, que sigue estando—
+     * sino una preferencia sobre cómo habla cada uno.
+     */
+    replyWordLimit: integer('reply_word_limit').notNull().default(0),
+    /**
      * Modelo propio, si se le quiere fijar uno (RF-1104).
      *
      * Nulo es lo normal: entonces usa el que el workspace tenga asignado al
@@ -116,6 +129,19 @@ export const agents = pgTable(
     handle: citext('handle').notNull(),
     iconEmoji: text('icon_emoji').notNull(),
     iconColor: text('icon_color').notNull(),
+    /**
+     * Cuántas palabras como mucho puede escribir en una respuesta.
+     *
+     * **Cero es sin límite**, y es lo que viene de fábrica: la mayoría de las
+     * veces lo que se quiere es que conteste lo que tenga que contestar. Se
+     * pone un número cuando un perfil concreto se va por las ramas, que es una
+     * decisión sobre *ese* agente y no sobre todos.
+     *
+     * Va aquí y no en la configuración de la instancia porque no es una
+     * salvaguarda del sistema —esa es el techo de tokens, que sigue estando—
+     * sino una preferencia sobre cómo habla cada uno.
+     */
+    replyWordLimit: integer('reply_word_limit').notNull().default(0),
     provider: aiProviderEnum('provider'),
     modelId: text('model_id'),
     /**

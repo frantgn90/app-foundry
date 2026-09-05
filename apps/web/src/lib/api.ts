@@ -1362,6 +1362,8 @@ export interface AgentTemplate {
   iconEmoji: string;
   iconColor: string;
   prompt: string;
+  /** Palabras como mucho en una respuesta; 0 es sin límite (RF-1516). */
+  replyWordLimit: number;
   model: AgentModel | null;
   createdAt: string;
   updatedAt: string;
@@ -1390,6 +1392,8 @@ export interface Agent {
   prompt: string;
   promptRevision: number;
   active: boolean;
+  /** Palabras como mucho en una respuesta; 0 es sin límite (RF-1516). */
+  replyWordLimit: number;
   model: AgentModel | null;
   template: { id: string; name: string; drifted: boolean } | null;
   createdAt: string;
@@ -1453,7 +1457,12 @@ export function useAdoptAgentTemplate(workspaceId: string) {
 export function useCreateAgentTemplate(workspaceId: string) {
   const client = useQueryClient();
   return useMutation({
-    mutationFn: async (input: { name: string; handle: string; prompt: string }) => {
+    mutationFn: async (input: {
+      name: string;
+      handle: string;
+      prompt: string;
+      replyWordLimit?: number;
+    }) => {
       const { data, error } = await api.POST('/api/v1/workspaces/{id}/agent-templates', {
         params: { path: { id: workspaceId } },
         /* El icono no se pide: con seis perfiles de fábrica delante, quien
@@ -1473,7 +1482,12 @@ export function useCreateAgentTemplate(workspaceId: string) {
 export function useUpdateAgentTemplate(workspaceId: string) {
   const client = useQueryClient();
   return useMutation({
-    mutationFn: async (input: { id: string; prompt?: string; name?: string }) => {
+    mutationFn: async (input: {
+      id: string;
+      prompt?: string;
+      name?: string;
+      replyWordLimit?: number;
+    }) => {
       const { id, ...cambios } = input;
       const { data, error } = await api.PATCH(
         '/api/v1/workspaces/{id}/agent-templates/{templateId}',
@@ -1540,7 +1554,12 @@ export function useAddAgent(appId: string) {
 export function useUpdateAgent(appId: string) {
   const client = useQueryClient();
   return useMutation({
-    mutationFn: async (input: { id: string; active?: boolean; prompt?: string }) => {
+    mutationFn: async (input: {
+      id: string;
+      active?: boolean;
+      prompt?: string;
+      replyWordLimit?: number;
+    }) => {
       const { id, ...cambios } = input;
       const { data, error } = await api.PATCH('/api/v1/apps/{id}/agents/{agentId}', {
         params: { path: { id: appId, agentId: id } },

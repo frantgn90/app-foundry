@@ -156,6 +156,7 @@ export class AgentTemplatesService {
         iconEmoji: body.iconEmoji,
         iconColor: body.iconColor,
         prompt: body.prompt,
+        replyWordLimit: body.replyWordLimit ?? 0,
         provider: body.model?.provider ?? null,
         modelId: body.model?.modelId ?? null,
         createdBy: userId,
@@ -207,6 +208,7 @@ export class AgentTemplatesService {
     if (body.iconEmoji !== undefined) cambios.iconEmoji = body.iconEmoji;
     if (body.iconColor !== undefined) cambios.iconColor = body.iconColor;
     if (body.prompt !== undefined) cambios.prompt = body.prompt;
+    if (body.replyWordLimit !== undefined) cambios.replyWordLimit = body.replyWordLimit;
     if (body.model !== undefined) {
       cambios.provider = body.model?.provider ?? null;
       cambios.modelId = body.model?.modelId ?? null;
@@ -323,6 +325,7 @@ function toDto(fila: Fila): AgentTemplateDto {
     iconEmoji: fila.iconEmoji,
     iconColor: fila.iconColor,
     prompt: fila.prompt,
+    replyWordLimit: fila.replyWordLimit,
     model:
       fila.provider && fila.modelId ? { provider: fila.provider, modelId: fila.modelId } : null,
     createdAt: fila.createdAt.toISOString(),

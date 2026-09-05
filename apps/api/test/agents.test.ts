@@ -37,6 +37,7 @@ interface Agente {
   prompt: string;
   promptRevision: number;
   active: boolean;
+  replyWordLimit: number;
   template: { id: string; name: string; drifted: boolean } | null;
 }
 
@@ -197,6 +198,85 @@ describe('ajustar la instancia', () => {
 
   it('un extraño no lo toca', async () => {
     expect((await ajustar(carla, elPO, { name: 'Mío' })).status).toBe(404);
+  });
+});
+
+describe('el límite de palabras de la respuesta', () => {
+  /*
+   * En una app aparte, y no en la de siempre: cinco agentes son el tope por app
+   * y estos son cinco más. Compartirla dejaría el test de al lado dependiendo
+   * de cuántos agentes hubiera creado este.
+   */
+  let app: string;
+  const suyo = (agentId: string, body: unknown) =>
+    h.as(ana).patch(`/api/v1/apps/${app}/agents/${agentId}`, body);
+
+  beforeAll(async () => {
+    app = await crearApp(ana, 'De los límites', 'WORKSPACE_WRITE');
+  });
+
+  it('de fábrica es cero, o sea sin límite', async () => {
+    const res = await añadir(ana, { templateId: plantillaPO }, app);
+
+    expect(((await res.json()) as Agente).replyWordLimit).toBe(0);
+  });
+
+  it('se hereda de la plantilla al instanciarla', async () => {
+    /*
+     * Es lo que hace útil ponerlo en el molde: quien decide que un perfil debe
+     * ser breve lo dice una vez y lo son todas sus instancias. A partir de ahí
+     * cada app ajusta el suyo, como con el prompt (RF-1504).
+     */
+    const breve = (await (
+      await h.as(ana).post(`/api/v1/workspaces/${ana.workspaceId}/agent-templates`, {
+        name: 'Breve',
+        handle: 'breve',
+        iconEmoji: '🧩',
+        iconColor: 'slate',
+        prompt: 'Answer in one paragraph.',
+        replyWordLimit: 80,
+      })
+    ).json()) as { id: string; replyWordLimit: number };
+    expect(breve.replyWordLimit).toBe(80);
+
+    const res = await añadir(ana, { templateId: breve.id }, app);
+
+    expect(((await res.json()) as Agente).replyWordLimit).toBe(80);
+  });
+
+  it('se cambia en la instancia sin tocar la plantilla', async () => {
+    const agente = (await (
+      await añadir(ana, { templateId: plantillaPO, handle: 'po-con-tope' }, app)
+    ).json()) as Agente;
+
+    const res = await suyo(agente.id, { replyWordLimit: 150 });
+    expect(res.status).toBe(200);
+    expect(((await res.json()) as Agente).replyWordLimit).toBe(150);
+
+    const plantillas = (await (
+      await h.as(ana).get(`/api/v1/workspaces/${ana.workspaceId}/agent-templates`)
+    ).json()) as { id: string; replyWordLimit: number }[];
+    expect(plantillas.find((p) => p.id === plantillaPO)?.replyWordLimit).toBe(0);
+  });
+
+  it('y volver a cero lo quita', async () => {
+    const agente = (await (
+      await añadir(ana, { templateId: plantillaPO, handle: 'po-y-vuelta' }, app)
+    ).json()) as Agente;
+
+    await suyo(agente.id, { replyWordLimit: 150 });
+    const res = await suyo(agente.id, { replyWordLimit: 0 });
+
+    expect(((await res.json()) as Agente).replyWordLimit).toBe(0);
+  });
+
+  it('un número imposible se rechaza antes de llegar a la base', async () => {
+    const agente = (await (
+      await añadir(ana, { templateId: plantillaPO, handle: 'po-imposible' }, app)
+    ).json()) as Agente;
+
+    expect((await suyo(agente.id, { replyWordLimit: -1 })).status).toBe(400);
+    expect((await suyo(agente.id, { replyWordLimit: 99_999 })).status).toBe(400);
   });
 });
 

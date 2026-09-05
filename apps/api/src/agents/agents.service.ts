@@ -114,6 +114,7 @@ export class AgentsService {
         handle,
         iconEmoji: plantilla.iconEmoji,
         iconColor: plantilla.iconColor,
+        replyWordLimit: plantilla.replyWordLimit,
         provider: plantilla.provider,
         modelId: plantilla.modelId,
         addedBy: userId,
@@ -167,6 +168,7 @@ export class AgentsService {
       cambios.handle = body.handle;
     }
     if (body.active !== undefined) cambios.active = body.active;
+    if (body.replyWordLimit !== undefined) cambios.replyWordLimit = body.replyWordLimit;
     if (body.model !== undefined) {
       cambios.provider = body.model?.provider ?? null;
       cambios.modelId = body.model?.modelId ?? null;
@@ -467,6 +469,7 @@ export class AgentsService {
       prompt: vigente.prompt,
       promptRevision: vigente.revision,
       active: fila.active,
+      replyWordLimit: fila.replyWordLimit,
       model:
         fila.provider && fila.modelId ? { provider: fila.provider, modelId: fila.modelId } : null,
       template: plantilla

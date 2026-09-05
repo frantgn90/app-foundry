@@ -4767,6 +4767,12 @@
             "type": "string",
             "description": "La personalidad, en texto"
           },
+          "replyWordLimit": {
+            "type": "number",
+            "description": "Palabras como mucho en una respuesta. 0, lo de fábrica, es sin límite",
+            "minimum": 0,
+            "maximum": 5000
+          },
           "model": {
             "nullable": true,
             "description": "Modelo propio. Nulo si usa el asignado a la tarea",
@@ -4793,6 +4799,7 @@
           "iconEmoji",
           "iconColor",
           "prompt",
+          "replyWordLimit",
           "model",
           "createdAt",
           "updatedAt"
@@ -4931,6 +4938,12 @@
           "prompt": {
             "type": "string"
           },
+          "replyWordLimit": {
+            "type": "number",
+            "description": "Palabras como mucho en una respuesta. 0, lo de fábrica, es sin límite",
+            "minimum": 0,
+            "maximum": 5000
+          },
           "model": {
             "nullable": true,
             "type": "object",
@@ -5023,6 +5036,12 @@
           "prompt": {
             "type": "string"
           },
+          "replyWordLimit": {
+            "type": "number",
+            "description": "Palabras como mucho en una respuesta. 0, lo de fábrica, es sin límite",
+            "minimum": 0,
+            "maximum": 5000
+          },
           "model": {
             "nullable": true,
             "type": "object",
@@ -5086,6 +5105,12 @@
             "type": "boolean",
             "description": "Un agente inactivo no interviene, y lo suyo sigue donde está"
           },
+          "replyWordLimit": {
+            "type": "number",
+            "description": "Palabras como mucho en una respuesta. 0, lo de fábrica, es sin límite",
+            "minimum": 0,
+            "maximum": 5000
+          },
           "model": {
             "nullable": true,
             "type": "object",
@@ -5119,6 +5144,7 @@
           "prompt",
           "promptRevision",
           "active",
+          "replyWordLimit",
           "model",
           "template",
           "createdAt"
@@ -5164,6 +5190,12 @@
           "active": {
             "type": "boolean",
             "description": "Callar sin retirar"
+          },
+          "replyWordLimit": {
+            "type": "number",
+            "description": "Palabras como mucho en una respuesta. 0, lo de fábrica, es sin límite",
+            "minimum": 0,
+            "maximum": 5000
           },
           "model": {
             "nullable": true,

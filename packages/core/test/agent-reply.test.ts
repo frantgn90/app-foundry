@@ -14,6 +14,7 @@ const BASE: AgentReplyContext = {
   appDescription: 'Turn what you read into something usable',
   document: '# The problem\n\nNotes end up scattered.',
   thread: [{ author: 'ana', mine: false, byAgent: false, body: '@po ¿esto se sostiene?' }],
+  replyWordLimit: 0,
 };
 
 describe('el papel y el material van por separado', () => {
@@ -101,5 +102,30 @@ describe('el tope de turnos por hilo', () => {
      * quien alguien está llamando a propósito (RF-1605).
      */
     expect(agentMaySpeak({ turnsTaken: 9, limit: 3, explicitlyMentioned: true })).toBe(true);
+  });
+});
+
+describe('el límite de palabras', () => {
+  it('sin límite no se dice nada del largo', () => {
+    /*
+     * Cero es lo que viene de fábrica. Pedirle brevedad cuando nadie la ha
+     * pedido sería decidir por quien configuró el agente.
+     */
+    expect(agentSystemPrompt({ ...BASE, replyWordLimit: 0 })).not.toContain('must fit in');
+  });
+
+  it('con límite se le dice, con el número que se puso', () => {
+    const papel = agentSystemPrompt({ ...BASE, replyWordLimit: 120 });
+
+    expect(papel).toContain('must fit in 120 words');
+  });
+
+  it('y lo del presupuesto de razonamiento se dice siempre', () => {
+    /* Eso no es estilo, es lo que evita que se quede sin sitio pensando. */
+    for (const limite of [0, 120]) {
+      expect(agentSystemPrompt({ ...BASE, replyWordLimit: limite })).toContain(
+        'shares the same budget',
+      );
+    }
   });
 });

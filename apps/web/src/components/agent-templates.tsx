@@ -14,6 +14,7 @@ import { AgentIcon } from './agent-icon.js';
 import { Button } from './ui/button.js';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/card.js';
 import { Input } from './ui/input.js';
+import { limiteAEnviar, MAX_REPLY_WORDS, WordLimitField } from './word-limit-field.js';
 
 /**
  * Las plantillas de agente del workspace (RF-1501, RF-1502).
@@ -60,6 +61,7 @@ function PlantillaPropia({
 }) {
   const [editando, setEditando] = useState(false);
   const [prompt, setPrompt] = useState(plantilla.prompt);
+  const [limite, setLimite] = useState(String(plantilla.replyWordLimit));
   const guardar = useUpdateAgentTemplate(workspaceId);
   const borrar = useDeleteAgentTemplate(workspaceId);
 
@@ -69,13 +71,19 @@ function PlantillaPropia({
         <AgentIcon emoji={plantilla.iconEmoji} color={plantilla.iconColor} />
         <div className="min-w-0 flex-1">
           <p className="font-medium">{plantilla.name}</p>
-          <p className="text-xs text-[var(--color-texto-suave)]">@{plantilla.handle}</p>
+          <p className="text-xs text-[var(--color-texto-suave)]">
+            @{plantilla.handle}
+            {plantilla.replyWordLimit > 0
+              ? ` · up to ${String(plantilla.replyWordLimit)} words`
+              : ''}
+          </p>
         </div>
         <Button
           variant="secondary"
           className="shrink-0 text-xs"
           onClick={() => {
             setPrompt(plantilla.prompt);
+            setLimite(String(plantilla.replyWordLimit));
             setEditando(!editando);
           }}
         >
@@ -105,13 +113,22 @@ function PlantillaPropia({
               setPrompt(evento.target.value);
             }}
           />
+
+          {/*
+            En la plantilla es una propuesta: al instanciarla el agente se lleva
+            este número y a partir de ahí cada app ajusta el suyo (RF-1516).
+          */}
+          <WordLimitField value={limite} onChange={setLimite} />
+
           <div className="flex items-center gap-2">
             <Button
               className="text-xs"
-              disabled={guardar.isPending || prompt.trim().length === 0}
+              disabled={
+                guardar.isPending || prompt.trim().length === 0 || Number(limite) > MAX_REPLY_WORDS
+              }
               onClick={() => {
                 guardar.mutate(
-                  { id: plantilla.id, prompt },
+                  { id: plantilla.id, prompt, replyWordLimit: limiteAEnviar(limite) },
                   { onSuccess: () => setEditando(false) },
                 );
               }}

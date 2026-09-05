@@ -2,11 +2,14 @@ import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import {
   IsBoolean,
   IsIn,
+  IsInt,
   IsOptional,
   IsString,
   IsUUID,
   Length,
   Matches,
+  Max,
+  Min,
   ValidateIf,
   ValidateNested,
 } from 'class-validator';
@@ -15,6 +18,24 @@ import { Type } from 'class-transformer';
 import { AGENT_HANDLE_PATTERN, APP_COLORS, APP_EMOJIS } from '@app-foundry/core';
 
 const PROVIDERS = ['ANTHROPIC', 'GROQ'] as const;
+
+/**
+ * Lo que se le pide de largo a una respuesta, en palabras (RF-1516).
+ *
+ * Cero es sin límite y es lo de fábrica: normalmente se quiere que conteste lo
+ * que tenga que contestar. El tope de arriba es el mismo que el `CHECK` de la
+ * base, y es holgado a propósito: acota el número escrito por error, no a quien
+ * de verdad quiera respuestas largas.
+ *
+ * El valor por defecto se dice con palabras y no como `default` del esquema:
+ * `openapi-typescript` entiende un campo con `default` como uno que siempre
+ * viene, y lo volvía obligatorio en los cuerpos donde justamente es opcional.
+ */
+const LIMITE_PALABRAS = {
+  description: 'Palabras como mucho en una respuesta. 0, lo de fábrica, es sin límite',
+  minimum: 0,
+  maximum: 5000,
+} as const;
 
 /**
  * El modelo propio de una plantilla o de un agente (RF-1104).
@@ -41,6 +62,8 @@ export class AgentTemplateDto {
   @ApiProperty() iconEmoji!: string;
   @ApiProperty() iconColor!: string;
   @ApiProperty({ description: 'La personalidad, en texto' }) prompt!: string;
+
+  @ApiProperty(LIMITE_PALABRAS) replyWordLimit!: number;
 
   @ApiProperty({
     type: AgentModelDto,
@@ -85,6 +108,13 @@ export class CreateAgentTemplateDto {
   @Length(1, 8000)
   prompt!: string;
 
+  @ApiPropertyOptional(LIMITE_PALABRAS)
+  @IsOptional()
+  @IsInt()
+  @Min(0)
+  @Max(5000)
+  replyWordLimit?: number;
+
   @ApiPropertyOptional({ type: AgentModelDto, nullable: true })
   @IsOptional()
   @ValidateIf((_, value) => value !== null)
@@ -124,6 +154,13 @@ export class UpdateAgentTemplateDto {
   @IsString()
   @Length(1, 8000)
   prompt?: string;
+
+  @ApiPropertyOptional(LIMITE_PALABRAS)
+  @IsOptional()
+  @IsInt()
+  @Min(0)
+  @Max(5000)
+  replyWordLimit?: number;
 
   @ApiPropertyOptional({ type: AgentModelDto, nullable: true })
   @IsOptional()
@@ -189,6 +226,8 @@ export class AgentDto {
   @ApiProperty({ description: 'Un agente inactivo no interviene, y lo suyo sigue donde está' })
   active!: boolean;
 
+  @ApiProperty(LIMITE_PALABRAS) replyWordLimit!: number;
+
   @ApiProperty({ type: AgentModelDto, nullable: true }) model!: AgentModelDto | null;
 
   @ApiProperty({
@@ -252,6 +291,13 @@ export class UpdateAgentDto {
   @IsOptional()
   @IsBoolean()
   active?: boolean;
+
+  @ApiPropertyOptional(LIMITE_PALABRAS)
+  @IsOptional()
+  @IsInt()
+  @Min(0)
+  @Max(5000)
+  replyWordLimit?: number;
 
   @ApiPropertyOptional({ type: AgentModelDto, nullable: true })
   @IsOptional()
