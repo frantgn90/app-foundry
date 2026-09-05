@@ -4,6 +4,7 @@ import type { MentionableUser, OpenElsewhere, Thread } from '../lib/api.js';
 import { CommentThread } from './comment-thread.js';
 import { MentionInput, type MentionableAgent } from './mention-input.js';
 import { Button } from './ui/button.js';
+import { cn } from '../lib/utils.js';
 
 interface Props {
   /** Pliega el panel hacia la derecha. */
@@ -49,12 +50,24 @@ export function CommentsPanel({
   onDeleteComment,
 }: Props) {
   const [showResolved, setShowResolved] = useState(false);
+  const [soloIa, setSoloIa] = useState(false);
   const [draft, setDraft] = useState('');
   const [composing, setComposing] = useState(false);
 
   const open = threads.filter((t) => t.status === 'OPEN');
   const resolved = threads.filter((t) => t.status === 'RESOLVED');
-  const visible = showResolved ? threads : open;
+
+  /*
+   * Hilos donde ha hablado una IA (RF-1613).
+   *
+   * Se calcula aquí y no lo manda el servidor porque los comentarios ya están
+   * en la respuesta: pedir un campo más obligaría a mantenerlo en dos sitios y
+   * a que se pudiera desincronizar con lo que se está pintando.
+   */
+  const conIa = threads.filter((t) => t.comments.some((c) => c.authorKind === 'AGENT'));
+
+  const porEstado = showResolved ? threads : open;
+  const visible = soloIa ? porEstado.filter((t) => conIa.includes(t)) : porEstado;
 
   function post() {
     if (!draft.trim()) return;
@@ -83,6 +96,24 @@ export function CommentsPanel({
           )}
         </h2>
         <span className="flex items-center gap-1">
+          {/*
+            Filtrar por participación de IA, no ordenarlos ni marcarlos uno a
+            uno: en un documento con muchos hilos, lo que se busca es «qué han
+            dicho los agentes», y para eso hay que poder quedarse solo con esos.
+          */}
+          {conIa.length > 0 && (
+            <Button
+              variant="ghost"
+              className={cn('px-2 py-1 text-sm', soloIa && 'text-[var(--color-acento)]')}
+              title="Threads an agent has written in"
+              onClick={() => {
+                setSoloIa((v) => !v);
+              }}
+            >
+              {soloIa ? 'All threads' : `AI (${String(conIa.length)})`}
+            </Button>
+          )}
+
           {resolved.length > 0 && (
             <Button
               variant="ghost"

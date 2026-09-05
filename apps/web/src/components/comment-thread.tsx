@@ -215,6 +215,20 @@ function CommentBody({ comment, onDelete }: { comment: Comment; onDelete: () => 
             {new Date(comment.createdAt).toLocaleDateString()}
             {comment.isEdited && ' · edited'}
           </span>
+          {/*
+            Con qué se generó, en el propio comentario y no en un panel aparte
+            (RF-1704). Va como `title` y no a la vista: quien lee la
+            conversación no necesita el modelo en cada línea, y quien duda de
+            una respuesta concreta lo tiene a un puntero.
+          */}
+          {comment.aiModelId && (
+            <span
+              className="text-xs text-[var(--color-texto-suave)]"
+              title={`Generated with ${comment.aiProvider ?? ''} · ${comment.aiModelId}`}
+            >
+              · {comment.aiModelId}
+            </span>
+          )}
           {comment.isMine && (
             <button
               onClick={onDelete}

@@ -139,14 +139,21 @@ describe('a quién se le puede escribir', () => {
     expect(sqlstateOf(error)).toBe('42501');
   });
 
-  it('nadie se avisa a sí mismo', async () => {
-    // El dominio ya lo evita, pero un descuido al calcular destinatarios es
-    // fácil y silencioso: aquí no llega a escribirse (RF-905).
-    const error = await failure(() =>
+  it('escribirse a uno mismo sí se admite, y hace falta que se admita', async () => {
+    /*
+     * La política lo prohibía como red de seguridad de RF-905. Dejó de valer con
+     * los agentes: el worker escribe con la identidad de **quien provocó** la
+     * respuesta —la única forma de que un agente no vea nada que esa persona no
+     * vea—, así que el aviso más útil de todos, «te ha contestado», tiene por
+     * destinatario a quien figura como actor.
+     *
+     * La regla no desaparece: vive en `audiencia()`, que excluye al actor y
+     * tiene sus propias pruebas. Aquí se comprueba que la política ya no la
+     * duplica, porque duplicarla bloqueaba un caso legítimo.
+     */
+    await expect(
       asAppUser(db.db, e.ana, async (tx) => tx.insert(notifications).values(aviso(e.ana, e.wsAna))),
-    );
-
-    expect(sqlstateOf(error)).toBe('42501');
+    ).resolves.not.toThrow();
   });
 
   it('la invitación alcanza a quien todavía no es miembro', async () => {
@@ -187,8 +194,8 @@ describe('lo que cada uno ve', () => {
 
     expect(deBruno.every((n) => n.userId === e.bruno)).toBe(true);
     expect(deBruno.length).toBeGreaterThan(0);
-    // Ana ha escrito avisos, pero ninguno es para ella.
-    expect(deAna).toHaveLength(0);
+    /* Y cada uno solo los suyos: el de Ana es el que ella misma se escribió. */
+    expect(deAna.every((n) => n.userId === e.ana)).toBe(true);
   });
 
   it('deja de verse al perder el acceso al workspace', async () => {

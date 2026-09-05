@@ -609,6 +609,9 @@ export interface Comment {
   authorIconColor: string | null;
   /** Un agente retirado sigue firmando lo que escribió (RF-1509). */
   authorRetired: boolean;
+  /** Con qué se generó, si lo escribió un agente (RF-1704). */
+  aiProvider: string | null;
+  aiModelId: string | null;
   isMine: boolean;
   isDeleted: boolean;
   isEdited: boolean;
@@ -814,6 +817,21 @@ export function useNotificationStream(enabled: boolean) {
     const source = new EventSource('/api/v1/notifications/stream');
     source.addEventListener('notification', () => {
       void client.invalidateQueries({ queryKey: ['notifications'] });
+      /*
+       * Y los hilos, que es lo que hace aparecer la respuesta de un agente sin
+       * recargar (RF-1602).
+       *
+       * Va por este canal y no por uno nuevo: el aviso ya llega a esa pantalla
+       * (T-6), y montar un segundo canal para lo mismo sería otra conexión
+       * abierta por pestaña para enterarse de lo que esta ya cuenta.
+       *
+       * Se invalida sin mirar de qué es el aviso. El evento trae lo justo para
+       * saber que hay algo nuevo, no de qué app, y filtrar por eso obligaría a
+       * engordarlo. Refrescar de más una consulta que está en pantalla cuesta
+       * una petición; equivocarse al filtrar cuesta que la respuesta no
+       * aparezca, que es el fallo que esto viene a evitar.
+       */
+      void client.invalidateQueries({ queryKey: ['threads'] });
     });
 
     return () => {

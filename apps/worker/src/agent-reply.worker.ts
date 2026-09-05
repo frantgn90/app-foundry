@@ -75,7 +75,7 @@ export interface AgentReplyDeps {
     readonly system: string;
     readonly messages: readonly { readonly role: 'user' | 'assistant'; readonly content: string }[];
     readonly maxOutputTokens: number;
-  }) => Promise<string>;
+  }) => Promise<{ texto: string; provider: string; modelId: string }>;
 }
 
 /** Por qué un trabajo no llegó a escribir nada. Ninguna es un error. */
@@ -234,7 +234,7 @@ async function responder(deps: AgentReplyDeps, trabajo: AgentReplyJob): Promise<
       maxOutputTokens: AGENT_REPLY_MAX_OUTPUT_TOKENS,
     });
 
-    const texto = respuesta.trim();
+    const texto = respuesta.texto.trim();
     if (texto.length === 0) return 'el modelo no devolvió nada';
 
     /*
@@ -249,7 +249,9 @@ async function responder(deps: AgentReplyDeps, trabajo: AgentReplyJob): Promise<
             cast(${trabajo.agentId} as uuid),
             cast(${perfil.id} as uuid),
             cast(${texto} as text),
-            cast(${trabajo.triggerCommentId} as uuid))`,
+            cast(${trabajo.triggerCommentId} as uuid),
+            cast(${respuesta.provider} as ai_provider),
+            cast(${respuesta.modelId} as text))`,
       )
     ).rows;
 

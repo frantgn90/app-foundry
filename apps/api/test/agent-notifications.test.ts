@@ -52,8 +52,18 @@ async function elAgenteContesta(texto: string): Promise<void> {
   );
   const emisor = h.resolve(NotificationEmitter);
 
+  /*
+   * Con el rol de la aplicación, no con el del contenedor.
+   *
+   * `conIdentidad` fija la identidad pero **no cambia de rol**, y el pool de
+   * los tests conecta como superusuario, que ignora las políticas. Sin este
+   * `SET LOCAL ROLE`, esta prueba pasaba sin ejercitar ninguna: se descubrió
+   * arrancando el worker de verdad, que sí corre como `app_user` y chocaba con
+   * la política de avisos.
+   */
   await conIdentidad(h.db, ana.id, async () => {
     const { currentTx } = await import('@app-foundry/platform');
+    await currentTx().execute(sql`SET LOCAL ROLE app_user`);
     await currentTx().execute(
       sql`SELECT agent_write_comment(
             cast(${hilo} as uuid),

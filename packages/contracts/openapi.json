@@ -5224,6 +5224,15 @@
             "type": "boolean",
             "description": "Un agente retirado sigue firmando lo que escribió (RF-1509)"
           },
+          "aiProvider": {
+            "type": "string",
+            "nullable": true,
+            "description": "Con qué se generó, si lo escribió un agente (RF-1704)"
+          },
+          "aiModelId": {
+            "type": "string",
+            "nullable": true
+          },
           "isMine": {
             "type": "boolean"
           },
@@ -5256,6 +5265,8 @@
           "authorIconEmoji",
           "authorIconColor",
           "authorRetired",
+          "aiProvider",
+          "aiModelId",
           "isMine",
           "isDeleted",
           "isEdited",

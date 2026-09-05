@@ -684,6 +684,9 @@ export class CommentsService {
       authorIconColor: esAgente ? row.agentIconColor : null,
       /* Un agente retirado se marca donde escribió, igual que una persona (RF-1509, RF-813). */
       authorRetired: esAgente && row.agentRemovedAt !== null,
+      /* Con qué se generó **este** comentario, no lo que esté asignado hoy. */
+      aiProvider: row.comment.aiProvider,
+      aiModelId: row.comment.aiModelId,
       /* Nunca es de quien mira: un agente no tiene sesión. */
       isMine: !esAgente && row.comment.authorId === userId,
       isDeleted: deleted,

@@ -24,6 +24,15 @@ export class CommentDto {
 
   @ApiProperty({ description: 'Un agente retirado sigue firmando lo que escribió (RF-1509)' })
   authorRetired!: boolean;
+
+  @ApiProperty({
+    nullable: true,
+    type: String,
+    description: 'Con qué se generó, si lo escribió un agente (RF-1704)',
+  })
+  aiProvider!: string | null;
+
+  @ApiProperty({ nullable: true, type: String }) aiModelId!: string | null;
   @ApiProperty() isMine!: boolean;
   @ApiProperty() isDeleted!: boolean;
   @ApiProperty() isEdited!: boolean;

@@ -1833,6 +1833,9 @@ export interface components {
             authorIconColor: string | null;
             /** @description Un agente retirado sigue firmando lo que escribió (RF-1509) */
             authorRetired: boolean;
+            /** @description Con qué se generó, si lo escribió un agente (RF-1704) */
+            aiProvider: string | null;
+            aiModelId: string | null;
             isMine: boolean;
             isDeleted: boolean;
             isEdited: boolean;

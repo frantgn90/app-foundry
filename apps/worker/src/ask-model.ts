@@ -31,7 +31,7 @@ export class AskModel {
     system: string;
     messages: readonly { readonly role: 'user' | 'assistant'; readonly content: string }[];
     maxOutputTokens: number;
-  }): Promise<string> {
+  }): Promise<{ texto: string; provider: string; modelId: string }> {
     const context = {
       workspaceId: peticion.workspaceId,
       appId: peticion.appId,
@@ -83,7 +83,12 @@ export class AskModel {
         outcome: 'COMPLETED',
         ...(ttftMs !== undefined && { ttftMs }),
       });
-      return texto;
+      /*
+       * Se devuelve con qué se generó, no solo el texto: el modelo que atiende
+       * una tarea cambia, así que preguntarlo después daría el de entonces y no
+       * el de esta respuesta (RF-1704).
+       */
+      return { texto, provider: empezada.plan.provider, modelId: empezada.plan.modelId };
     } catch (error: unknown) {
       /*
        * Se liquida igual al fallar. Sin esto, un fallo dejaría el cupo apartado

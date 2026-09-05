@@ -1,7 +1,7 @@
 import { Inject, Injectable, Logger, type OnApplicationShutdown } from '@nestjs/common';
 import { Queue } from 'bullmq';
 import { and, eq, isNull } from 'drizzle-orm';
-import type { Redis } from 'ioredis';
+import { Redis } from 'ioredis';
 
 import {
   AGENT_REPLY_QUEUE,
@@ -10,7 +10,8 @@ import {
   AgentTrigger,
 } from '@app-foundry/core';
 import { agents, comments } from '@app-foundry/db';
-import { currentTx, REDIS, trasCommit } from '@app-foundry/platform';
+import type { Env } from '@app-foundry/env';
+import { currentTx, ENV, trasCommit } from '@app-foundry/platform';
 
 /**
  * Quien encola las respuestas de agente (RF-1602, T-32).
@@ -28,13 +29,26 @@ import { currentTx, REDIS, trasCommit } from '@app-foundry/platform';
 export class AgentQueueService implements OnApplicationShutdown {
   private readonly logger = new Logger(AgentQueueService.name);
   private readonly queue: Queue<AgentReplyJob>;
+  private readonly redis: Redis;
 
-  constructor(@Inject(REDIS) redis: Redis) {
-    this.queue = new Queue<AgentReplyJob>(AGENT_REPLY_QUEUE, { connection: redis });
+  /**
+   * Conexión propia, no la compartida de la aplicación.
+   *
+   * La del resto de la API es perezosa y con los reintentos acotados, que es lo
+   * correcto para comandos sueltos dentro de una petición. BullMQ espera otra
+   * cosa, y con la compartida encolar fallaba con «Connection is closed»: el
+   * comentario se guardaba y el agente no contestaba nunca. Se descubrió
+   * mandando una mención desde la pantalla, no en los tests, donde cada uno
+   * abre la suya.
+   */
+  constructor(@Inject(ENV) env: Env) {
+    this.redis = new Redis(env.REDIS_URL, { maxRetriesPerRequest: null });
+    this.queue = new Queue<AgentReplyJob>(AGENT_REPLY_QUEUE, { connection: this.redis });
   }
 
   async onApplicationShutdown(): Promise<void> {
     await this.queue.close();
+    this.redis.disconnect();
   }
 
   /**

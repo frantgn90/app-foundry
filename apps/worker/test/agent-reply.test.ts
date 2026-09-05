@@ -76,7 +76,11 @@ beforeAll(async () => {
         falloProgramado.veces -= 1;
         return Promise.reject(new ProviderError(falloProgramado.kind, 'de mentira'));
       }
-      return Promise.resolve('Scope looks wider than the problem.');
+      return Promise.resolve({
+        texto: 'Scope looks wider than the problem.',
+        provider: 'ANTHROPIC',
+        modelId: 'fake-large',
+      });
     },
     notify: (aviso) => {
       avisos.push(aviso);

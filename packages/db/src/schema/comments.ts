@@ -12,7 +12,7 @@ import {
 
 import { agentPromptRevisions, agents } from './agents.js';
 import { apps, documents, documentVersions } from './apps.js';
-import { anchorStatusEnum, threadKindEnum, threadStatusEnum } from './enums.js';
+import { aiProviderEnum, anchorStatusEnum, threadKindEnum, threadStatusEnum } from './enums.js';
 import { users } from './users.js';
 
 /**
@@ -131,6 +131,19 @@ export const comments = pgTable(
     agentPromptRevisionId: uuid('agent_prompt_revision_id').references(
       () => agentPromptRevisions.id,
     ),
+    /**
+     * Con qué se generó, para poder decirlo en el propio comentario (RF-1704).
+     *
+     * Se guarda aquí y no se deduce del registro de invocaciones porque lo que
+     * hay que contestar es de **este** comentario, y una invocación no apunta a
+     * ninguno: sacarlo por fecha y agente sería adivinar. Y porque el modelo
+     * asignado a la tarea cambia, así que preguntar hoy por lo que se usó ayer
+     * daría la respuesta de hoy.
+     *
+     * Van con `authorAgentId`: un comentario de persona no se generó con nada.
+     */
+    aiProvider: aiProviderEnum('ai_provider'),
+    aiModelId: text('ai_model_id'),
     editedAt: timestamp('edited_at', { withTimezone: true }),
     deletedAt: timestamp('deleted_at', { withTimezone: true }),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),

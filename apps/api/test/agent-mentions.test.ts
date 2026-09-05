@@ -177,3 +177,48 @@ describe('leer un comentario de agente', () => {
     expect(suyo!.isMine).toBe(false);
   });
 });
+
+describe('borrar un hilo donde ha escrito un agente', () => {
+  it('lo borra el precursor, y se lleva lo que escribió el agente', async () => {
+    /*
+     * Es el mismo borrado de siempre (RF-806, RF-1705): las políticas no hacen
+     * excepción con los comentarios de agente, y esta prueba está para que
+     * siga siendo así. Un hilo que no se pudiera borrar porque una IA escribió
+     * en él sería una conversación que nadie puede cerrar.
+     */
+    const nuevo = (await (
+      await h.as(ana).post(`/api/v1/apps/${appId}/threads`, { body: 'Hilo para borrar, @po' })
+    ).json()) as { id: string };
+
+    const revision = await h.db.execute<{ id: string }>(
+      sql`SELECT id FROM agent_prompt_revisions WHERE agent_id = ${elPO}::uuid ORDER BY revision DESC LIMIT 1`,
+    );
+    await h.db.transaction(async (tx) => {
+      await tx.execute(sql`SELECT set_config('app.user_id', ${ana.id}, true)`);
+      await tx.execute(
+        sql`SELECT agent_write_comment(
+              cast(${nuevo.id} as uuid),
+              cast(${elPO} as uuid),
+              cast(${revision.rows[0]!.id} as uuid),
+              cast('Something to delete.' as text))`,
+      );
+    });
+
+    const res = await h.as(ana).delete(`/api/v1/threads/${nuevo.id}`);
+    expect(res.status).toBe(204);
+
+    const quedan = await h.db.execute<{ cuantos: number }>(
+      sql`SELECT count(*)::int AS cuantos FROM comments WHERE thread_id = ${nuevo.id}::uuid`,
+    );
+    expect(quedan.rows[0]!.cuantos).toBe(0);
+  });
+
+  it('un miembro que no es su autor ni precursor, no', async () => {
+    const nuevo = (await (
+      await h.as(ana).post(`/api/v1/apps/${appId}/threads`, { body: 'Este se queda' })
+    ).json()) as { id: string };
+
+    const res = await h.as(bruno).delete(`/api/v1/threads/${nuevo.id}`);
+    expect(res.status).toBe(403);
+  });
+});
