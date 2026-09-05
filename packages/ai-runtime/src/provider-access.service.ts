@@ -5,7 +5,7 @@ import type { AiProvider, Credential } from '@app-foundry/core';
 import type { CredentialCipher } from '@app-foundry/ai';
 import { workspaceAiProviders, workspaces } from '@app-foundry/db';
 
-import { currentTx } from './tx-context.js';
+import { currentTx } from '@app-foundry/platform';
 import { AI_CIPHER } from './tokens.js';
 
 /**

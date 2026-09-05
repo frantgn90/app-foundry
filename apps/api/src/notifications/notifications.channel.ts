@@ -4,12 +4,12 @@ import type { Request, Response } from 'express';
 
 import { type Database, notifications } from '@app-foundry/db';
 
-import { conIdentidad } from '@app-foundry/ai-runtime';
-import { currentTx } from '@app-foundry/ai-runtime';
+import { conIdentidad } from '@app-foundry/platform';
+import { currentTx } from '@app-foundry/platform';
 import { DATABASE } from '../infrastructure/tokens.js';
 import { MetricsService } from '../observability/metrics.service.js';
-import type { EventoAviso } from './notifications.stream.js';
-import { NotificationsStream } from './notifications.stream.js';
+import type { EventoAviso } from '@app-foundry/notifications';
+import { NotificationsStream } from '@app-foundry/notifications';
 
 /** Cada cuánto se manda señal de vida. Por debajo del minuto de casi todo proxy. */
 const LATIDO_MS = 25_000;

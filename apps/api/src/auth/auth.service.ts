@@ -5,7 +5,7 @@ import { auditLog, type Database, workspaceMembers, workspaces } from '@app-foun
 import type { Env } from '@app-foundry/env';
 
 import { AuditAction, AuditService } from '../audit/audit.service.js';
-import { currentTx, trasCommit } from '@app-foundry/ai-runtime';
+import { currentTx, trasCommit } from '@app-foundry/platform';
 import { DATABASE, ENV } from '../infrastructure/tokens.js';
 import type { GitHubProfile } from './github.strategy.js';
 import { SessionService } from './session.service.js';

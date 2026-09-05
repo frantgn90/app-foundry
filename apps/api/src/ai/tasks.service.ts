@@ -6,7 +6,7 @@ import type { ProviderRegistry } from '@app-foundry/ai';
 import { aiModels, workspaceAiProviders, workspaceTaskModels, workspaces } from '@app-foundry/db';
 
 import { AuditAction, AuditService } from '../audit/audit.service.js';
-import { currentTx } from '@app-foundry/ai-runtime';
+import { currentTx } from '@app-foundry/platform';
 import { AI_REGISTRY } from './ai.tokens.js';
 import type { AiAvailabilityDto, AiTaskAssignmentDto, AssignTaskModelDto } from './ai.dto.js';
 import { AiProvidersService } from './providers.service.js';

@@ -24,8 +24,8 @@ import {
 import type { ProviderRegistry } from '@app-foundry/ai';
 import { type Database, workspaceMembers } from '@app-foundry/db';
 
-import { conIdentidad } from '@app-foundry/ai-runtime';
-import { currentTx } from '@app-foundry/ai-runtime';
+import { conIdentidad } from '@app-foundry/platform';
+import { currentTx } from '@app-foundry/platform';
 import { DATABASE } from '../infrastructure/tokens.js';
 import { AI_REGISTRY } from './ai.tokens.js';
 import { AiInvocationService, type InvocationCandidate } from '@app-foundry/ai-runtime';

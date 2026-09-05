@@ -1,5 +1,5 @@
 {
-  "name": "@app-foundry/ai-runtime",
+  "name": "@app-foundry/notifications",
   "version": "0.0.0",
   "private": true,
   "type": "module",
@@ -21,13 +21,10 @@
     "typecheck": "tsc -p tsconfig.json"
   },
   "dependencies": {
-    "@app-foundry/ai": "workspace:*",
     "@app-foundry/core": "workspace:*",
     "@app-foundry/db": "workspace:*",
-    "@app-foundry/env": "workspace:*",
     "@app-foundry/platform": "workspace:*",
     "@nestjs/common": "12.0.1",
-    "@opentelemetry/api": "1.9.1",
     "drizzle-orm": "0.45.2",
     "ioredis": "5.11.1",
     "reflect-metadata": "0.2.2"

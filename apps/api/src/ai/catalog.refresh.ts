@@ -12,7 +12,7 @@ import type { AiProvider } from '@app-foundry/core';
 import type { Database } from '@app-foundry/db';
 import type { Env } from '@app-foundry/env';
 
-import { conIdentidad } from '@app-foundry/ai-runtime';
+import { conIdentidad } from '@app-foundry/platform';
 import { DATABASE, ENV, REDIS } from '../infrastructure/tokens.js';
 import { AiCatalogService } from './catalog.service.js';
 

@@ -13,7 +13,7 @@ import { from, lastValueFrom, type Observable } from 'rxjs';
 import type { Database } from '@app-foundry/db';
 
 import { DATABASE } from '../infrastructure/tokens.js';
-import { requestContext } from '@app-foundry/ai-runtime';
+import { requestContext } from '@app-foundry/platform';
 import { SIN_TRANSACCION } from './sin-transaccion.decorator.js';
 
 /**

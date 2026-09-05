@@ -1,18 +1,11 @@
 /**
- * Tokens de inyección compartidos por la API y el worker.
+ * Tokens de inyección de la capa de IA.
  *
- * `Database` y `Redis` son tipos, no clases: la inyección por tipo de Nest no
- * puede resolverlos, así que se inyectan por token explícito.
- *
- * Viven aquí porque son **símbolos**, y dos símbolos con el mismo nombre no son
- * el mismo token. Si cada proceso declarara los suyos, el contenedor del worker
- * no resolvería lo que este paquete pide y el fallo aparecería al arrancar, no
- * al compilar.
+ * Los de plataforma —conexión, entorno, Redis— se reexportan del paquete que
+ * los declara: son símbolos, y declararlos aquí daría un token distinto con el
+ * mismo nombre.
  */
-export const ENV = Symbol('ENV');
-export const DB_HANDLE = Symbol('DB_HANDLE');
-export const DATABASE = Symbol('DATABASE');
-export const REDIS = Symbol('REDIS');
+export { DATABASE, DB_HANDLE, ENV, REDIS } from '@app-foundry/platform';
 
 /** De `ProviderId` a adaptador (T-21). */
 export const AI_REGISTRY = Symbol('AI_REGISTRY');

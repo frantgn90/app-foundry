@@ -1,7 +1,7 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { and, count, desc, eq, inArray, isNotNull, isNull } from 'drizzle-orm';
 
-import { audiencia, type Entorno, type NotificationType, uuidv7 } from '@app-foundry/core';
+import type { Entorno } from '@app-foundry/core';
 import {
   apps,
   comments,
@@ -10,38 +10,24 @@ import {
   documentVersions,
   notifications,
   users,
-  workspaceMembers,
 } from '@app-foundry/db';
 
-import { currentTx, trasCommit } from '@app-foundry/ai-runtime';
+import { currentTx } from '@app-foundry/platform';
 import { MetricsService } from '../observability/metrics.service.js';
 import type { NotificationDto, NotificationListDto } from './notifications.dto.js';
 import { NotificationsChannel } from './notifications.channel.js';
-import { NotificationsStream } from './notifications.stream.js';
-
-export interface Emision {
-  type: NotificationType;
-  entorno: Entorno;
-  workspaceId: string;
-  appId?: string | null;
-  threadId?: string | null;
-  /**
-   * Lo necesario para pintar el aviso sin volver a consultar nada. Es una foto
-   * del momento: si mañana se borra el comentario, el aviso sigue leyéndose.
-   */
-  payload: Record<string, unknown>;
-}
+import {
+  type AvisoEmitido,
+  type Emision,
+  NotificationEmitter,
+  NotificationsStream,
+} from '@app-foundry/notifications';
 
 /** Un aviso ya escrito, para que el canal en tiempo real pueda repartirlo. */
-export interface AvisoEmitido {
-  id: string;
-  userId: string;
-  type: NotificationType;
-}
-
 @Injectable()
 export class NotificationsService {
   constructor(
+    private readonly emitter: NotificationEmitter,
     private readonly stream: NotificationsStream,
     private readonly channel: NotificationsChannel,
     private readonly metrics: MetricsService,
@@ -60,58 +46,13 @@ export class NotificationsService {
   /**
    * Escribe los avisos de una acción, en su misma transacción.
    *
-   * Va dentro de la transacción a propósito: si la acción se deshace, sus avisos
-   * tampoco existen. Recibir un «han comentado tu app» de un comentario que
-   * nunca llegó a guardarse es peor que no recibir nada, porque manda a mirar
-   * algo que no está.
-   *
-   * El identificador se genera aquí y no en la base de datos porque un aviso es
-   * de quien lo recibe: las políticas no dejan releer lo que acabas de escribir
-   * para otro, así que `RETURNING` no puede devolverlo.
+   * Delega en el emisor compartido: escribir avisos lo hacen dos procesos —esta
+   * API y el worker— y tenerlo aquí obligaba al segundo a depender de la
+   * primera. Lo que se queda en este servicio es lo que solo ocurre sobre una
+   * petición: leerlos, marcarlos y contarlos.
    */
   async emit(entrada: Emision): Promise<AvisoEmitido[]> {
-    const previstos = audiencia(entrada.type, entrada.entorno);
-    if (previstos.length === 0) return [];
-
-    const alcanzables = await this.alcanzables(
-      entrada.workspaceId,
-      previstos.map((a) => a.userId),
-      entrada.type,
-    );
-    const avisos = previstos
-      .filter((a) => alcanzables.has(a.userId))
-      .map((a) => ({ id: uuidv7(), userId: a.userId, type: a.type }));
-    if (avisos.length === 0) return [];
-
-    const creado = new Date().toISOString();
-    await currentTx()
-      .insert(notifications)
-      .values(
-        avisos.map((a) => ({
-          id: a.id,
-          userId: a.userId,
-          type: a.type,
-          workspaceId: entrada.workspaceId,
-          appId: entrada.appId ?? null,
-          threadId: entrada.threadId ?? null,
-          payload: entrada.payload,
-        })),
-      );
-
-    /*
-     * El reparto espera al commit. Publicado aquí mismo, un aviso podría llegar
-     * al navegador y desaparecer un instante después si el guardado falla,
-     * dejando a alguien mirando algo que no existe.
-     */
-    this.metrics.avisosEmitidos(avisos.length);
-
-    trasCommit(async () => {
-      for (const a of avisos) {
-        await this.stream.publicar(a.userId, { id: a.id, type: a.type, createdAt: creado });
-      }
-    });
-
-    return avisos;
+    return this.emitter.emit(entrada);
   }
 
   /**
@@ -255,27 +196,6 @@ export class NotificationsService {
    * quien lo estaba escribiendo, por un aviso que no le incumbe. Se filtra aquí
    * y la política queda de red de seguridad, que es su papel.
    */
-  private async alcanzables(
-    workspaceId: string,
-    candidatos: string[],
-    type: NotificationType,
-  ): Promise<Set<string>> {
-    // Al invitar, el destinatario todavía no es miembro: ahí la comprobación de
-    // que la invitación existe la hace la propia política.
-    if (type === 'WORKSPACE_INVITED') return new Set(candidatos);
-
-    const miembros = await currentTx()
-      .select({ userId: workspaceMembers.userId })
-      .from(workspaceMembers)
-      .where(
-        and(
-          eq(workspaceMembers.workspaceId, workspaceId),
-          inArray(workspaceMembers.userId, candidatos),
-        ),
-      );
-
-    return new Set(miembros.map((m) => m.userId));
-  }
 }
 
 function aDto(fila: typeof notifications.$inferSelect): NotificationDto {

@@ -1,5 +1,3 @@
-export * from './tx-context.js';
-export * from './con-identidad.js';
 export * from './tokens.js';
 export * from './ports.js';
 export * from './provider-http.js';

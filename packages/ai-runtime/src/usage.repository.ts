@@ -5,7 +5,7 @@ import { and, desc, eq, gte, lt, sql } from 'drizzle-orm';
 import type { AiProvider } from '@app-foundry/core';
 import { aiInvocations, users } from '@app-foundry/db';
 
-import { currentTx } from './tx-context.js';
+import { currentTx } from '@app-foundry/platform';
 
 /**
  * Lo que dice la tabla de invocaciones, que es la verdad del consumo.

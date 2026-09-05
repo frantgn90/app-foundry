@@ -7,7 +7,7 @@ import {
 } from '@nestjs/common';
 import { Redis } from 'ioredis';
 
-import { REDIS } from '../infrastructure/tokens.js';
+import { REDIS } from '@app-foundry/platform';
 
 /** Lo que viaja por el canal: lo justo para que el navegador vaya a por el resto. */
 export interface EventoAviso {

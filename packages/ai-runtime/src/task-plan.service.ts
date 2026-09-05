@@ -5,7 +5,7 @@ import { type AiProvider, type AiTask, supportForTask } from '@app-foundry/core'
 import type { ProviderRegistry } from '@app-foundry/ai';
 import { aiModels, workspaceTaskModels } from '@app-foundry/db';
 
-import { currentTx } from './tx-context.js';
+import { currentTx } from '@app-foundry/platform';
 import { AI_REGISTRY } from './tokens.js';
 
 /**

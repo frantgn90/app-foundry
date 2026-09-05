@@ -22,8 +22,8 @@ import type { Env } from '@app-foundry/env';
 import type { ProviderRegistry } from '@app-foundry/ai';
 import { aiInvocations, type Database } from '@app-foundry/db';
 
-import { conIdentidad } from './con-identidad.js';
-import { currentTx } from './tx-context.js';
+import { conIdentidad } from '@app-foundry/platform';
+import { currentTx } from '@app-foundry/platform';
 import { AI_METRICS, AI_NOTIFIER, AI_REGISTRY, DATABASE, ENV } from './tokens.js';
 import { AiCircuitService } from './circuit.service.js';
 import { toProviderHttpException } from './provider-http.js';

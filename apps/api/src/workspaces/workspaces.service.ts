@@ -19,7 +19,7 @@ import type { Env } from '@app-foundry/env';
 
 import { AuditAction, AuditService } from '../audit/audit.service.js';
 import { NotificationsService } from '../notifications/notifications.service.js';
-import { currentTx } from '@app-foundry/ai-runtime';
+import { currentTx } from '@app-foundry/platform';
 import { ENV } from '../infrastructure/tokens.js';
 import type {
   InvitationDto,

@@ -2,7 +2,7 @@ import { HttpException } from '@nestjs/common';
 import type { Database } from '@app-foundry/db';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
-import { conIdentidad } from '@app-foundry/ai-runtime';
+import { conIdentidad } from '@app-foundry/platform';
 import { AiInvocationService } from '@app-foundry/ai-runtime';
 import { DATABASE } from '../src/infrastructure/tokens.js';
 import { type Harness, startHarness, type TestUser } from './harness.js';

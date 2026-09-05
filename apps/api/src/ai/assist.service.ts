@@ -28,9 +28,9 @@ import {
 import type { ProviderRegistry } from '@app-foundry/ai';
 import { apps, type Database } from '@app-foundry/db';
 
-import { conIdentidad } from '@app-foundry/ai-runtime';
+import { conIdentidad } from '@app-foundry/platform';
 import type { AssistEstimateDto } from './ai.dto.js';
-import { currentTx } from '@app-foundry/ai-runtime';
+import { currentTx } from '@app-foundry/platform';
 import { DocumentsService } from '../documents/documents.service.js';
 import { DATABASE } from '../infrastructure/tokens.js';
 import { AI_REGISTRY } from './ai.tokens.js';

@@ -1,7 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { sql } from 'drizzle-orm';
 
-import { currentTx } from '@app-foundry/ai-runtime';
+import { currentTx } from '@app-foundry/platform';
 import type { SearchHitDto, SearchResultsDto } from './search.dto.js';
 
 /** Tantos como caben en una lista que se recorre con la vista, no leyendo. */
