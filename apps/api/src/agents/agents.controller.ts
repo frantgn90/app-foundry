@@ -9,6 +9,7 @@ import {
   ParseUUIDPipe,
   Patch,
   Post,
+  Put,
 } from '@nestjs/common';
 import { ApiNoContentResponse, ApiOkResponse, ApiOperation, ApiTags } from '@nestjs/swagger';
 
@@ -65,6 +66,46 @@ export class AgentsController {
     @CurrentUserId() userId: string,
   ): Promise<AgentDto> {
     return this.agentes.adoptTemplate(appId, agentId, userId);
+  }
+
+  /*
+   * Silenciar es de quien lo pide y de nadie más, así que va sin cuerpo: no hay
+   * nada que decidir salvo si se calla o se vuelve a oír, y eso lo dice el
+   * verbo. Un PATCH con `{ muted: true }` invitaría a preguntarse de quién es
+   * ese `muted`.
+   */
+  @Put(':agentId/mute')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  @ApiOperation({ summary: 'Dejar de recibir avisos de este agente. Solo para quien lo pide' })
+  @ApiNoContentResponse()
+  mute(
+    @Param('id', ParseUUIDPipe) appId: string,
+    @Param('agentId', ParseUUIDPipe) agentId: string,
+    @CurrentUserId() userId: string,
+  ): Promise<void> {
+    return this.agentes.silenciar(appId, agentId, userId, true);
+  }
+
+  @Delete(':agentId/mute')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  @ApiOperation({ summary: 'Volver a recibir avisos de este agente' })
+  @ApiNoContentResponse()
+  unmute(
+    @Param('id', ParseUUIDPipe) appId: string,
+    @Param('agentId', ParseUUIDPipe) agentId: string,
+    @CurrentUserId() userId: string,
+  ): Promise<void> {
+    return this.agentes.silenciar(appId, agentId, userId, false);
+  }
+
+  @Get('muted')
+  @ApiOperation({ summary: 'A qué agentes de esta app ha silenciado quien pregunta' })
+  @ApiOkResponse({ type: [String] })
+  muted(
+    @Param('id', ParseUUIDPipe) appId: string,
+    @CurrentUserId() userId: string,
+  ): Promise<string[]> {
+    return this.agentes.silenciados(appId, userId);
   }
 
   @Delete(':agentId')

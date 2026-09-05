@@ -194,6 +194,37 @@ describe('responder donde un agente ya escribió lo despierta', () => {
   });
 });
 
+describe('commitear una versión no invoca a nadie', () => {
+  it('ni con agentes activos en la app, ni con uno mencionado en el documento', async () => {
+    /*
+     * Se descartó a propósito (RF-1603): convertiría cada commit en gasto y
+     * sepultaría el documento en comentarios. Es una prueba de que **no** pasa
+     * nada, y por eso importa que exista: nadie echa de menos un disparo que no
+     * se hizo, y añadirlo un día por comodidad no rompería ningún test.
+     */
+    await vaciar();
+
+    const antes = (await (await h.as(ana).get(`/api/v1/apps/${appId}/document`)).json()) as {
+      revision: number;
+    };
+
+    const guardado = await h.as(ana).put(`/api/v1/apps/${appId}/document`, {
+      content: '# El problema\n\nAlgo que revisar, @po.',
+      revision: antes.revision,
+    });
+    expect(guardado.status).toBe(200);
+    const doc = (await guardado.json()) as { revision: number };
+
+    const commit = await h.as(ana).post(`/api/v1/apps/${appId}/document/commit`, {
+      message: 'Primera versión',
+      revision: doc.revision,
+    });
+    expect(commit.status).toBe(201);
+
+    expect(await encolados()).toHaveLength(0);
+  });
+});
+
 describe('lo que escribe un agente no despierta a nadie', () => {
   it('ni siquiera si su texto menciona a otro agente', async () => {
     await vaciar();

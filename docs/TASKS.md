@@ -979,14 +979,14 @@ Solo se desglosa el hito en curso. H9, H10 y H11 están cerradas; **H12** está 
 | BE5 | Lo escrito por un agente no dispara a nadie | `author_id IS NOT NULL` como condición de entrada del consumidor | RF-1604, T-35 | ✅ |
 | BE6 | Una mención escrita por un agente no se registra ni avisa | Ni en `comment_agent_mentions` ni en `comment_mentions` | RF-1604 | ✅ |
 | BE7 | Tope de intervenciones por hilo y agente, configurable de instancia | Al tercero calla; una mención explícita le devuelve la palabra | RF-1605, RNF-1002 | ✅ |
-| BE8 | Commitear una versión no invoca a nadie | Guardar sigue siendo gratis | RF-1603 | ⬜ |
+| BE8 | Commitear una versión no invoca a nadie | Guardar sigue siendo gratis | RF-1603 | ✅ |
 | BE9 | Perfil y contenido, separados al construir la petición | Un documento que pida saltarse el perfil no cambia el comportamiento | RF-1614, RNF-605 | ✅ |
 | BE10 | El contexto entregado: perfil, metadatos de la app y el hilo | Nunca otras apps, nunca otro workspace | RNF-604, RF-1512 | ✅ |
 | BE11 | El comentario guarda la revisión de prompt con la que se generó | Editar la personalidad después no reescribe la historia | RF-1510 | ✅ |
 | BE12 | La respuesta pasa por el paso común de invocación | Cupo, registro y traza, con su `actor_agent_id` y tarea `AGENT_REPLY` | RF-1201, RD-10 | ✅ |
 | BE13 | Un reintento no duplica el comentario | Escritura y cierre del trabajo en la misma transacción, con clave de idempotencia | T-33, RNF-703 | ✅ |
-| BE14 | Las personas se enteran; el agente no recibe nada | Misma audiencia que entre personas | RF-1612, RF-902 | ⬜ |
-| BE15 | Silenciar los avisos de un agente concreto | Sigue escribiendo; deja de avisar a quien lo silenció | RF-1612 | ⬜ |
+| BE14 | Las personas se enteran; el agente no recibe nada | Misma audiencia que entre personas | RF-1612, RF-902 | ✅ |
+| BE15 | Silenciar los avisos de un agente concreto | Sigue escribiendo; deja de avisar a quien lo silenció | RF-1612 | ✅ |
 
 > **Sobre BE1 y BE2.** Una respuesta de agente no se espera mirando la pantalla, así que no tiene por qué vivir
 > dentro de una petición HTTP: va a la cola y el worker la escribe cuando la tiene. De paso resuelve gratis lo

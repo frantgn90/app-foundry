@@ -40,6 +40,7 @@ async function bootstrap(): Promise<void> {
   const db = app.get<Database>(DATABASE);
   const redis = app.get<Redis>(REDIS);
   const ask = app.get(AskModel);
+  const emisor = app.get(NotificationEmitter);
 
   const worker = startAgentReplyWorker({
     redis,
@@ -47,6 +48,7 @@ async function bootstrap(): Promise<void> {
     env,
     log,
     ask: (peticion) => ask.ask(peticion),
+    notify: (aviso) => emisor.emit(aviso),
   });
 
   log.log(

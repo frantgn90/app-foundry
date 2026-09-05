@@ -1,6 +1,7 @@
 import { sql } from 'drizzle-orm';
-import { index, jsonb, pgTable, timestamp, uuid } from 'drizzle-orm/pg-core';
+import { index, jsonb, pgTable, primaryKey, timestamp, uuid } from 'drizzle-orm/pg-core';
 
+import { agents } from './agents.js';
 import { apps } from './apps.js';
 import { commentThreads } from './comments.js';
 import { notificationTypeEnum } from './enums.js';
@@ -63,5 +64,33 @@ export const notifications = pgTable(
     index('notifications_user_idx').on(t.userId, t.createdAt.desc()),
     /** La purga por antigüedad barre por fecha sin mirar de quién es (RF-910). */
     index('notifications_created_idx').on(t.createdAt),
+  ],
+);
+
+/**
+ * Quién no quiere oír a qué agente (RF-1612).
+ *
+ * Silenciar es de la persona y del agente concreto, no del hilo ni de la app:
+ * lo que molesta es un perfil que opina demasiado, y apagarlo entero —o
+ * quitarlo de la app— es una decisión de otro que además afecta a todos.
+ *
+ * Silenciado sigue escribiendo. Lo que deja de llegar es el aviso, no el
+ * comentario: apagarle la voz a alguien porque a uno le cansa sería decidir por
+ * los demás lo que pueden leer.
+ */
+export const notificationAgentMutes = pgTable(
+  'notification_agent_mutes',
+  {
+    userId: uuid('user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    agentId: uuid('agent_id')
+      .notNull()
+      .references(() => agents.id, { onDelete: 'cascade' }),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    primaryKey({ columns: [table.userId, table.agentId] }),
+    index('notification_agent_mutes_agent_idx').on(table.agentId),
   ],
 );

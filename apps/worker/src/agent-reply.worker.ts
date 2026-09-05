@@ -1,7 +1,7 @@
 import { UnrecoverableError, Worker } from 'bullmq';
 import type { Redis } from 'ioredis';
 import type { Logger } from '@nestjs/common';
-import { and, asc, desc, eq, isNull, sql } from 'drizzle-orm';
+import { and, asc, desc, eq, isNotNull, isNull, sql } from 'drizzle-orm';
 
 import {
   AGENT_REPLY_QUEUE,
@@ -28,6 +28,7 @@ import {
   users,
 } from '@app-foundry/db';
 import type { Env } from '@app-foundry/env';
+import type { Emision } from '@app-foundry/notifications';
 import { conIdentidad, currentTx } from '@app-foundry/platform';
 
 /**
@@ -59,6 +60,13 @@ export interface AgentReplyDeps {
    * de punta a punta sin proveedor: es el mismo motivo por el que existe el
    * proveedor de mentira (T-36).
    */
+  /**
+   * Cómo se avisa a las personas del hilo.
+   *
+   * Se inyecta igual que `ask`, y por lo mismo: el worker no tiene por qué
+   * conocer el emisor concreto, y así se puede ejercitar sin uno.
+   */
+  readonly notify: (aviso: Emision) => Promise<unknown>;
   readonly ask: (peticion: {
     readonly workspaceId: string;
     readonly appId: string;
@@ -234,14 +242,26 @@ async function responder(deps: AgentReplyDeps, trabajo: AgentReplyJob): Promise<
      * generó. Si algo falla después, no queda medio comentario ni un trabajo
      * dado por hecho: o las dos cosas o ninguna (T-33).
      */
-    await tx.execute(
-      sql`SELECT agent_write_comment(
+    const [escrito] = (
+      await tx.execute<{ agent_write_comment: string }>(
+        sql`SELECT agent_write_comment(
             cast(${trabajo.threadId} as uuid),
             cast(${trabajo.agentId} as uuid),
             cast(${perfil.id} as uuid),
             cast(${texto} as text),
             cast(${trabajo.triggerCommentId} as uuid))`,
-    );
+      )
+    ).rows;
+
+    await avisar(deps, {
+      commentId: escrito!.agent_write_comment,
+      trabajo,
+      appId: contexto.appId,
+      workspaceId: contexto.workspaceId,
+      agentHandle: contexto.agentHandle,
+      appName: contexto.appName,
+      texto,
+    });
 
     return null;
   });
@@ -316,4 +336,66 @@ function comoFalla(error: unknown): Error {
     return new UnrecoverableError('cancelado');
   }
   return error instanceof Error ? error : new Error(String(error));
+}
+
+/**
+ * Avisa a las personas del hilo de que un agente ha contestado (RF-1612).
+ *
+ * Un agente **no recibe** avisos: no tiene sesión ni bandeja, así que la
+ * audiencia se calcula solo con personas. Y quien provocó la respuesta sí
+ * entra, al revés que cuando actúa una persona: si menciono a un agente, lo que
+ * quiero saber es justamente que ha contestado.
+ *
+ * Por eso el actor va vacío. `audiencia` excluye siempre al actor de su propio
+ * aviso (RF-905), y aquí el actor es el agente, que no está en ninguna lista:
+ * dejarlo vacío no salta ninguna regla, solo dice que no lo hizo una persona.
+ */
+async function avisar(
+  deps: AgentReplyDeps,
+  datos: {
+    commentId: string;
+    trabajo: AgentReplyJob;
+    appId: string;
+    workspaceId: string;
+    agentHandle: string;
+    appName: string;
+    texto: string;
+  },
+): Promise<void> {
+  const [hilo] = await currentTx()
+    .select({ autor: commentThreads.createdBy })
+    .from(commentThreads)
+    .where(eq(commentThreads.id, datos.trabajo.threadId));
+
+  /* Personas y solo personas: un agente no es destinatario de nada (RF-1612). */
+  const participantes = await currentTx()
+    .selectDistinct({ userId: comments.authorId })
+    .from(comments)
+    .where(and(eq(comments.threadId, datos.trabajo.threadId), isNotNull(comments.authorId)));
+
+  /* Quienes han pedido no oír a este agente en concreto (RF-1612). */
+  const callados = await currentTx().execute<{ user_id: string }>(
+    sql`SELECT user_id FROM notification_agent_muted_by(cast(${datos.trabajo.agentId} as uuid))`,
+  );
+
+  await deps.notify({
+    type: 'THREAD_REPLIED',
+    entorno: {
+      actor: '',
+      autorDelHilo: hilo?.autor ?? null,
+      participantesDelHilo: participantes
+        .map((p) => p.userId)
+        .filter((id): id is string => id !== null),
+    },
+    workspaceId: datos.workspaceId,
+    appId: datos.appId,
+    threadId: datos.trabajo.threadId,
+    payload: {
+      actorHandle: datos.agentHandle,
+      appName: datos.appName,
+      excerpt: datos.texto.slice(0, 140),
+      byAgent: true,
+    },
+    silenciados: callados.rows.map((f) => f.user_id),
+  });
 }

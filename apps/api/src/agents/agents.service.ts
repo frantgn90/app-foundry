@@ -13,6 +13,7 @@ import {
   agents,
   agentTemplates,
   apps,
+  notificationAgentMutes,
   users,
   workspaceMembers,
 } from '@app-foundry/db';
@@ -268,6 +269,49 @@ export class AgentsService {
       workspaceId: app.workspaceId,
       metadata: { appId, handle: agente.handle },
     });
+  }
+
+  /**
+   * Silencia o vuelve a oír a un agente, para quien lo pide (RF-1612).
+   *
+   * De la persona y del agente concreto: lo que molesta es un perfil que opina
+   * demasiado. Desactivarlo o quitarlo de la app también lo callaría, pero eso
+   * es una decisión de otro y afecta a todos.
+   *
+   * Y **sigue escribiendo**: lo que deja de llegar es el aviso, no el
+   * comentario. Apagarle la voz a alguien porque a uno le cansa sería decidir
+   * por los demás lo que pueden leer.
+   */
+  async silenciar(appId: string, agentId: string, userId: string, callado: boolean): Promise<void> {
+    await this.appVisible(appId);
+    await this.find(appId, agentId);
+
+    if (callado) {
+      await currentTx()
+        .insert(notificationAgentMutes)
+        .values({ userId, agentId })
+        .onConflictDoNothing();
+      return;
+    }
+
+    await currentTx()
+      .delete(notificationAgentMutes)
+      .where(
+        and(eq(notificationAgentMutes.userId, userId), eq(notificationAgentMutes.agentId, agentId)),
+      );
+  }
+
+  /** A qué agentes de esta app ha silenciado quien pregunta. */
+  async silenciados(appId: string, userId: string): Promise<string[]> {
+    await this.appVisible(appId);
+
+    const filas = await currentTx()
+      .select({ agentId: notificationAgentMutes.agentId })
+      .from(notificationAgentMutes)
+      .innerJoin(agents, eq(agents.id, notificationAgentMutes.agentId))
+      .where(and(eq(agents.appId, appId), eq(notificationAgentMutes.userId, userId)));
+
+    return filas.map((f) => f.agentId);
   }
 
   private async find(appId: string, agentId: string): Promise<FilaAgente> {

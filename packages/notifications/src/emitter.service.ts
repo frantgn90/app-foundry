@@ -19,6 +19,15 @@ export interface Emision {
    * del momento: si mañana se borra el comentario, el aviso sigue leyéndose.
    */
   payload: Record<string, unknown>;
+  /**
+   * Quienes han pedido no oír esto (RF-1612).
+   *
+   * Va como lista y no como una regla que el emisor evalúe: de momento el único
+   * silencio del producto es «este agente en concreto», y meter esa noción aquí
+   * obligaría a este paquete a saber qué es un agente. Quien llama sabe por qué
+   * silencia; esto solo descarta.
+   */
+  silenciados?: string[];
 }
 
 /** Lo emitido, para que quien lo provocó pueda contarlo o encadenarlo. */
@@ -69,8 +78,9 @@ export class NotificationEmitter {
       previstos.map((a) => a.userId),
       entrada.type,
     );
+    const callados = new Set(entrada.silenciados ?? []);
     const avisos = previstos
-      .filter((a) => alcanzables.has(a.userId))
+      .filter((a) => alcanzables.has(a.userId) && !callados.has(a.userId))
       .map((a) => ({ id: uuidv7(), userId: a.userId, type: a.type }));
     if (avisos.length === 0) return [];
 
