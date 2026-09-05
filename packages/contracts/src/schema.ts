@@ -1187,7 +1187,7 @@ export interface components {
             /** Format: uuid */
             id: string;
             /** @enum {string} */
-            type: "WORKSPACE_INVITED" | "APP_COMMENTED" | "THREAD_REPLIED" | "THREAD_RESOLVED" | "MENTIONED" | "DOCUMENT_VERSION_SAVED" | "PRECURSOR_TRANSFERRED" | "APPS_INHERITED";
+            type: "WORKSPACE_INVITED" | "APP_COMMENTED" | "THREAD_REPLIED" | "THREAD_RESOLVED" | "MENTIONED" | "DOCUMENT_VERSION_SAVED" | "PRECURSOR_TRANSFERRED" | "APPS_INHERITED" | "AI_MODEL_UNAVAILABLE" | "AI_QUOTA_THRESHOLD" | "AI_AGENT_FAILED";
             /** @description Lo necesario para pintar el aviso sin más consultas. Es una foto del momento: si el comentario se borra después, el aviso sigue leyéndose. */
             payload: {
                 [key: string]: unknown;

@@ -17,6 +17,14 @@ export async function conIdentidad<T>(
   db: Database,
   userId: string,
   fn: () => Promise<T>,
+  /**
+   * Qué hacer si un efecto aplazado falla.
+   *
+   * Existe porque el fallo que se traga esto es de los peores de diagnosticar:
+   * el trabajo se guarda, nadie ve un error y el aviso no llega. Este paquete
+   * no conoce el log de nadie, así que quien llama decide dónde se cuenta.
+   */
+  alFallarEfecto?: (error: unknown) => void,
 ): Promise<T> {
   const pendientes: (() => Promise<void>)[] = [];
 
@@ -36,13 +44,15 @@ export async function conIdentidad<T>(
    * respuesta que estaba en la base de datos pero no en el navegador.
    *
    * Su fallo no se propaga, por lo mismo que en el interceptor: que un aviso no
-   * salga no puede deshacer un trabajo que ya está guardado.
+   * salga no puede deshacer un trabajo que ya está guardado. Pero sí se cuenta,
+   * si quien llama dijo dónde: un aviso que no se reparte y no deja rastro es
+   * indistinguible de uno que nunca se pidió.
    */
   for (const efecto of pendientes) {
     try {
       await efecto();
-    } catch {
-      /* Ni siquiera se registra aquí: este paquete no conoce el log de nadie. */
+    } catch (error) {
+      alFallarEfecto?.(error);
     }
   }
 

@@ -51,6 +51,7 @@ export const notificationTypeEnum = pgEnum('notification_type', [
   'APPS_INHERITED',
   'AI_MODEL_UNAVAILABLE',
   'AI_QUOTA_THRESHOLD',
+  'AI_AGENT_FAILED',
 ]);
 
 /**

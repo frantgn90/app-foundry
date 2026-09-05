@@ -96,6 +96,32 @@ async function elAgenteContesta(texto: string): Promise<void> {
   });
 }
 
+/**
+ * Lo que hace el worker cuando el agente **no** ha podido contestar (RF-1615).
+ *
+ * Mismo camino que el aviso normal —identidad de quien disparó, rol de la
+ * aplicación— porque es donde estaba el riesgo: el destinatario es esa misma
+ * persona, y una política que prohibiera escribirse a uno mismo tiraría este
+ * aviso justo cuando es lo único que hay.
+ */
+async function elAgenteNoPuede(causa: string): Promise<void> {
+  const emisor = h.resolve(NotificationEmitter);
+
+  await conIdentidad(h.db, ana.id, async () => {
+    const { currentTx } = await import('@app-foundry/platform');
+    await currentTx().execute(sql`SET LOCAL ROLE app_user`);
+
+    await emisor.emit({
+      type: 'AI_AGENT_FAILED',
+      entorno: { actor: '', destinatario: ana.id },
+      workspaceId: ana.workspaceId,
+      appId,
+      threadId: hilo,
+      payload: { actorHandle: 'po', appName: 'Con agentes', message: causa, byAgent: true },
+    });
+  });
+}
+
 beforeAll(async () => {
   h = await startHarness();
   ana = await h.createUser('ana');
@@ -213,5 +239,34 @@ describe('silenciar a un agente', () => {
     await elAgenteContesta('One more thing.');
 
     expect(await cuantosAvisos(bruno)).toBe(antes + 1);
+  });
+});
+
+describe('cuando el agente no puede contestar', () => {
+  it('se lo dice a quien lo llamó, y a nadie más', async () => {
+    const brunoAntes = (await avisosDe(bruno)).length;
+
+    await elAgenteNoPuede('the provider rejected this workspace’s credential');
+
+    const suyos = (await avisosDe(ana)).filter((a) => a.type === 'AI_AGENT_FAILED');
+    expect(suyos).toHaveLength(1);
+    expect(String(suyos[0]!.payload['message'])).toContain('credential');
+
+    /* El resto del hilo no pidió esa respuesta: un fallo ajeno no es noticia. */
+    expect((await avisosDe(bruno)).length).toBe(brunoAntes);
+  });
+
+  it('y se lo dice aunque haya silenciado a ese agente', async () => {
+    /*
+     * Silenciar a un agente es no querer oír lo que dice (RF-1612), no
+     * renunciar a saber que algo que pediste no ha ocurrido. Son dos cosas
+     * distintas y se comprueba que no se confunden.
+     */
+    expect((await h.as(ana).put(`/api/v1/apps/${appId}/agents/${elPO}/mute`)).status).toBe(204);
+
+    await elAgenteNoPuede('the model came back empty, without even a draft');
+
+    const suyos = (await avisosDe(ana)).filter((a) => a.type === 'AI_AGENT_FAILED');
+    expect(suyos).toHaveLength(2);
   });
 });

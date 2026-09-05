@@ -49,6 +49,32 @@ const env = loadEnv({
   SESSION_SECRET: 'x'.repeat(32),
 });
 
+/** Un aviso tal como lo recibe el emisor, con lo que este test mira de él. */
+interface AvisoVisto {
+  type: string;
+  entorno: { destinatario?: string };
+  payload: Record<string, unknown>;
+}
+
+const avisosDeFallo = (): AvisoVisto[] =>
+  (avisos as AvisoVisto[]).filter((a) => a.type === 'AI_AGENT_FAILED');
+
+/**
+ * Espera al aviso de fallo.
+ *
+ * Se espera en vez de mirar de una: el aviso de un trabajo perdido se manda
+ * desde el manejador de `failed`, que corre **después** de que la cola dé el
+ * trabajo por acabado. Mirar justo al vaciarse la cola lo pillaría a medias.
+ */
+async function aQueLlegueElAvisoDeFallo(): Promise<AvisoVisto> {
+  for (let intento = 0; intento < 50; intento += 1) {
+    const [primero] = avisosDeFallo();
+    if (primero) return primero;
+    await new Promise((listo) => setTimeout(listo, 100));
+  }
+  throw new Error('no llegó ningún aviso de fallo');
+}
+
 /** Espera a que la cola se quede sin trabajo pendiente ni en curso. */
 async function aQueTermine(): Promise<void> {
   for (let intento = 0; intento < 100; intento += 1) {
@@ -239,6 +265,32 @@ describe('qué se reintenta y qué no', () => {
     await aQueTermine();
 
     expect(peticiones).toHaveLength(1);
+
+    /*
+     * Y quien preguntó se entera (RF-1615). Sin esto, un proveedor con la
+     * credencial revocada se traduce en un hilo donde no pasa nada: desde
+     * fuera es idéntico a que el agente esté pensándoselo.
+     */
+    const aviso = await aQueLlegueElAvisoDeFallo();
+    expect(aviso.entorno.destinatario).toBe(h.escenario.anaId);
+    expect(String(aviso.payload['message'])).toContain('credential');
+    expect(aviso.payload['actorHandle']).toBe('po');
+  });
+
+  it('y un tropiezo pasajero que acaba bien no avisa de nada', async () => {
+    /*
+     * El aviso es del silencio definitivo, no de cada intento: contarle a
+     * alguien un fallo que se arregló solo dos segundos después es ruido que
+     * enseña a ignorar la campana.
+     */
+    falloProgramado = { kind: ProviderErrorKind.TRANSIENT, veces: 1 };
+
+    const provocador = await h.comentar('@po con otro tropiezo');
+    await h.encolar({ triggerCommentId: provocador });
+    await aQueTermine();
+    await new Promise((listo) => setTimeout(listo, 300));
+
+    expect(avisosDeFallo()).toHaveLength(0);
   });
 });
 
@@ -260,8 +312,12 @@ describe('cuando el modelo se queda sin sitio pensando', () => {
     expect(escrito[escrito.length - 1]).toContain('ran out of room while thinking');
   });
 
-  it('pero sin respuesta y sin razonamiento no escribe nada', async () => {
-    /* Ahí no hay nada que contar, y un comentario vacío es peor que ninguno. */
+  it('pero sin respuesta y sin razonamiento no escribe nada, y lo avisa', async () => {
+    /*
+     * Ahí no hay nada que contar en el hilo, y un comentario vacío es peor que
+     * ninguno. Lo que no puede ser es que además no lo sepa nadie: quien
+     * preguntó se queda esperando una respuesta que no va a llegar (RF-1615).
+     */
     respuesta = '';
     razonamientoDevuelto = '';
 
@@ -271,6 +327,9 @@ describe('cuando el modelo se queda sin sitio pensando', () => {
     await aQueTermine();
 
     expect((await h.loEscritoPorElAgente()).length).toBe(antes);
+
+    const aviso = await aQueLlegueElAvisoDeFallo();
+    expect(String(aviso.payload['message'])).toContain('came back empty');
   });
 });
 

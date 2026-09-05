@@ -212,6 +212,13 @@ function titulo(aviso: Notification): string {
       return `${texto(aviso, 'provider')} has used ${texto(aviso, 'pct')}% of this month's token quota`;
     case 'AI_MODEL_UNAVAILABLE':
       return `${texto(aviso, 'provider')} retired ${texto(aviso, 'modelId')}, still assigned to ${texto(aviso, 'task')}`;
+    /*
+     * Se dice que **no** contestó, no que algo falló: quien lee esto estaba
+     * esperando una respuesta, y lo primero que necesita saber es que no va a
+     * llegar. El porqué va debajo, en el extracto (RF-1615).
+     */
+    case 'AI_AGENT_FAILED':
+      return `@${quien} could not reply in ${app}`;
     default:
       return `Something happened in ${app}`;
   }

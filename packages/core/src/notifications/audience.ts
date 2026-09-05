@@ -20,7 +20,9 @@ export type NotificationType =
   /** El modelo asignado a una tarea de IA ya no está en el catálogo (RF-1009). */
   | 'AI_MODEL_UNAVAILABLE'
   /** El consumo de un proveedor ha pasado del umbral de aviso (RF-1205). */
-  | 'AI_QUOTA_THRESHOLD';
+  | 'AI_QUOTA_THRESHOLD'
+  /** Un agente no pudo contestar a quien lo llamó (RF-1615). */
+  | 'AI_AGENT_FAILED';
 
 /**
  * Quiénes rondan una acción, ya consultados de la base de datos.
@@ -125,6 +127,14 @@ export function audiencia(type: NotificationType, entorno: Entorno): Aviso[] {
        */
       case 'AI_MODEL_UNAVAILABLE':
       case 'AI_QUOTA_THRESHOLD':
+        return unicos([destinatario]);
+
+      /*
+       * Que un agente no haya podido contestar le importa a quien lo llamó, y
+       * a nadie más: el resto del hilo no pidió esa respuesta, así que para
+       * ellos un fallo ajeno solo sería ruido (RF-1615).
+       */
+      case 'AI_AGENT_FAILED':
         return unicos([destinatario]);
 
       // La mención no tiene más audiencia que los mencionados.

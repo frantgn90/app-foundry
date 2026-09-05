@@ -375,6 +375,16 @@ fallos dejan de ser una molestia al comentar y pasan a inutilizar media función
   instrucciones**: un documento que pida al agente saltarse su perfil no **DEBE** cambiar su comportamiento. La
   garantía estructural es RF-1601 —un agente sin herramientas solo puede escribir un mal comentario—, y el
   sistema **DEBE** además separar explícitamente perfil y contenido al construir la petición.
+- **RF-1615** — Cuando un agente **no puede** contestar a quien lo llamó, el sistema **DEBE** avisar a esa
+  persona, y solo a ella. Cuenta como no poder: que el proveedor falle definitivamente —credencial rechazada,
+  modelo retirado, servicio caído tras agotar los reintentos—, que el modelo devuelva vacío, y que el agente
+  mencionado por su nombre esté pausado o retirado en el momento de responder. El aviso **DEBE** decir en
+  palabras qué ocurrió y, cuando exista, qué hacer para arreglarlo; **NO DEBE** repetir el mensaje técnico del
+  proveedor, que cambia sin avisar y puede contener trozos de la petición.
+  El aviso **NO DEBE** darse mientras queden reintentos —un fallo que se arregla solo no es noticia— ni por los
+  silencios que la persona puede explicarse mirando el hilo, como haber agotado el tope de turnos (RF-1605).
+  Silenciar a un agente (RF-1612) **NO DEBE** suprimir este aviso: callar a quien habla de más no es renunciar
+  a saber que algo que se pidió no ha ocurrido.
 
 ### 5.8 Transparencia y auditoría
 

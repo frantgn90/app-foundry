@@ -14,6 +14,9 @@ export class NotificationDto {
       'DOCUMENT_VERSION_SAVED',
       'PRECURSOR_TRANSFERRED',
       'APPS_INHERITED',
+      'AI_MODEL_UNAVAILABLE',
+      'AI_QUOTA_THRESHOLD',
+      'AI_AGENT_FAILED',
     ],
   })
   type!: string;

@@ -1029,6 +1029,7 @@ Solo se desglosa el hito en curso. H9, H10 y H11 están cerradas; **H12** está 
 | BF11 | Borrar un hilo de agente, como cualquier otro | Lo hace el precursor de la app | RF-1705, RF-806 | ✅ |
 | BF12 | Sin disponibilidad, los agentes no se ofrecen | Ni con la IA apagada, ni sin modelo asignado a su tarea | RF-1010 | ✅ |
 | BF13 | Límite de longitud de la respuesta, configurable | En plantilla y en agente, en palabras; 0 es sin límite y es lo de fábrica | RF-1516 | ✅ |
+| BF14 | Aviso cuando el agente no puede contestar | Fallo definitivo del proveedor, modelo vacío o agente pausado al mencionarlo; solo a quien disparó | RF-1615 | ✅ |
 
 > **Sobre BF7.** Es la primera vez que algo aparece en el panel de comentarios **sin que quien mira haya hecho
 > nada**: el agente contesta cuando el worker termina, que puede ser diez segundos después de mandar la mención.

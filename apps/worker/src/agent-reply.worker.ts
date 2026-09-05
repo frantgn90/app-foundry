@@ -6,8 +6,11 @@ import { and, asc, desc, eq, isNotNull, isNull, sql } from 'drizzle-orm';
 import {
   AGENT_REPLY_QUEUE,
   agentMaySpeak,
+  AGENT_REPLY_GONE,
   AGENT_REPLY_MAX_OUTPUT_TOKENS,
+  AGENT_REPLY_NOTHING_BACK,
   AGENT_REPLY_OUT_OF_ROOM,
+  agentFailureReason,
   agentReplyMessages,
   agentSystemPrompt,
   type AgentReplyJob,
@@ -104,6 +107,10 @@ export function startAgentReplyWorker(deps: AgentReplyDeps): Worker<AgentReplyJo
          * un silencio deliberado sería empeñarse.
          */
         deps.log.log(`el agente no responde (${job.id ?? '?'}): ${motivo}`);
+
+        /* Pero hay silencios que quien preguntó no puede explicarse (RF-1615). */
+        const contable = silencioQueSeCuenta(motivo, job.data.trigger);
+        if (contable) await avisarDeFallo(deps, job.data, contable);
       }
     },
     {
@@ -120,6 +127,18 @@ export function startAgentReplyWorker(deps: AgentReplyDeps): Worker<AgentReplyJo
 
   worker.on('failed', (job, error) => {
     deps.log.error(`trabajo de agente fallido (${job?.id ?? '?'}): ${cadenaDeCausas(error)}`);
+    if (!job) return;
+
+    /*
+     * Se avisa cuando ya no queda intento (RF-1615), no en cada uno: un fallo
+     * pasajero que se arregla al segundo intento acaba en una respuesta, y
+     * haber avisado del primero sería contarle a alguien un problema que ya no
+     * existe. Aquí es donde el silencio se convierte en definitivo.
+     */
+    const intentos = job.opts.attempts ?? 1;
+    if (!(error instanceof UnrecoverableError) && job.attemptsMade < intentos) return;
+
+    void avisarDeFallo(deps, job.data, agentFailureReason(motivoDelProveedor(error)));
   });
 
   return worker;
@@ -140,129 +159,133 @@ async function responder(deps: AgentReplyDeps, trabajo: AgentReplyJob): Promise<
    * avisos— consulta fuera de transacción y falla en la primera línea. Se vio
    * ejecutándolo, no compilando.
    */
-  return conIdentidad(deps.db, trabajo.actorUserId, async () => {
-    const tx = currentTx();
+  return conIdentidad(
+    deps.db,
+    trabajo.actorUserId,
+    async () => {
+      const tx = currentTx();
 
-    const [contexto] = await tx
-      .select({
-        appId: commentThreads.appId,
-        appName: apps.name,
-        appDescription: apps.shortDescription,
-        workspaceId: apps.workspaceId,
-        agentHandle: agents.handle,
-        agentWordLimit: agents.replyWordLimit,
-        agentActive: agents.active,
-        agentRemovedAt: agents.removedAt,
-      })
-      .from(commentThreads)
-      .innerJoin(apps, eq(apps.id, commentThreads.appId))
-      .innerJoin(agents, eq(agents.id, trabajo.agentId))
-      .where(eq(commentThreads.id, trabajo.threadId));
+      const [contexto] = await tx
+        .select({
+          appId: commentThreads.appId,
+          appName: apps.name,
+          appDescription: apps.shortDescription,
+          workspaceId: apps.workspaceId,
+          agentHandle: agents.handle,
+          agentWordLimit: agents.replyWordLimit,
+          agentActive: agents.active,
+          agentRemovedAt: agents.removedAt,
+        })
+        .from(commentThreads)
+        .innerJoin(apps, eq(apps.id, commentThreads.appId))
+        .innerJoin(agents, eq(agents.id, trabajo.agentId))
+        .where(eq(commentThreads.id, trabajo.threadId));
 
-    if (!contexto) return 'el hilo ya no existe';
-    if (!contexto.agentActive || contexto.agentRemovedAt !== null) {
-      return 'el agente ya no está activo';
-    }
+      if (!contexto) return 'el hilo ya no existe';
+      if (!contexto.agentActive || contexto.agentRemovedAt !== null) {
+        return 'el agente ya no está activo';
+      }
 
-    /*
-     * El cortafuegos de RF-1604, en la condición de entrada y no en el prompt
-     * (T-35). Se vuelve a comprobar aquí y no solo al encolar porque es la
-     * única comprobación que no puede fallar: si un día alguien encola desde
-     * otro sitio, este sigue en pie.
-     */
-    const [disparador] = await tx
-      .select({ authorId: comments.authorId, threadId: comments.threadId })
-      .from(comments)
-      .where(eq(comments.id, trabajo.triggerCommentId));
+      /*
+       * El cortafuegos de RF-1604, en la condición de entrada y no en el prompt
+       * (T-35). Se vuelve a comprobar aquí y no solo al encolar porque es la
+       * única comprobación que no puede fallar: si un día alguien encola desde
+       * otro sitio, este sigue en pie.
+       */
+      const [disparador] = await tx
+        .select({ authorId: comments.authorId, threadId: comments.threadId })
+        .from(comments)
+        .where(eq(comments.id, trabajo.triggerCommentId));
 
-    if (!disparador) return 'el comentario que lo provocó ya no está';
-    if (disparador.authorId === null) return 'lo provocó un agente, y un agente no dispara a nadie';
+      if (!disparador) return 'el comentario que lo provocó ya no está';
+      if (disparador.authorId === null)
+        return 'lo provocó un agente, y un agente no dispara a nadie';
 
-    /* Un agente responde una vez a lo que le dijeron, aunque se encole dos (T-33). */
-    const [yaRespondio] = await tx
-      .select({ id: comments.id })
-      .from(comments)
-      .where(
-        and(
-          eq(comments.threadId, trabajo.threadId),
-          eq(comments.authorAgentId, trabajo.agentId),
-          eq(comments.parentId, trabajo.triggerCommentId),
-        ),
-      );
-    if (yaRespondio) return 'ya había respondido a ese comentario';
+      /* Un agente responde una vez a lo que le dijeron, aunque se encole dos (T-33). */
+      const [yaRespondio] = await tx
+        .select({ id: comments.id })
+        .from(comments)
+        .where(
+          and(
+            eq(comments.threadId, trabajo.threadId),
+            eq(comments.authorAgentId, trabajo.agentId),
+            eq(comments.parentId, trabajo.triggerCommentId),
+          ),
+        );
+      if (yaRespondio) return 'ya había respondido a ese comentario';
 
-    /* El tope de turnos, con su salvedad: una mención explícita lo levanta. */
-    const [turnos] = await tx
-      .select({ cuantos: sql<number>`count(*)::int` })
-      .from(comments)
-      .where(
-        and(eq(comments.threadId, trabajo.threadId), eq(comments.authorAgentId, trabajo.agentId)),
-      );
+      /* El tope de turnos, con su salvedad: una mención explícita lo levanta. */
+      const [turnos] = await tx
+        .select({ cuantos: sql<number>`count(*)::int` })
+        .from(comments)
+        .where(
+          and(eq(comments.threadId, trabajo.threadId), eq(comments.authorAgentId, trabajo.agentId)),
+        );
 
-    const puedeHablar = agentMaySpeak({
-      turnsTaken: turnos?.cuantos ?? 0,
-      limit: deps.env.AI_MAX_AGENT_TURNS_PER_THREAD,
-      explicitlyMentioned: trabajo.trigger === AgentTrigger.MENTION,
-    });
-    if (!puedeHablar) return 'ha agotado sus turnos en este hilo';
+      const puedeHablar = agentMaySpeak({
+        turnsTaken: turnos?.cuantos ?? 0,
+        limit: deps.env.AI_MAX_AGENT_TURNS_PER_THREAD,
+        explicitlyMentioned: trabajo.trigger === AgentTrigger.MENTION,
+      });
+      if (!puedeHablar) return 'ha agotado sus turnos en este hilo';
 
-    const [perfil] = await tx
-      .select({ id: agentPromptRevisions.id, prompt: agentPromptRevisions.prompt })
-      .from(agentPromptRevisions)
-      .where(eq(agentPromptRevisions.agentId, trabajo.agentId))
-      .orderBy(desc(agentPromptRevisions.revision))
-      .limit(1);
-    if (!perfil) return 'el agente ya no está activo';
+      const [perfil] = await tx
+        .select({ id: agentPromptRevisions.id, prompt: agentPromptRevisions.prompt })
+        .from(agentPromptRevisions)
+        .where(eq(agentPromptRevisions.agentId, trabajo.agentId))
+        .orderBy(desc(agentPromptRevisions.revision))
+        .limit(1);
+      if (!perfil) return 'el agente ya no está activo';
 
-    const documento = await versionActual(contexto.appId);
-    const hilo = await conversacion(trabajo.threadId, trabajo.agentId);
+      const documento = await versionActual(contexto.appId);
+      const hilo = await conversacion(trabajo.threadId, trabajo.agentId);
 
-    const contextoDeLlamada = {
-      profile: perfil.prompt,
-      handle: contexto.agentHandle,
-      appName: contexto.appName,
-      appDescription: contexto.appDescription,
-      document: documento,
-      thread: hilo,
-      /* Lo que se le pidió de largo a este agente; 0 es sin límite (RF-1516). */
-      replyWordLimit: contexto.agentWordLimit,
-    };
+      const contextoDeLlamada = {
+        profile: perfil.prompt,
+        handle: contexto.agentHandle,
+        appName: contexto.appName,
+        appDescription: contexto.appDescription,
+        document: documento,
+        thread: hilo,
+        /* Lo que se le pidió de largo a este agente; 0 es sin límite (RF-1516). */
+        replyWordLimit: contexto.agentWordLimit,
+      };
 
-    const respuesta = await deps.ask({
-      workspaceId: contexto.workspaceId,
-      appId: contexto.appId,
-      actorUserId: trabajo.actorUserId,
-      agentId: trabajo.agentId,
-      system: agentSystemPrompt(contextoDeLlamada),
-      messages: agentReplyMessages(contextoDeLlamada),
-      maxOutputTokens: AGENT_REPLY_MAX_OUTPUT_TOKENS,
-    });
+      const respuesta = await deps.ask({
+        workspaceId: contexto.workspaceId,
+        appId: contexto.appId,
+        actorUserId: trabajo.actorUserId,
+        agentId: trabajo.agentId,
+        system: agentSystemPrompt(contextoDeLlamada),
+        messages: agentReplyMessages(contextoDeLlamada),
+        maxOutputTokens: AGENT_REPLY_MAX_OUTPUT_TOKENS,
+      });
 
-    const texto = respuesta.texto.trim();
-    /*
-     * Si se quedó sin sitio pensando, se dice.
-     *
-     * Callar dejaba a quien preguntó mirando un hilo donde no pasaba nada, sin
-     * forma de distinguir «se lo está pensando» de «se ha roto algo», y tirando
-     * de paso el razonamiento, que es justo lo que explica qué ocurrió. Con
-     * deliberación pero sin respuesta se publica el aviso y se conserva lo
-     * pensado, plegado como siempre.
-     *
-     * Sin ninguna de las dos cosas no hay nada que contar, y ahí sí se calla.
-     */
-    const cuerpo = texto.length > 0 ? texto : AGENT_REPLY_OUT_OF_ROOM;
-    if (texto.length === 0 && respuesta.razonamiento.trim().length === 0) {
-      return 'el modelo no devolvió nada';
-    }
+      const texto = respuesta.texto.trim();
+      /*
+       * Si se quedó sin sitio pensando, se dice.
+       *
+       * Callar dejaba a quien preguntó mirando un hilo donde no pasaba nada, sin
+       * forma de distinguir «se lo está pensando» de «se ha roto algo», y tirando
+       * de paso el razonamiento, que es justo lo que explica qué ocurrió. Con
+       * deliberación pero sin respuesta se publica el aviso y se conserva lo
+       * pensado, plegado como siempre.
+       *
+       * Sin ninguna de las dos cosas no hay nada que contar, y ahí sí se calla.
+       */
+      const cuerpo = texto.length > 0 ? texto : AGENT_REPLY_OUT_OF_ROOM;
+      if (texto.length === 0 && respuesta.razonamiento.trim().length === 0) {
+        return 'el modelo no devolvió nada';
+      }
 
-    /*
-     * La escritura va en esta misma transacción, con el perfil con el que se
-     * generó. Si algo falla después, no queda medio comentario ni un trabajo
-     * dado por hecho: o las dos cosas o ninguna (T-33).
-     */
-    const [escrito] = (
-      await tx.execute<{ agent_write_comment: string }>(
-        sql`SELECT agent_write_comment(
+      /*
+       * La escritura va en esta misma transacción, con el perfil con el que se
+       * generó. Si algo falla después, no queda medio comentario ni un trabajo
+       * dado por hecho: o las dos cosas o ninguna (T-33).
+       */
+      const [escrito] = (
+        await tx.execute<{ agent_write_comment: string }>(
+          sql`SELECT agent_write_comment(
             cast(${trabajo.threadId} as uuid),
             cast(${trabajo.agentId} as uuid),
             cast(${perfil.id} as uuid),
@@ -271,21 +294,37 @@ async function responder(deps: AgentReplyDeps, trabajo: AgentReplyJob): Promise<
             cast(${respuesta.provider} as ai_provider),
             cast(${respuesta.modelId} as text),
             cast(${respuesta.razonamiento} as text))`,
-      )
-    ).rows;
+        )
+      ).rows;
 
-    await avisar(deps, {
-      commentId: escrito!.agent_write_comment,
-      trabajo,
-      appId: contexto.appId,
-      workspaceId: contexto.workspaceId,
-      agentHandle: contexto.agentHandle,
-      appName: contexto.appName,
-      texto: cuerpo,
-    });
+      await avisar(deps, {
+        commentId: escrito!.agent_write_comment,
+        trabajo,
+        appId: contexto.appId,
+        workspaceId: contexto.workspaceId,
+        agentHandle: contexto.agentHandle,
+        appName: contexto.appName,
+        texto: cuerpo,
+      });
 
-    return null;
-  });
+      return null;
+    },
+    alFallarElReparto(deps),
+  );
+}
+
+/**
+ * Dónde se cuenta que el reparto de un aviso ha fallado.
+ *
+ * El aviso ya está escrito y se verá al recargar, así que su fallo no puede
+ * deshacer una respuesta que sí ocurrió. Pero tiene que dejar rastro: sin esto,
+ * «el agente contestó y no me llegó nada» no se distingue de «el agente no
+ * contestó», y las dos se investigan de forma muy distinta.
+ */
+function alFallarElReparto(deps: AgentReplyDeps): (error: unknown) => void {
+  return (error) => {
+    deps.log.error(`el aviso se guardó pero no se pudo repartir: ${cadenaDeCausas(error)}`);
+  };
 }
 
 /** El contenido de la versión actual, o nulo si todavía no hay ninguna. */
@@ -349,9 +388,119 @@ function cadenaDeCausas(error: unknown): string {
 }
 
 /** Lo que no merece reintento muere en el primer intento (RNF-703). */
+/**
+ * Qué silencios hay que contar, y cuáles no (RF-1615).
+ *
+ * La regla es si quien disparó puede explicárselo mirando el hilo. Que un
+ * agente haya gastado sus turnos se ve —lleva rato hablando— y avisarlo en cada
+ * respuesta de una conversación larga sería ruido constante. Que el modelo
+ * devuelva vacío, o que el agente al que acabas de llamar por su nombre esté
+ * pausado, no se ve por ninguna parte: desde fuera es idéntico a que no
+ * funcione nada.
+ */
+function silencioQueSeCuenta(motivo: Motivo, trigger: AgentTrigger): string | null {
+  switch (motivo) {
+    case 'el modelo no devolvió nada':
+      return AGENT_REPLY_NOTHING_BACK;
+
+    /* Solo si lo llamaste por su nombre: en una réplica no esperabas a nadie. */
+    case 'el agente ya no está activo':
+      return trigger === AgentTrigger.MENTION ? AGENT_REPLY_GONE : null;
+
+    /*
+     * Y estos no se cuentan, cada uno por su motivo: el hilo o el comentario
+     * ya no están —quien preguntó los borró—, el disparo venía de otro agente
+     * y no hay persona esperando, el tope de turnos se ve en el propio hilo, y
+     * responder dos veces al mismo comentario es el trabajo repetido de un
+     * reintento, no un silencio.
+     */
+    case 'el hilo ya no existe':
+    case 'el comentario que lo provocó ya no está':
+    case 'lo provocó un agente, y un agente no dispara a nadie':
+    case 'ha agotado sus turnos en este hilo':
+    case 'ya había respondido a ese comentario':
+      return null;
+  }
+}
+
+/**
+ * Le cuenta a quien disparó que su agente no ha podido contestar (RF-1615).
+ *
+ * Con la identidad de esa persona, como todo lo demás del worker, y en su
+ * propia transacción: esto ocurre **después** de que la del trabajo se haya
+ * deshecho, que es justamente por lo que hay algo que contar.
+ *
+ * No se aplica el silenciado de agentes (RF-1612). Silenciar a uno es no querer
+ * oír lo que dice, no renunciar a saber que algo que pediste no ha ocurrido.
+ *
+ * Y si avisar falla, se registra y se sigue: el trabajo ya está perdido, y
+ * perder también el proceso por contarlo sería el peor de los dos mundos.
+ */
+async function avisarDeFallo(
+  deps: AgentReplyDeps,
+  trabajo: AgentReplyJob,
+  causa: string,
+): Promise<void> {
+  try {
+    await conIdentidad(
+      deps.db,
+      trabajo.actorUserId,
+      async () => {
+        const [contexto] = await currentTx()
+          .select({
+            appId: commentThreads.appId,
+            appName: apps.name,
+            workspaceId: apps.workspaceId,
+            agentHandle: agents.handle,
+          })
+          .from(commentThreads)
+          .innerJoin(apps, eq(apps.id, commentThreads.appId))
+          .innerJoin(agents, eq(agents.id, trabajo.agentId))
+          .where(eq(commentThreads.id, trabajo.threadId));
+
+        /* Si el hilo o el agente ya no están, no hay a qué llevar el aviso. */
+        if (!contexto) return;
+
+        await deps.notify({
+          type: 'AI_AGENT_FAILED',
+          entorno: { actor: '', destinatario: trabajo.actorUserId },
+          workspaceId: contexto.workspaceId,
+          appId: contexto.appId,
+          threadId: trabajo.threadId,
+          payload: {
+            actorHandle: contexto.agentHandle,
+            appName: contexto.appName,
+            message: causa,
+            byAgent: true,
+          },
+        });
+      },
+      alFallarElReparto(deps),
+    );
+  } catch (error) {
+    deps.log.error(`no se pudo avisar del fallo del agente: ${cadenaDeCausas(error)}`);
+  }
+}
+
+/** El `kind` del proveedor, esté donde esté de la cadena de causas. */
+function motivoDelProveedor(error: unknown): ProviderErrorKind | null {
+  let actual: unknown = error;
+  while (actual !== null && actual !== undefined) {
+    if (actual instanceof ProviderError) return actual.kind;
+    actual = (actual as { cause?: unknown }).cause;
+  }
+  return null;
+}
+
 function comoFalla(error: unknown): Error {
   if (error instanceof ProviderError && !isRetryable(error.kind)) {
-    return new UnrecoverableError(`${error.kind}: sin reintento`);
+    /*
+     * La causa se conserva: sin ella, el aviso a quien preguntó tendría que
+     * adivinar de qué fallo se trataba a partir del texto del mensaje.
+     */
+    return Object.assign(new UnrecoverableError(`${error.kind}: sin reintento`), {
+      cause: error,
+    });
   }
   if (error instanceof ProviderError && error.kind === ProviderErrorKind.CANCELLED) {
     return new UnrecoverableError('cancelado');

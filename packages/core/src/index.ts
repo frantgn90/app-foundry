@@ -14,6 +14,7 @@ export * from './ai/ideas.js';
 export * from './ai/redact.js';
 export * from './ai/agent-handle.js';
 export * from './ai/agent-catalog.js';
+export * from './ai/agent-failure.js';
 export * from './ai/queues.js';
 export * from './ai/agent-reply.js';
 export * from './privacy/ip.js';
