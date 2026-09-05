@@ -87,6 +87,16 @@ export class AgentQueueService implements OnApplicationShutdown {
           await this.queue.add(trabajo.trigger, trabajo, {
             /* Clave de idempotencia: el mismo comentario no despierta dos veces al mismo (T-33). */
             jobId: agentReplyJobId(trabajo),
+            /*
+             * El techo de intentos lo pone la cola; **cuáles se usan lo decide
+             * la taxonomía de errores** (RNF-703). Sin este número BullMQ no
+             * reintenta nunca, y el `UnrecoverableError` que el worker lanza
+             * para lo que no merece reintento no distinguiría nada de nada.
+             * Cuatro es el máximo de la política: el de `RATE_LIMIT`, que es el
+             * único fallo que se arregla precisamente por esperar.
+             */
+            attempts: 4,
+            backoff: { type: 'custom' },
             removeOnComplete: 1_000,
             removeOnFail: 5_000,
           });

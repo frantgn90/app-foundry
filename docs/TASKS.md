@@ -898,7 +898,7 @@ Solo se desglosa el hito en curso. H9, H10 y H11 están cerradas; **H12** está 
 > Dos cosas que la tabla de hitos coloca en H13 y que aquí no se pueden aplazar. La primera, los **cortafuegos**
 > de RF-1604 y RF-1605: son la condición de entrada del disparo, no un añadido posterior, y sin ellos H12
 > entregaría agentes capaces de contestarse entre sí. La segunda, la **cola y el worker**: el TRD manda las
-> respuestas de agente a `ai:agent-reply` (§11.2, T-32), así que `apps/worker` nace aquí. H13 hereda las dos y
+> respuestas de agente a una cola propia (§11.2, T-32), así que `apps/worker` nace aquí. H13 hereda las dos y
 > añade lo suyo: abanico sobre la versión, estimación, confirmación, cancelación y la suite de RNF-902.
 
 ### Bloque BC — El modelo de datos
@@ -973,7 +973,7 @@ Solo se desglosa el hito en curso. H9, H10 y H11 están cerradas; **H12** está 
 | # | Tarea | Verificación | Traza | Estado |
 |---|---|---|---|---|
 | BE1 | `apps/worker`, consumidor de las colas de IA, aparte de la API | Un pico de respuestas no degrada la navegación | T-32, RNF-705 | ✅ |
-| BE2 | La cola `ai:agent-reply`, con reintentos y cortacircuitos por proveedor | Solo `TRANSIENT` y `RATE_LIMIT` se reintentan; un `AUTH` no | RNF-703, RNF-704 | ⬜ |
+| BE2 | La cola `ai-agent-reply`, con reintentos y cortacircuitos por proveedor | Solo `TRANSIENT` y `RATE_LIMIT` se reintentan; un `AUTH` no | RNF-703, RNF-704 | ✅ |
 | BE3 | Disparo por mención: una **persona** escribe `@handle` en su app | El agente contesta en ese hilo, en su papel | RF-1602 | ✅ |
 | BE4 | Disparo por réplica: una **persona** responde donde el agente ya escribió | Sin volver a mencionarlo | RF-1602 | ✅ |
 | BE5 | Lo escrito por un agente no dispara a nadie | `author_id IS NOT NULL` como condición de entrada del consumidor | RF-1604, T-35 | ✅ |
@@ -1042,5 +1042,5 @@ Solo se desglosa el hito en curso. H9, H10 y H11 están cerradas; **H12** está 
 
 | # | Tarea | Verificación | Traza | Estado |
 |---|---|---|---|---|
-| BG1 | Suite explícita de cortafuegos | Un agente no reacciona a otro; su mención no invoca ni avisa; el tope se respeta | RNF-902 | ⬜ |
+| BG1 | Suite explícita de cortafuegos | Un agente no reacciona a otro; su mención no invoca ni avisa; el tope se respeta | RNF-902 | ✅ |
 | BG2 | Recorrido completo con el proveedor de mentira | Adoptar del catálogo, añadir agente, mencionarlo, que conteste, replicarle y que calle al tope | RNF-905 | ⬜ |

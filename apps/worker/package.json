@@ -7,8 +7,9 @@
     "build": "tsc -p tsconfig.build.json",
     "clean": "rm -rf dist .turbo",
     "dev": "tsc -p tsconfig.build.json --watch --preserveWatchOutput & node --watch dist/main.js",
-    "lint": "eslint src",
+    "lint": "eslint src test",
     "start": "node dist/main.js",
+    "test:integration": "vitest run",
     "typecheck": "tsc -p tsconfig.json"
   },
   "dependencies": {
@@ -28,8 +29,11 @@
   },
   "devDependencies": {
     "@app-foundry/config": "workspace:*",
+    "@testcontainers/postgresql": "12.1.0",
+    "@testcontainers/redis": "12.1.0",
     "@types/node": "26.4.0",
     "eslint": "10.9.1",
-    "typescript": "6.0.3"
+    "typescript": "6.0.3",
+    "vitest": "4.1.11"
   }
 }
