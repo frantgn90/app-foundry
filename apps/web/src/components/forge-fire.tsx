@@ -22,7 +22,20 @@
  * fotograma. Por eso está solo en esta pantalla, y no en el resto de la
  * aplicación.
  */
+/**
+ * Si el fuego se enciende.
+ *
+ * Está apagado. Se apaga y se enciende desde esta línea, y el resto —esta capa
+ * y la receta entera en `index.css`, bajo «El fuego de la forja»— se queda
+ * donde está: apagarlo no es haber decidido que no vuelve.
+ *
+ * El tipo es explícito para que no se estreche a `false`: sin él, todo lo que
+ * hay debajo pasa a ser código inalcanzable.
+ */
+const FUEGO_ENCENDIDO: boolean = false;
+
 export function ForgeFire() {
+  if (!FUEGO_ENCENDIDO) return null;
   // Decorativo puro: no hay nada que anunciar a quien no lo ve.
   return <div className="fuego-forja" aria-hidden />;
 }
