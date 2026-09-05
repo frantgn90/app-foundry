@@ -81,11 +81,78 @@ describe('el handle', () => {
   });
 });
 
+describe('el catálogo de fábrica', () => {
+  const catalogo = (quien: TestUser) =>
+    h.as(quien).get(`/api/v1/workspaces/${ana.workspaceId}/agent-templates/catalog`);
+
+  const adoptar = (quien: TestUser, key: string) =>
+    h.as(quien).post(`/api/v1/workspaces/${ana.workspaceId}/agent-templates/catalog/${key}`);
+
+  it('trae los seis perfiles, con su resumen y su prompt', async () => {
+    const res = await catalogo(ana);
+    expect(res.status).toBe(200);
+
+    const perfiles = (await res.json()) as { key: string; summary: string; prompt: string }[];
+    expect(perfiles).toHaveLength(6);
+    expect(perfiles.map((p) => p.key)).toContain('tech-lead');
+    expect(perfiles.every((p) => p.summary.length > 0 && p.prompt.length > 0)).toBe(true);
+  });
+
+  it('lo ve cualquier miembro, aunque adoptar no sea cosa suya', async () => {
+    expect((await catalogo(bruno)).status).toBe(200);
+  });
+
+  it('adoptar uno lo copia al workspace', async () => {
+    const res = await adoptar(ana, 'tech-lead');
+    expect(res.status).toBe(201);
+
+    const copia = (await res.json()) as { id: string; handle: string; prompt: string };
+    expect(copia.handle).toBe('techlead');
+    expect(copia.prompt).toContain('tech lead');
+
+    const propias = (await (await plantillas(ana)).json()) as { handle: string }[];
+    expect(propias.map((p) => p.handle)).toContain('techlead');
+  });
+
+  it('y ahí se corta el vínculo: editar la copia no toca el catálogo', async () => {
+    const propias = (await (await plantillas(ana)).json()) as { id: string; handle: string }[];
+    const copia = propias.find((p) => p.handle === 'techlead')!;
+
+    await h.as(ana).patch(`/api/v1/workspaces/${ana.workspaceId}/agent-templates/${copia.id}`, {
+      prompt: 'Mine now.',
+    });
+
+    const perfiles = (await (await catalogo(ana)).json()) as { key: string; prompt: string }[];
+    const original = perfiles.find((p) => p.key === 'tech-lead')!;
+    expect(original.prompt).not.toBe('Mine now.');
+    expect(original.prompt).toContain('tech lead');
+  });
+
+  it('un perfil que no existe no se adopta', async () => {
+    expect((await adoptar(ana, 'no-existe')).status).toBe(404);
+  });
+
+  it('adoptar es crear una plantilla, así que un miembro no puede', async () => {
+    const res = await adoptar(bruno, 'marketing');
+    expect(res.status).toBe(403);
+
+    const propias = (await (await plantillas(ana)).json()) as { handle: string }[];
+    expect(propias.map((p) => p.handle)).not.toContain('marketing');
+  });
+
+  it('ni un extraño, que ni siquiera ve el catálogo', async () => {
+    expect((await catalogo(carla)).status).toBe(404);
+    expect((await adoptar(carla, 'marketing')).status).toBe(404);
+  });
+});
+
 describe('quién las ve', () => {
   it('cualquier miembro, porque sin verlas no podría instanciar ninguna', async () => {
     const res = await plantillas(bruno);
     expect(res.status).toBe(200);
-    expect((await res.json()) as unknown[]).toHaveLength(1);
+
+    const suyas = (await res.json()) as { handle: string }[];
+    expect(suyas.map((p) => p.handle)).toEqual(['po', 'techlead']);
   });
 
   it('un extraño no ve el workspace, así que tampoco sus plantillas', async () => {

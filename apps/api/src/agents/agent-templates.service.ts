@@ -6,12 +6,14 @@ import {
 } from '@nestjs/common';
 import { and, asc, eq, isNull } from 'drizzle-orm';
 
+import { AGENT_CATALOG, catalogAgent } from '@app-foundry/core';
 import { agentTemplates, workspaces } from '@app-foundry/db';
 
 import { AuditAction, AuditService } from '../audit/audit.service.js';
 import { currentTx } from '../database/request-context.js';
 import type {
   AgentTemplateDto,
+  CatalogAgentDto,
   CreateAgentTemplateDto,
   UpdateAgentTemplateDto,
 } from './agents.dto.js';
@@ -45,10 +47,57 @@ export class AgentTemplatesService {
     return filas.map(toDto);
   }
 
+  /**
+   * El catálogo de fábrica, tal cual (RF-1513).
+   *
+   * No consulta la base para nada: son datos del producto y se sirven igual
+   * tenga el workspace cien plantillas o ninguna. Pedir ver el catálogo es
+   * pedir ver el workspace, y de eso ya se encarga la política del motor.
+   */
+  async catalog(workspaceId: string): Promise<CatalogAgentDto[]> {
+    await this.assertVisible(workspaceId);
+    return AGENT_CATALOG.map((perfil) => ({ ...perfil }));
+  }
+
+  /**
+   * Adopta un perfil de fábrica: lo **copia** al workspace (RF-1514).
+   *
+   * Y ahí se corta el vínculo: no se guarda de qué entrada salió. Es la
+   * decisión que evita la pregunta «el catálogo cambió, ¿lo adoptas?», que
+   * entre dos filas del workspace tiene sentido porque el cambio lo hizo
+   * alguien conocido (RF-1505), y aquí sería proponerle al dueño adoptar una
+   * decisión nuestra sobre un texto que él ya hizo suyo.
+   *
+   * Adoptar **es crear una plantilla**, así que lo hace el dueño y nadie más
+   * (RF-1502). La consecuencia, que conviene conocer: un workspace recién
+   * creado necesita un gesto suyo antes de que ninguna app pueda tener agentes.
+   */
+  async adopt(workspaceId: string, key: string, userId: string): Promise<AgentTemplateDto> {
+    await this.assertOwner(workspaceId, userId);
+
+    const perfil = catalogAgent(key);
+    if (!perfil) throw new NotFoundException('There is no such profile in the catalog');
+
+    return this.create(
+      workspaceId,
+      {
+        name: perfil.name,
+        handle: perfil.handle,
+        iconEmoji: perfil.iconEmoji,
+        iconColor: perfil.iconColor,
+        prompt: perfil.prompt,
+      },
+      userId,
+      { key: perfil.key },
+    );
+  }
+
   async create(
     workspaceId: string,
     body: CreateAgentTemplateDto,
     userId: string,
+    /* De qué perfil de fábrica salió, solo para la auditoría: la fila no lo guarda. */
+    origen?: { key: string },
   ): Promise<AgentTemplateDto> {
     await this.assertOwner(workspaceId, userId);
 
@@ -83,7 +132,7 @@ export class AgentTemplatesService {
       resourceId: creada.id,
       workspaceId,
       /* El handle identifica; el prompt no se registra jamás (RF-1703). */
-      metadata: { handle: creada.handle },
+      metadata: { handle: creada.handle, ...(origen && { fromCatalog: origen.key }) },
     });
 
     return toDto(creada);

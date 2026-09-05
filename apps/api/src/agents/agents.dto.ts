@@ -130,3 +130,16 @@ export class UpdateAgentTemplateDto {
   @Type(() => AgentModelDto)
   model?: AgentModelDto | null;
 }
+
+/** Una entrada del catálogo de fábrica, tal como se ofrece (RF-1513). */
+export class CatalogAgentDto {
+  @ApiProperty({ description: 'Clave estable de la entrada, para adoptarla' }) key!: string;
+  @ApiProperty() name!: string;
+  @ApiProperty({ description: 'Handle sugerido' }) handle!: string;
+  @ApiProperty() iconEmoji!: string;
+  @ApiProperty() iconColor!: string;
+  @ApiProperty({ description: 'Una línea para elegir sin leerse el prompt entero' })
+  summary!: string;
+
+  @ApiProperty({ description: 'El prompt que se copiaría al adoptarla' }) prompt!: string;
+}
