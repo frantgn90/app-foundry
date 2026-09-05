@@ -40,14 +40,28 @@ export function LoginPage() {
   return (
     <main className="relative mx-auto flex min-h-screen max-w-md flex-col justify-center gap-8 px-6 py-16">
       <ForgeFire />
+      {/*
+        El peso lo lleva el lema y no la marca: quien llega aquí no viene a leer
+        el nombre del sitio —lo tiene en la pestaña y en el enlace que ha
+        pulsado— sino a saber para qué sirve. El nombre se queda arriba, del
+        tamaño de una firma, y debajo va lo único que hay que entender.
+      */}
       <header className="flex flex-col gap-3">
-        <h1 className="flex items-center gap-2.5 text-3xl font-semibold tracking-tight">
-          <Logo className="size-8 shrink-0" />
+        <div className="flex items-center gap-2 text-sm font-medium text-[var(--color-texto-suave)]">
+          <Logo className="size-5 shrink-0" />
           App Foundry
+        </div>
+        {/*
+          El barrido lo cruza cada siete segundos. No dice que algo esté
+          cargando —para eso está el del botón, que va sin pausa— sino que esto
+          está vivo: es la misma luz, pasando de tarde en tarde.
+        */}
+        <h1 className="barrido-lema text-[2.75rem] font-semibold leading-[1.06] tracking-[-0.03em] text-balance">
+          From hunch to spec.
         </h1>
-        <p className="text-[var(--color-texto-suave)]">
-          A place to think through, define and track app ideas. Sign in and you get your own
-          workspace, empty and waiting.
+        <p className="text-pretty text-[var(--color-texto-suave)]">
+          Write the vision, version every change, and argue it out — on your own, your team, AI
+          assisted.
         </p>
       </header>
 

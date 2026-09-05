@@ -493,6 +493,58 @@
     color: var(--color-acento-texto);
     opacity: 0.75;
   }
+
+  /* Sin movimiento el lema es un titular normal, que es lo que era. */
+  .barrido-lema {
+    animation: none;
+    background: none;
+    color: var(--color-texto);
+  }
+}
+
+/*
+ * El barrido del lema, en la pantalla de entrada.
+ *
+ * Es el mismo mecanismo que el de arriba —una franja que recorre el texto
+ * recortado sobre un degradado— con dos diferencias que vienen de que aquí no
+ * se está esperando a nada: la base es el color normal del texto, no una
+ * versión apagada, porque un titular en reposo tiene que leerse como un titular
+ * y no como algo a medio cargar; y entre pasada y pasada hay silencio. La
+ * franja tarda lo mismo en cruzar que allí —el gesto se reconoce— y luego el
+ * lema se queda quieto cinco segundos largos: una luz que pasa de vez en cuando
+ * y no un texto que parpadea.
+ */
+.barrido-lema {
+  background: linear-gradient(
+    90deg,
+    var(--color-texto) 0%,
+    var(--color-texto) 38%,
+    var(--color-acento) 50%,
+    var(--color-texto) 62%,
+    var(--color-texto) 100%
+  );
+  background-size: 250% 100%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  animation: barrido-lema 7s linear infinite;
+}
+
+/*
+ * La pasada ocupa el primer cuarto del ciclo y el resto es la espera, con el
+ * degradado ya fuera del texto: durante la pausa lo que se ve es el color
+ * normal, sin rastro de la franja.
+ */
+@keyframes barrido-lema {
+  0% {
+    background-position: 100% 0;
+  }
+  26% {
+    background-position: -50% 0;
+  }
+  100% {
+    background-position: -50% 0;
+  }
 }
 
 /*
