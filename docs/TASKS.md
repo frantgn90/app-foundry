@@ -1016,8 +1016,8 @@ Solo se desglosa el hito en curso. H9, H10 y H11 están cerradas; **H12** está 
 
 | # | Tarea | Verificación | Traza | Estado |
 |---|---|---|---|---|
-| BF1 | Plantillas en los ajustes del workspace | Solo para el `OWNER`, con icono como el de las apps | RF-1501, RF-1502, D-14 | ⬜ |
-| BF2 | Sin plantillas propias, el catálogo en lugar del estado vacío | Y adoptar una es un solo gesto | RF-1515 | ⬜ |
+| BF1 | Plantillas en los ajustes del workspace | Solo para el `OWNER`, con icono como el de las apps | RF-1501, RF-1502, D-14 | ✅ |
+| BF2 | Sin plantillas propias, el catálogo en lugar del estado vacío | Y adoptar una es un solo gesto | RF-1515 | ✅ |
 | BF3 | Sección de agentes en la ficha de la app | Icono, perfil y estado; y sin colarse en los contribuidores | RF-1511 | ⬜ |
 | BF4 | Aviso de que la plantilla de origen cambió, y adoptarlo | En la app afectada, no en la plantilla | RF-1505 | ⬜ |
 | BF5 | Los agentes, mencionables desde el compositor | Distinguibles de una persona en la lista y en el texto | RF-1506, RF-815 | ⬜ |
