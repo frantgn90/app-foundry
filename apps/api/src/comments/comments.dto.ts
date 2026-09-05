@@ -5,9 +5,25 @@ export class CommentDto {
   @ApiProperty({ format: 'uuid' }) id!: string;
   @ApiProperty({ format: 'uuid', nullable: true, type: String }) parentId!: string | null;
   @ApiProperty({ description: 'Vacío si el comentario fue borrado' }) body!: string;
+
+  @ApiProperty({
+    enum: ['USER', 'AGENT'],
+    description: 'Quién lo escribió. Un agente se distingue sin deducirlo (RF-1611)',
+  })
+  authorKind!: string;
+
   @ApiProperty() authorHandle!: string;
   @ApiProperty() authorDisplayName!: string;
   @ApiProperty({ nullable: true, type: String }) authorAvatarUrl!: string | null;
+
+  @ApiProperty({ nullable: true, type: String, description: 'Solo en agentes' })
+  authorIconEmoji!: string | null;
+
+  @ApiProperty({ nullable: true, type: String, description: 'Solo en agentes' })
+  authorIconColor!: string | null;
+
+  @ApiProperty({ description: 'Un agente retirado sigue firmando lo que escribió (RF-1509)' })
+  authorRetired!: boolean;
   @ApiProperty() isMine!: boolean;
   @ApiProperty() isDeleted!: boolean;
   @ApiProperty() isEdited!: boolean;

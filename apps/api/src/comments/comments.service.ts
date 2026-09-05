@@ -8,7 +8,9 @@ import { and, asc, desc, eq, inArray, isNotNull, isNull, ne, or, sql } from 'dri
 
 import { createAnchor, extractMentions, reanchor } from '@app-foundry/core';
 import {
+  agents,
   apps,
+  commentAgentMentions,
   commentMentions,
   comments,
   commentThreads,
@@ -31,6 +33,37 @@ import type {
   ThreadDto,
   ThreadsDto,
 } from './comments.dto.js';
+
+/**
+ * Lo que hace falta de cada comentario para pintarlo, venga de quien venga.
+ *
+ * Compartida por las dos consultas a propósito: eran dos listas de columnas
+ * iguales y separadas, y así una no puede aprender de la autoría polimórfica
+ * sin que la otra se entere.
+ */
+const AUTORIA = {
+  comment: comments,
+  handle: users.handle,
+  displayName: users.displayName,
+  avatarUrl: users.avatarUrl,
+  agentHandle: agents.handle,
+  agentName: agents.name,
+  agentIconEmoji: agents.iconEmoji,
+  agentIconColor: agents.iconColor,
+  agentRemovedAt: agents.removedAt,
+};
+
+type FilaDeComentario = {
+  comment: typeof comments.$inferSelect;
+  handle: string | null;
+  displayName: string | null;
+  avatarUrl: string | null;
+  agentHandle: string | null;
+  agentName: string | null;
+  agentIconEmoji: string | null;
+  agentIconColor: string | null;
+  agentRemovedAt: Date | null;
+};
 
 @Injectable()
 export class CommentsService {
@@ -102,14 +135,16 @@ export class CommentsService {
     if (threads.length === 0) return { threads: [], openElsewhere };
 
     const rows = await tx
-      .select({
-        comment: comments,
-        handle: users.handle,
-        displayName: users.displayName,
-        avatarUrl: users.avatarUrl,
-      })
+      .select(AUTORIA)
       .from(comments)
-      .innerJoin(users, eq(users.id, comments.authorId))
+      /*
+       * Dos `leftJoin` y ningún `innerJoin`: un comentario tiene exactamente un
+       * autor, pero puede ser de cualquiera de las dos clases (T-34). Con el
+       * `innerJoin` de antes, un comentario de agente sencillamente no aparecía
+       * en la lista, que es la peor forma de fallar: sin error y sin fila.
+       */
+      .leftJoin(users, eq(users.id, comments.authorId))
+      .leftJoin(agents, eq(agents.id, comments.authorAgentId))
       .where(
         inArray(
           comments.threadId,
@@ -479,7 +514,7 @@ export class CommentsService {
     body: string,
     parentId: string | null,
     userId: string,
-  ): Promise<{ comment: CommentDto; mencionados: string[] }> {
+  ): Promise<{ comment: CommentDto; mencionados: string[]; agentesInvocados: string[] }> {
     const [created] = await currentTx()
       .insert(comments)
       .values({ threadId, body, parentId, authorId: userId })
@@ -487,42 +522,91 @@ export class CommentsService {
 
     if (!created) throw new ForbiddenException('You cannot comment here');
 
-    const mencionados = await this.syncMentions(created.id, body, userId);
-    return { comment: await this.comment(created.id, userId), mencionados };
+    const { personas, agentes } = await this.syncMentions(created.id, body, userId);
+    return {
+      comment: await this.comment(created.id, userId),
+      mencionados: personas,
+      agentesInvocados: agentes,
+    };
   }
 
   /**
-   * Guarda las menciones del texto, quedándose solo con quien pertenece al
-   * workspace. Mencionar a alguien de fuera no falla: simplemente no se
-   * registra, porque avisar de que ese handle no vale ya diría algo sobre él.
+   * Guarda las menciones del texto: las de personas **avisan** y las de agentes
+   * **invocan** (RF-814, RF-1602).
+   *
+   * Son dos tablas y no una porque son dos comportamientos: una manda un aviso
+   * y la otra gasta tokens y escribe en el documento. Guardarlas juntas dejaría
+   * a quien las lea decidiendo cuál es cuál por el tipo de la clave ajena.
+   *
+   * Mencionar a alguien de fuera no falla: simplemente no se registra, porque
+   * avisar de que ese handle no vale ya diría algo sobre él.
    */
-  /** Devuelve a quién se ha mencionado, que es justo la audiencia del aviso. */
-  private async syncMentions(commentId: string, body: string, userId: string): Promise<string[]> {
+  private async syncMentions(
+    commentId: string,
+    body: string,
+    userId: string,
+  ): Promise<{ personas: string[]; agentes: string[] }> {
     const tx = currentTx();
     await tx.delete(commentMentions).where(eq(commentMentions.commentId, commentId));
+    await tx.delete(commentAgentMentions).where(eq(commentAgentMentions.commentId, commentId));
 
     const handles = extractMentions(body);
-    if (handles.length === 0) return [];
+    if (handles.length === 0) return { personas: [], agentes: [] };
 
     const [thread] = await tx
       .select({ appId: commentThreads.appId })
       .from(comments)
       .innerJoin(commentThreads, eq(commentThreads.id, comments.threadId))
       .where(eq(comments.id, commentId));
-    if (!thread) return [];
+    if (!thread) return { personas: [], agentes: [] };
 
     const candidates = await this.mentionable(thread.appId);
     const matched = candidates.filter(
       (c) => handles.includes(c.handle.toLowerCase()) && c.userId !== userId,
     );
-    if (matched.length === 0) return [];
 
-    await tx
-      .insert(commentMentions)
-      .values(matched.map((m) => ({ commentId, userId: m.userId })))
+    if (matched.length > 0) {
+      await tx
+        .insert(commentMentions)
+        .values(matched.map((m) => ({ commentId, userId: m.userId })))
+        .onConflictDoNothing();
+    }
+
+    const agentes = await this.syncAgentMentions(commentId, thread.appId, handles);
+    return { personas: matched.map((m) => m.userId), agentes };
+  }
+
+  /**
+   * A qué agentes se invoca (RF-1602).
+   *
+   * Solo a los que siguen en la app y están activos: uno desactivado o retirado
+   * no interviene (RF-1508, RF-1509), y registrar su mención dejaría un trabajo
+   * encolado para alguien que ya no habla.
+   *
+   * Y solo cuando quien escribe es una persona. Eso no se comprueba aquí sino
+   * en quien llama, y además lo sostiene un trigger del motor: una mención
+   * escrita por un agente no invoca a nadie (RF-1604), y sin fila no hay a
+   * quién despertar.
+   */
+  private async syncAgentMentions(
+    commentId: string,
+    appId: string,
+    handles: string[],
+  ): Promise<string[]> {
+    const activos = await currentTx()
+      .select({ id: agents.id, handle: agents.handle })
+      .from(agents)
+      .where(and(eq(agents.appId, appId), eq(agents.active, true), isNull(agents.removedAt)));
+
+    const invocados = activos.filter((a) => handles.includes(a.handle.toLowerCase()));
+    if (invocados.length === 0) return [];
+
+    await currentTx()
+      .insert(commentAgentMentions)
+      .values(invocados.map((a) => ({ commentId, agentId: a.id })))
       .onConflictDoNothing();
 
-    return matched.map((m) => m.userId);
+    return invocados.map((a) => a.id);
   }
 
   private async mentionsFor(commentIds: string[]): Promise<Map<string, string[]>> {
@@ -543,14 +627,10 @@ export class CommentsService {
 
   private async comment(commentId: string, userId: string): Promise<CommentDto> {
     const [row] = await currentTx()
-      .select({
-        comment: comments,
-        handle: users.handle,
-        displayName: users.displayName,
-        avatarUrl: users.avatarUrl,
-      })
+      .select(AUTORIA)
       .from(comments)
-      .innerJoin(users, eq(users.id, comments.authorId))
+      .leftJoin(users, eq(users.id, comments.authorId))
+      .leftJoin(agents, eq(agents.id, comments.authorAgentId))
       .where(eq(comments.id, commentId));
 
     if (!row) throw new NotFoundException('That comment does not exist');
@@ -558,32 +638,38 @@ export class CommentsService {
     return this.toComment(row, userId, mentions);
   }
 
-  private toComment(
-    row: {
-      comment: typeof comments.$inferSelect;
-      handle: string;
-      displayName: string;
-      avatarUrl: string | null;
-    },
-    userId: string,
-    mentions: Map<string, string[]>,
-  ): CommentDto {
+  /**
+   * Un comentario, lo haya escrito una persona o un agente (T-34).
+   *
+   * Quien lo pinta necesita saber cuál de las dos cosas es sin deducirlo: un
+   * agente lleva distintivo propio además del icono (RF-1611), y confundirlo
+   * con un compañero es justo lo que RF-1506 prohíbe.
+   */
+  private toComment(row: FilaDeComentario, userId: string, mentions: Map<string, string[]>) {
     const deleted = row.comment.deletedAt !== null;
+    const esAgente = row.comment.authorAgentId !== null;
+
     return {
       id: row.comment.id,
       parentId: row.comment.parentId,
       // El texto de un comentario borrado no se envía: la interfaz muestra que
       // ahí hubo algo, no qué decía.
       body: deleted ? '' : row.comment.body,
-      authorHandle: row.handle,
-      authorDisplayName: row.displayName,
-      authorAvatarUrl: row.avatarUrl,
-      isMine: row.comment.authorId === userId,
+      authorKind: esAgente ? 'AGENT' : 'USER',
+      authorHandle: esAgente ? (row.agentHandle ?? '') : (row.handle ?? ''),
+      authorDisplayName: esAgente ? (row.agentName ?? '') : (row.displayName ?? ''),
+      authorAvatarUrl: esAgente ? null : row.avatarUrl,
+      authorIconEmoji: esAgente ? row.agentIconEmoji : null,
+      authorIconColor: esAgente ? row.agentIconColor : null,
+      /* Un agente retirado se marca donde escribió, igual que una persona (RF-1509, RF-813). */
+      authorRetired: esAgente && row.agentRemovedAt !== null,
+      /* Nunca es de quien mira: un agente no tiene sesión. */
+      isMine: !esAgente && row.comment.authorId === userId,
       isDeleted: deleted,
       isEdited: row.comment.editedAt !== null,
       mentions: mentions.get(row.comment.id) ?? [],
       createdAt: row.comment.createdAt.toISOString(),
-    };
+    } satisfies CommentDto;
   }
 
   /**
