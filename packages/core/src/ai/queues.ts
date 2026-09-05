@@ -62,5 +62,10 @@ export type AgentTrigger = (typeof AgentTrigger)[keyof typeof AgentTrigger];
  * lo que le dijeron, aunque el trabajo se encole dos.
  */
 export function agentReplyJobId(job: Pick<AgentReplyJob, 'agentId' | 'triggerCommentId'>): string {
-  return `${job.triggerCommentId}:${job.agentId}`;
+  /*
+   * Con guion bajo y no con dos puntos, por lo mismo que el nombre de la cola:
+   * BullMQ rechaza un identificador que lleve `:`. Los dos son UUID de longitud
+   * fija, así que un separador de un carácter no puede dar dos claves iguales.
+   */
+  return `${job.triggerCommentId}_${job.agentId}`;
 }

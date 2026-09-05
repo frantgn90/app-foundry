@@ -92,6 +92,9 @@ importers:
       '@opentelemetry/semantic-conventions':
         specifier: 1.43.0
         version: 1.43.0
+      bullmq:
+        specifier: 5.66.0
+        version: 5.66.0(supports-color@10.2.2)
       class-transformer:
         specifier: 0.5.1
         version: 0.5.1

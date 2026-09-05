@@ -20,6 +20,7 @@ import {
   workspaceMembers,
 } from '@app-foundry/db';
 
+import { AgentQueueService } from '../agents/agent-queue.service.js';
 import { AuditAction, AuditService } from '../audit/audit.service.js';
 import { NotificationsService } from '../notifications/notifications.service.js';
 import { MetricsService } from '../observability/metrics.service.js';
@@ -71,6 +72,7 @@ export class CommentsService {
     private readonly audit: AuditService,
     private readonly notifications: NotificationsService,
     private readonly metrics: MetricsService,
+    private readonly agentQueue: AgentQueueService,
   ) {}
 
   /**
@@ -292,8 +294,20 @@ export class CommentsService {
 
     if (!thread) throw new ForbiddenException('You cannot comment on this app');
 
-    const { mencionados } = await this.insertComment(thread.id, body.body, null, userId);
+    const { comment, mencionados, agentesInvocados } = await this.insertComment(
+      thread.id,
+      body.body,
+      null,
+      userId,
+    );
     this.metrics.comentarioEscrito('thread');
+
+    await this.agentQueue.despertar({
+      threadId: thread.id,
+      commentId: comment.id,
+      actorUserId: userId,
+      mencionados: agentesInvocados,
+    });
 
     const entorno = await this.notifications.entornoDeApp(appId, userId);
     await this.notifications.emit({
@@ -339,7 +353,7 @@ export class CommentsService {
       .where(eq(commentThreads.id, threadId));
     if (!thread) throw new NotFoundException('That thread does not exist');
 
-    const { comment, mencionados } = await this.insertComment(
+    const { comment, mencionados, agentesInvocados } = await this.insertComment(
       threadId,
       body.body,
       body.parentId ?? null,
@@ -347,6 +361,13 @@ export class CommentsService {
     );
 
     this.metrics.comentarioEscrito('reply');
+
+    await this.agentQueue.despertar({
+      threadId,
+      commentId: comment.id,
+      actorUserId: userId,
+      mencionados: agentesInvocados,
+    });
 
     const contexto = await this.notifications.entornoDeApp(thread.appId, userId);
     await this.notifications.emit({

@@ -974,9 +974,9 @@ Solo se desglosa el hito en curso. H9, H10 y H11 están cerradas; **H12** está 
 |---|---|---|---|---|
 | BE1 | `apps/worker`, consumidor de las colas de IA, aparte de la API | Un pico de respuestas no degrada la navegación | T-32, RNF-705 | ✅ |
 | BE2 | La cola `ai:agent-reply`, con reintentos y cortacircuitos por proveedor | Solo `TRANSIENT` y `RATE_LIMIT` se reintentan; un `AUTH` no | RNF-703, RNF-704 | ⬜ |
-| BE3 | Disparo por mención: una **persona** escribe `@handle` en su app | El agente contesta en ese hilo, en su papel | RF-1602 | ⬜ |
-| BE4 | Disparo por réplica: una **persona** responde donde el agente ya escribió | Sin volver a mencionarlo | RF-1602 | ⬜ |
-| BE5 | Lo escrito por un agente no dispara a nadie | `author_id IS NOT NULL` como condición de entrada del consumidor | RF-1604, T-35 | ⬜ |
+| BE3 | Disparo por mención: una **persona** escribe `@handle` en su app | El agente contesta en ese hilo, en su papel | RF-1602 | ✅ |
+| BE4 | Disparo por réplica: una **persona** responde donde el agente ya escribió | Sin volver a mencionarlo | RF-1602 | ✅ |
+| BE5 | Lo escrito por un agente no dispara a nadie | `author_id IS NOT NULL` como condición de entrada del consumidor | RF-1604, T-35 | ✅ |
 | BE6 | Una mención escrita por un agente no se registra ni avisa | Ni en `comment_agent_mentions` ni en `comment_mentions` | RF-1604 | ✅ |
 | BE7 | Tope de intervenciones por hilo y agente, configurable de instancia | Al tercero calla; una mención explícita le devuelve la palabra | RF-1605, RNF-1002 | 🔄 |
 | BE8 | Commitear una versión no invoca a nadie | Guardar sigue siendo gratis | RF-1603 | ⬜ |
