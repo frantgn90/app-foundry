@@ -17,6 +17,7 @@ import { CredentialCipher, parseKeyRing } from '@app-foundry/ai';
 import { createDb, type Database } from './client.js';
 import {
   agentTemplates,
+  aiModels,
   apps,
   appTags,
   documents,
@@ -26,6 +27,7 @@ import {
   workspaceAiProviders,
   workspaceInvitations,
   workspaceMembers,
+  workspaceTaskModels,
   workspaces,
 } from './schema/index.js';
 
@@ -218,7 +220,7 @@ async function ensureFakeProvider(db: Database, workspaceId: string, ownerId: st
     .set({ aiEgressAcceptedAt: new Date(), aiEgressAcceptedBy: ownerId })
     .where(eq(workspaces.id, workspaceId));
 
-  const [proveedor] = await db
+  await db
     .insert(workspaceAiProviders)
     .values({
       workspaceId,
@@ -227,10 +229,15 @@ async function ensureFakeProvider(db: Database, workspaceId: string, ownerId: st
       createdBy: ownerId,
       verifiedAt: new Date(),
     })
-    .onConflictDoNothing()
-    .returning({ id: workspaceAiProviders.id });
-  if (!proveedor) return;
+    .onConflictDoNothing();
 
+  /*
+   * Y se sigue aunque el proveedor ya estuviera. Antes se salía aquí si el
+   * INSERT no devolvía fila, y eso convertía la función en «insertar una vez»
+   * en vez de en «asegurar»: en la segunda ejecución no llegaba a asignar
+   * modelos, y el flujo fallaba con un «no hay modelo asignado» que no dice
+   * nada de la causa. Cada pieza se asegura por su cuenta.
+   */
   const cifrado = new CredentialCipher(parseKeyRing(llavero)).encrypt('sk-de-mentira', {
     workspaceId,
     provider: 'ANTHROPIC',
@@ -246,6 +253,52 @@ async function ensureFakeProvider(db: Database, workspaceId: string, ownerId: st
       keyVersion: cifrado.keyVersion,
     })
     .onConflictDoNothing();
+
+  /*
+   * El catálogo y la asignación por tarea.
+   *
+   * Por la API esto lo hace el enganche que corre al configurar un proveedor:
+   * refresca el catálogo y propone qué modelo atiende cada tarea (RF-1103). El
+   * *seed* escribe las filas directamente, así que sin esto dejaría la IA
+   * «encendida pero sin nada asignado, que es como no haberla configurado» —y
+   * la primera invocación fallaría con un «no hay modelo asignado» que no dice
+   * nada de lo que pasa—.
+   *
+   * Los dos modelos son los que anuncia el proveedor de mentira. El pequeño
+   * atiende a asistir a escribir, donde se nota la latencia, y el grande lo que
+   * exige razonar: el mismo criterio que propone la aplicación.
+   */
+  await db
+    .insert(aiModels)
+    .values([
+      {
+        provider: 'ANTHROPIC' as const,
+        modelId: 'fake-large',
+        displayName: 'Fake Large',
+        contextWindow: 200_000,
+        maxOutputTokens: 8_000,
+      },
+      {
+        provider: 'ANTHROPIC' as const,
+        modelId: 'fake-small',
+        displayName: 'Fake Small',
+        contextWindow: 32_000,
+        maxOutputTokens: 4_000,
+      },
+    ])
+    .onConflictDoNothing();
+
+  for (const [task, modelId] of [
+    ['IDEA_GENERATION', 'fake-large'],
+    ['TEXT_ASSIST', 'fake-small'],
+    ['AGENT_REVIEW', 'fake-large'],
+    ['AGENT_REPLY', 'fake-large'],
+  ] as const) {
+    await db
+      .insert(workspaceTaskModels)
+      .values({ workspaceId, task, provider: 'ANTHROPIC', modelId })
+      .onConflictDoNothing();
+  }
 }
 
 export async function seed(connectionString: string): Promise<void> {

@@ -37,6 +37,7 @@ export class AskModel {
       appId: peticion.appId,
       task: AiTask.AGENT_REPLY,
       userId: peticion.actorUserId,
+      agentId: peticion.agentId,
     };
 
     /*

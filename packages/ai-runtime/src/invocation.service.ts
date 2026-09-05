@@ -72,6 +72,15 @@ export interface InvocationContext {
   readonly appId?: string;
   readonly task: AiTask;
   readonly userId: string;
+  /**
+   * Qué agente la provocó, cuando la provocó uno (RD-10, BC7).
+   *
+   * No sustituye a `userId`: los dos van juntos en una respuesta de agente,
+   * porque detrás hay siempre una persona que la desencadenó y es a quien se le
+   * imputa el consumo. El agente dice **qué perfil** gastó; la persona, **a
+   * cuenta de quién**.
+   */
+  readonly agentId?: string;
 }
 
 /** Lo que hace falta para invocar, ya resuelto y con el cupo apartado. */
@@ -581,6 +590,7 @@ export class AiInvocationService {
         workspaceId: context.workspaceId,
         ...(context.appId !== undefined && { appId: context.appId }),
         actorUserId: context.userId,
+        ...(context.agentId !== undefined && { actorAgentId: context.agentId }),
         task: context.task,
         provider: plan.provider,
         modelId: plan.modelId,

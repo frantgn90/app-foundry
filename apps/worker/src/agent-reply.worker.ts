@@ -28,6 +28,7 @@ import {
   users,
 } from '@app-foundry/db';
 import type { Env } from '@app-foundry/env';
+import { conIdentidad, currentTx } from '@app-foundry/platform';
 
 /**
  * El consumidor de `ai:agent-reply` (RF-1602, TRD §11.2).
@@ -76,7 +77,8 @@ type Motivo =
   | 'el comentario que lo provocó ya no está'
   | 'lo provocó un agente, y un agente no dispara a nadie'
   | 'ha agotado sus turnos en este hilo'
-  | 'ya había respondido a ese comentario';
+  | 'ya había respondido a ese comentario'
+  | 'el modelo no devolvió nada';
 
 export function startAgentReplyWorker(deps: AgentReplyDeps): Worker<AgentReplyJob> {
   const worker = new Worker<AgentReplyJob>(
@@ -108,7 +110,7 @@ export function startAgentReplyWorker(deps: AgentReplyDeps): Worker<AgentReplyJo
   );
 
   worker.on('failed', (job, error) => {
-    deps.log.error(`trabajo de agente fallido (${job?.id ?? '?'}): ${error.message}`);
+    deps.log.error(`trabajo de agente fallido (${job?.id ?? '?'}): ${cadenaDeCausas(error)}`);
   });
 
   return worker;
@@ -122,8 +124,15 @@ export function startAgentReplyWorker(deps: AgentReplyDeps): Worker<AgentReplyJo
  * errores ni provocar reintentos.
  */
 async function responder(deps: AgentReplyDeps, trabajo: AgentReplyJob): Promise<Motivo | null> {
-  return deps.db.transaction(async (tx) => {
-    await tx.execute(sql`SELECT set_config('app.user_id', ${trabajo.actorUserId}, true)`);
+  /*
+   * `conIdentidad` y no una transacción a pelo: además de fijar la identidad,
+   * entra en el contexto que `currentTx()` lee. Sin eso, todo lo que este
+   * worker reutiliza de la API —el paso común de invocación, el emisor de
+   * avisos— consulta fuera de transacción y falla en la primera línea. Se vio
+   * ejecutándolo, no compilando.
+   */
+  return conIdentidad(deps.db, trabajo.actorUserId, async () => {
+    const tx = currentTx();
 
     const [contexto] = await tx
       .select({
@@ -195,8 +204,8 @@ async function responder(deps: AgentReplyDeps, trabajo: AgentReplyJob): Promise<
       .limit(1);
     if (!perfil) return 'el agente ya no está activo';
 
-    const documento = await versionActual(tx, contexto.appId);
-    const hilo = await conversacion(tx, trabajo.threadId, trabajo.agentId);
+    const documento = await versionActual(contexto.appId);
+    const hilo = await conversacion(trabajo.threadId, trabajo.agentId);
 
     const contextoDeLlamada = {
       profile: perfil.prompt,
@@ -218,7 +227,7 @@ async function responder(deps: AgentReplyDeps, trabajo: AgentReplyJob): Promise<
     });
 
     const texto = respuesta.trim();
-    if (texto.length === 0) return 'ya había respondido a ese comentario';
+    if (texto.length === 0) return 'el modelo no devolvió nada';
 
     /*
      * La escritura va en esta misma transacción, con el perfil con el que se
@@ -230,7 +239,7 @@ async function responder(deps: AgentReplyDeps, trabajo: AgentReplyJob): Promise<
             cast(${trabajo.threadId} as uuid),
             cast(${trabajo.agentId} as uuid),
             cast(${perfil.id} as uuid),
-            ${texto},
+            cast(${texto} as text),
             cast(${trabajo.triggerCommentId} as uuid))`,
     );
 
@@ -239,11 +248,8 @@ async function responder(deps: AgentReplyDeps, trabajo: AgentReplyJob): Promise<
 }
 
 /** El contenido de la versión actual, o nulo si todavía no hay ninguna. */
-async function versionActual(
-  tx: Parameters<Parameters<Database['transaction']>[0]>[0],
-  appId: string,
-): Promise<string | null> {
-  const [fila] = await tx
+async function versionActual(appId: string): Promise<string | null> {
+  const [fila] = await currentTx()
     .select({ contenido: documentVersions.content })
     .from(documents)
     .innerJoin(documentVersions, eq(documentVersions.id, documents.currentVersionId))
@@ -260,12 +266,8 @@ async function versionActual(
  * agente no reacciona a otro (RF-1604), pero sí tiene que poder leer lo que hay
  * sin creer que se lo dijo una persona.
  */
-async function conversacion(
-  tx: Parameters<Parameters<Database['transaction']>[0]>[0],
-  threadId: string,
-  agentId: string,
-): Promise<ThreadEntry[]> {
-  const filas = await tx
+async function conversacion(threadId: string, agentId: string): Promise<ThreadEntry[]> {
+  const filas = await currentTx()
     .select({
       body: comments.body,
       deletedAt: comments.deletedAt,
@@ -285,6 +287,24 @@ async function conversacion(
     byAgent: fila.authorAgentId !== null,
     body: fila.body,
   }));
+}
+
+/**
+ * El error con toda su cadena de causas.
+ *
+ * Sin esto, un fallo de base de datos llega envuelto en el «Failed query» de
+ * Drizzle y el mensaje de Postgres —el que dice qué restricción saltó— se queda
+ * dentro, invisible. Se aprendió mirando un fallo que solo decía que la consulta
+ * había fallado.
+ */
+function cadenaDeCausas(error: unknown): string {
+  const partes: string[] = [];
+  let actual: unknown = error;
+  while (actual instanceof Error) {
+    partes.push(actual.message);
+    actual = actual.cause;
+  }
+  return partes.join(' | ');
 }
 
 /** Lo que no merece reintento muere en el primer intento (RNF-703). */
