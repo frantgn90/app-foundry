@@ -239,6 +239,29 @@ function CommentBody({ comment, onDelete }: { comment: Comment; onDelete: () => 
           )}
         </div>
         <p className="whitespace-pre-wrap text-sm">{highlightMentions(comment.body)}</p>
+
+        {/*
+          El razonamiento, plegado y debajo (RF-1403).
+          
+          Plegado porque casi nunca se quiere leer, y debajo porque no es la
+          respuesta: quien pasa por el hilo lee lo que el agente dijo, y quien
+          duda de por qué lo dijo abre esto. Es la misma forma que el asistente,
+          y a propósito: aprender dos maneras de mirar lo mismo no le sirve a
+          nadie.
+
+          Solo aparece cuando el modelo piensa en voz alta; con los que no, no
+          hay nada que plegar y no se enseña un desplegable vacío.
+        */}
+        {comment.aiReasoning && (
+          <details className="mt-1 rounded-lg border border-[var(--color-borde)] p-2">
+            <summary className="cursor-pointer text-xs text-[var(--color-texto-suave)]">
+              How it got there — not part of the comment
+            </summary>
+            <p className="mt-2 whitespace-pre-wrap text-xs text-[var(--color-texto-suave)]">
+              {comment.aiReasoning}
+            </p>
+          </details>
+        )}
       </div>
     </div>
   );

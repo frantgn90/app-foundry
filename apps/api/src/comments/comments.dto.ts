@@ -33,6 +33,13 @@ export class CommentDto {
   aiProvider!: string | null;
 
   @ApiProperty({ nullable: true, type: String }) aiModelId!: string | null;
+
+  @ApiProperty({
+    nullable: true,
+    type: String,
+    description: 'Lo que el modelo se dijo antes de contestar. Solo los que piensan en voz alta',
+  })
+  aiReasoning!: string | null;
   @ApiProperty() isMine!: boolean;
   @ApiProperty() isDeleted!: boolean;
   @ApiProperty() isEdited!: boolean;

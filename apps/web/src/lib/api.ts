@@ -612,6 +612,8 @@ export interface Comment {
   /** Con qué se generó, si lo escribió un agente (RF-1704). */
   aiProvider: string | null;
   aiModelId: string | null;
+  /** Lo que se dijo antes de contestar. Nulo si ese modelo no lo enseña. */
+  aiReasoning: string | null;
   isMine: boolean;
   isDeleted: boolean;
   isEdited: boolean;

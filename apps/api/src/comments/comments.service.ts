@@ -687,6 +687,8 @@ export class CommentsService {
       /* Con qué se generó **este** comentario, no lo que esté asignado hoy. */
       aiProvider: row.comment.aiProvider,
       aiModelId: row.comment.aiModelId,
+      /* Nunca en un comentario borrado: su texto no se envía, y esto es texto. */
+      aiReasoning: deleted ? null : row.comment.aiReasoning,
       /* Nunca es de quien mira: un agente no tiene sesión. */
       isMine: !esAgente && row.comment.authorId === userId,
       isDeleted: deleted,

@@ -78,7 +78,12 @@ beforeAll(async () => {
         falloProgramado.veces -= 1;
         return Promise.reject(new ProviderError(falloProgramado.kind, 'de mentira'));
       }
-      return Promise.resolve({ texto: respuesta, provider: 'ANTHROPIC', modelId: 'fake-large' });
+      return Promise.resolve({
+        texto: respuesta,
+        razonamiento: '',
+        provider: 'ANTHROPIC',
+        modelId: 'fake-large',
+      });
     },
     notify: (aviso) => {
       avisos.push(aviso);

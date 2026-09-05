@@ -75,7 +75,7 @@ export interface AgentReplyDeps {
     readonly system: string;
     readonly messages: readonly { readonly role: 'user' | 'assistant'; readonly content: string }[];
     readonly maxOutputTokens: number;
-  }) => Promise<{ texto: string; provider: string; modelId: string }>;
+  }) => Promise<{ texto: string; razonamiento: string; provider: string; modelId: string }>;
 }
 
 /** Por qué un trabajo no llegó a escribir nada. Ninguna es un error. */
@@ -235,6 +235,12 @@ async function responder(deps: AgentReplyDeps, trabajo: AgentReplyJob): Promise<
     });
 
     const texto = respuesta.texto.trim();
+    /*
+     * Sin respuesta no se escribe nada, ni siquiera para dejar constancia del
+     * razonamiento: un comentario vacío en un hilo es peor que ningún
+     * comentario. Con el presupuesto de generación bien puesto esto debería ser
+     * raro; cuando pasa, el motivo queda en el registro del worker.
+     */
     if (texto.length === 0) return 'el modelo no devolvió nada';
 
     /*
@@ -251,7 +257,8 @@ async function responder(deps: AgentReplyDeps, trabajo: AgentReplyJob): Promise<
             cast(${texto} as text),
             cast(${trabajo.triggerCommentId} as uuid),
             cast(${respuesta.provider} as ai_provider),
-            cast(${respuesta.modelId} as text))`,
+            cast(${respuesta.modelId} as text),
+            cast(${respuesta.razonamiento} as text))`,
       )
     ).rows;
 

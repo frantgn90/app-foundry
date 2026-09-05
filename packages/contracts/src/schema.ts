@@ -1836,6 +1836,8 @@ export interface components {
             /** @description Con qué se generó, si lo escribió un agente (RF-1704) */
             aiProvider: string | null;
             aiModelId: string | null;
+            /** @description Lo que el modelo se dijo antes de contestar. Solo los que piensan en voz alta */
+            aiReasoning: string | null;
             isMine: boolean;
             isDeleted: boolean;
             isEdited: boolean;

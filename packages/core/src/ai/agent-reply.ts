@@ -67,7 +67,12 @@ create versions, or take any action in the product. Do not offer to.
 Be specific and brief. Point at the actual text. Say what is missing rather than
 filling the gap with something plausible, and never present a guess as a fact.
 Write plain prose: do not greet, do not sign, do not repeat what the thread
-already says. If you have nothing worth adding, say so in one line.`;
+already says. If you have nothing worth adding, say so in one line.
+
+Hard limit: your reply must fit in 150 words. This is a comment in a thread, not
+a report. If you think before answering, keep that short too — the budget covers
+your thinking and your reply together, and a reply that gets cut off mid-sentence
+helps nobody.`;
 
 export function agentSystemPrompt(context: AgentReplyContext): string {
   return `${context.profile}\n\nYou are @${context.handle}.\n\n${REGLAS}`;
@@ -107,12 +112,23 @@ export function agentReplyMessages(context: AgentReplyContext): readonly PromptM
 }
 
 /**
- * Cuánto se le deja escribir.
+ * Cuánto se le deja generar, contando lo que piense.
  *
- * Un comentario, no un ensayo. El tope existe además porque es la mitad de la
- * estimación previa (§10): lo que no se puede generar no hay que estimarlo.
+ * Ochocientos se quedaron cortos y el fallo era peor de lo que parece: un
+ * modelo que razona en voz alta —`qwen3.6`, sin ir más lejos— se gastaba el
+ * presupuesto entero deliberando y el corte llegaba **antes** de que empezara a
+ * contestar. Lo que se publicaba era media deliberación, y con el razonamiento
+ * ya separado lo que se publicaría es nada.
+ *
+ * Tres mil dan sitio para pensar y contestar. No es una cifra fina: es la que
+ * deja de estrangular al caso que falló, y el tope de verdad lo pone la
+ * instrucción de las reglas —ciento cincuenta palabras—, que es lo que se puede
+ * decir en un prompt y no en un número de tokens.
+ *
+ * Un tope hay que ponerlo igualmente: es la mitad de la estimación previa (§10)
+ * y lo que impide que un agente conteste con un ensayo.
  */
-export const AGENT_REPLY_MAX_OUTPUT_TOKENS = 800;
+export const AGENT_REPLY_MAX_OUTPUT_TOKENS = 3_000;
 
 /**
  * Si a este agente le quedan turnos en este hilo (RF-1605).

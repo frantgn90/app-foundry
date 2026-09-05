@@ -144,6 +144,15 @@ export const comments = pgTable(
      */
     aiProvider: aiProviderEnum('ai_provider'),
     aiModelId: text('ai_model_id'),
+    /**
+     * Lo que el modelo se dijo a sí mismo antes de contestar (RF-1403, RD-9).
+     *
+     * Se guarda aparte del cuerpo por lo mismo que en el asistente: aparte es lo
+     * que impide que acabe en el comentario, y guardado es lo que permite
+     * enseñarlo plegado cuando alguien quiere entender por qué el agente dijo lo
+     * que dijo. Solo lo llenan los modelos que piensan en voz alta.
+     */
+    aiReasoning: text('ai_reasoning'),
     editedAt: timestamp('edited_at', { withTimezone: true }),
     deletedAt: timestamp('deleted_at', { withTimezone: true }),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),

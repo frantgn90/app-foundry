@@ -31,7 +31,7 @@ export class AskModel {
     system: string;
     messages: readonly { readonly role: 'user' | 'assistant'; readonly content: string }[];
     maxOutputTokens: number;
-  }): Promise<{ texto: string; provider: string; modelId: string }> {
+  }): Promise<{ texto: string; razonamiento: string; provider: string; modelId: string }> {
     const context = {
       workspaceId: peticion.workspaceId,
       appId: peticion.appId,
@@ -71,13 +71,14 @@ export class AskModel {
        * antes de contestar. Se descubrió usándolo, no probándolo: la suite del
        * worker inyecta la respuesta ya limpia.
        *
-       * Lo pensado se descarta aquí en vez de guardarse, al revés que en el
-       * asistente: allí se enseña plegado porque quien lo pidió está mirando y
-       * puede querer entender la propuesta, y un comentario no tiene dónde
-       * plegar nada ni a quién enseñárselo.
+       * Lo pensado se guarda aparte y viaja con la respuesta: aparte es lo que
+       * impide que acabe dentro del comentario, y guardado es lo que permite
+       * enseñarlo plegado, igual que en el asistente. Tirarlo dejaba sin
+       * explicación una respuesta que a veces no se entiende sin ella.
        */
       const separador = new ReasoningSplitter();
       let texto = '';
+      let razonamiento = '';
       let usage = { inputTokens: empezada.estimatedTokens, outputTokens: 0 };
       let ttftMs: number | undefined;
 
@@ -86,12 +87,16 @@ export class AskModel {
         .streamText(empezada.request, empezada.credential)) {
         if (evento.type === 'delta') {
           ttftMs ??= Date.now() - inicio;
-          texto += separador.push(evento.text).text;
+          const parte = separador.push(evento.text);
+          texto += parte.text;
+          razonamiento += parte.reasoning;
         } else if (evento.type === 'usage') {
           usage = evento.usage;
         }
       }
-      texto += separador.flush().text;
+      const ultimo = separador.flush();
+      texto += ultimo.text;
+      razonamiento += ultimo.reasoning;
 
       await this.invocations.finish(context, empezada, usage, {
         outcome: 'COMPLETED',
@@ -102,7 +107,12 @@ export class AskModel {
        * una tarea cambia, así que preguntarlo después daría el de entonces y no
        * el de esta respuesta (RF-1704).
        */
-      return { texto, provider: empezada.plan.provider, modelId: empezada.plan.modelId };
+      return {
+        texto,
+        razonamiento,
+        provider: empezada.plan.provider,
+        modelId: empezada.plan.modelId,
+      };
     } catch (error: unknown) {
       /*
        * Se liquida igual al fallar. Sin esto, un fallo dejaría el cupo apartado

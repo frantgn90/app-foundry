@@ -5233,6 +5233,11 @@
             "type": "string",
             "nullable": true
           },
+          "aiReasoning": {
+            "type": "string",
+            "nullable": true,
+            "description": "Lo que el modelo se dijo antes de contestar. Solo los que piensan en voz alta"
+          },
           "isMine": {
             "type": "boolean"
           },
@@ -5267,6 +5272,7 @@
           "authorRetired",
           "aiProvider",
           "aiModelId",
+          "aiReasoning",
           "isMine",
           "isDeleted",
           "isEdited",

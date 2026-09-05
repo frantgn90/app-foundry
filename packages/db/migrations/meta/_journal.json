@@ -407,6 +407,20 @@
       "when": 1788624478448,
       "tag": "0057_notifications_agent_author",
       "breakpoints": true
+    },
+    {
+      "idx": 58,
+      "version": "7",
+      "when": 1788627374122,
+      "tag": "0058_agent_comment_reasoning",
+      "breakpoints": true
+    },
+    {
+      "idx": 59,
+      "version": "7",
+      "when": 1788627398035,
+      "tag": "0059_agent_write_comment_reasoning",
+      "breakpoints": true
     }
   ]
 }
