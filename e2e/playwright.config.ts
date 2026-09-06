@@ -17,6 +17,13 @@ const API = 'http://localhost:3001';
  */
 export default defineConfig({
   testDir: './tests',
+  /*
+   * El worker no es un servidor: no abre puerto ni tiene URL que sondear, así
+   * que no cabe en `webServer` y se arranca aquí. Hace falta para el recorrido
+   * de agentes, que sin él esperaría una respuesta que nadie está escribiendo.
+   */
+  globalSetup: './global-setup.ts',
+  globalTeardown: './global-teardown.ts',
   timeout: 60_000,
   expect: { timeout: 10_000 },
   fullyParallel: false,

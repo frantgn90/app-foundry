@@ -6,5 +6,5 @@
     "types": ["node"],
     "allowJs": true
   },
-  "include": ["tests", "helpers", "*.config.ts", "*.config.js"]
+  "include": ["tests", "helpers", "*.config.ts", "*.config.js", "global-*.ts"]
 }

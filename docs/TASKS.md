@@ -547,11 +547,11 @@ empezar cada hito, con el mismo método que la v1.
 | **H9** ✅  | Puerto y adaptadores, cifrado de credenciales, catálogo por API, modelo por tarea, cupos       | La IA ya tiene grifo y contador    |
 | **H10** ✅ | Arreglo del menú de selección (U26, U27) y asistente de escritura, con diff que se acepta      | **Primer valor real**              |
 | **H11** ✅ | Generación de ideas, con y sin búsqueda web, y la app creada con su visión sembrada            | Cierra «no tengo ideas»            |
-| **H12**    | Agentes: modelo, catálogo de fábrica, instancias, autoría polimórfica, menciones y respuestas  | Un interlocutor con perfil         |
+| **H12** ✅ | Agentes: modelo, catálogo de fábrica, instancias, autoría polimórfica, menciones y respuestas  | Un interlocutor con perfil         |
 | **H13**    | Revisión en abanico: cola, estimación, confirmación, cancelación y cortafuegos                 | **Pensar acompañado, completo**    |
 | **H14**    | Panel de Grafana, recorrido de extremo a extremo, conciliación de cupos y cierre               | v2 completa                        |
 
-Solo se desglosa el hito en curso. H9, H10 y H11 están cerradas; **H12** está desglosada abajo.
+Solo se desglosa el hito en curso. H9, H10, H11 y H12 están cerradas; **H13** se desglosará al empezarlo.
 
 ---
 
@@ -1046,4 +1046,14 @@ Solo se desglosa el hito en curso. H9, H10 y H11 están cerradas; **H12** está 
 | # | Tarea | Verificación | Traza | Estado |
 |---|---|---|---|---|
 | BG1 | Suite explícita de cortafuegos | Un agente no reacciona a otro; su mención no invoca ni avisa; el tope se respeta | RNF-902 | ✅ |
-| BG2 | Recorrido completo con el proveedor de mentira | Adoptar del catálogo, añadir agente, mencionarlo, que conteste, replicarle y que calle al tope | RNF-905 | ⬜ |
+| BG2 | Recorrido completo con el proveedor de mentira | Adoptar del catálogo, añadir agente, mencionarlo, que conteste, replicarle y que calle al tope | RNF-905 | ✅ |
+
+> **Sobre BG2.** El worker no cabe en los `webServer` de Playwright —no abre puerto ni tiene URL que sondear—,
+> así que se arranca en el `globalSetup`, con el proveedor de mentira igual que la API. Y antes de arrancarlo se
+> comprueba que no haya otro: dos workers escuchan la misma cola, BullMQ le daría la mención a cualquiera de
+> los dos y el de desarrollo llama al proveedor de verdad con una credencial de mentira. Fallaría una de cada
+> dos veces y por un motivo que no se ve en el fallo, así que se dice antes y en una línea.
+>
+> El recorrido comprueba de paso el tramo que ningún otro test toca: la respuesta del agente aparece **sin
+> recargar**. Llega invalidando los hilos desde el canal de avisos (T-6), y no hay refresco periódico ni al
+> volver a la ventana que pueda disimularlo: si ese canal se rompe, este test se pone rojo.
