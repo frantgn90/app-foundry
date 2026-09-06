@@ -12,6 +12,7 @@ import {
 
 import { agentPromptRevisions, agents } from './agents.js';
 import { apps, documents, documentVersions } from './apps.js';
+import { agentReviews } from './reviews.js';
 import { aiProviderEnum, anchorStatusEnum, threadKindEnum, threadStatusEnum } from './enums.js';
 import { users } from './users.js';
 
@@ -60,6 +61,17 @@ export const commentThreads = pgTable(
       onDelete: 'set null',
     }),
     anchorStatus: anchorStatusEnum('anchor_status'),
+
+    /**
+     * De qué revisión salió el hilo, si lo abrió una (RF-1606).
+     *
+     * Nulo en todo lo que abre una persona, y también en lo que abre un agente
+     * al que se menciona: solo lo lleva lo que salió del abanico. Se queda si la
+     * revisión desaparece, porque el comentario sigue siendo suyo.
+     */
+    reviewId: uuid('review_id').references((): AnyPgColumn => agentReviews.id, {
+      onDelete: 'set null',
+    }),
 
     /**
      * Dónde cae el fragmento en la copia de trabajo, que va por delante de la

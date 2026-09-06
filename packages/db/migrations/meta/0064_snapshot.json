@@ -1,6 +1,6 @@
 {
-  "id": "2cebc231-50bb-460b-982d-3d7037d5267b",
-  "prevId": "c5f4e092-4c92-482a-9d9d-1218d829ebb4",
+  "id": "d5fcbd6c-c6c8-4a11-a616-025a1f527c54",
+  "prevId": "eeb79b47-d813-43df-9860-4c96f4a3b91f",
   "version": "7",
   "dialect": "postgresql",
   "tables": {
@@ -479,7 +479,7 @@
           "type": "text",
           "primaryKey": false,
           "notNull": true,
-          "default": "'🗂️'"
+          "default": "'\ud83d\uddc2\ufe0f'"
         },
         "icon_color": {
           "name": "icon_color",
@@ -708,6 +708,14 @@
           "type": "text",
           "primaryKey": false,
           "notNull": false
+        },
+        "comments_layout": {
+          "name": "comments_layout",
+          "type": "comments_layout",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'SIDEBAR'"
         },
         "archived_at": {
           "name": "archived_at",
@@ -1371,6 +1379,12 @@
           "primaryKey": false,
           "notNull": false
         },
+        "review_id": {
+          "name": "review_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
         "working_start": {
           "name": "working_start",
           "type": "integer",
@@ -1496,6 +1510,15 @@
           "tableFrom": "comment_threads",
           "tableTo": "document_versions",
           "columnsFrom": ["anchored_version_id"],
+          "columnsTo": ["id"],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        },
+        "comment_threads_review_id_agent_reviews_id_fk": {
+          "name": "comment_threads_review_id_agent_reviews_id_fk",
+          "tableFrom": "comment_threads",
+          "tableTo": "agent_reviews",
+          "columnsFrom": ["review_id"],
           "columnsTo": ["id"],
           "onDelete": "set null",
           "onUpdate": "no action"
@@ -2189,6 +2212,12 @@
           "primaryKey": false,
           "notNull": false
         },
+        "review_run_id": {
+          "name": "review_run_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
         "created_at": {
           "name": "created_at",
           "type": "timestamp with time zone",
@@ -2280,6 +2309,15 @@
           "tableFrom": "ai_invocations",
           "tableTo": "agents",
           "columnsFrom": ["actor_agent_id"],
+          "columnsTo": ["id"],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        },
+        "ai_invocations_review_run_id_agent_review_runs_id_fk": {
+          "name": "ai_invocations_review_run_id_agent_review_runs_id_fk",
+          "tableFrom": "ai_invocations",
+          "tableTo": "agent_review_runs",
+          "columnsFrom": ["review_run_id"],
           "columnsTo": ["id"],
           "onDelete": "set null",
           "onUpdate": "no action"
@@ -2994,6 +3032,271 @@
       "policies": {},
       "checkConstraints": {},
       "isRLSEnabled": false
+    },
+    "public.agent_review_runs": {
+      "name": "agent_review_runs",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "uuidv7()"
+        },
+        "review_id": {
+          "name": "review_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "agent_id": {
+          "name": "agent_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "status": {
+          "name": "status",
+          "type": "review_status",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'QUEUED'"
+        },
+        "threads_written": {
+          "name": "threads_written",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 0
+        },
+        "idempotency_key": {
+          "name": "idempotency_key",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "started_at": {
+          "name": "started_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "finished_at": {
+          "name": "finished_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "agent_review_runs_key": {
+          "name": "agent_review_runs_key",
+          "columns": [
+            {
+              "expression": "idempotency_key",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "agent_review_runs_agent": {
+          "name": "agent_review_runs_agent",
+          "columns": [
+            {
+              "expression": "review_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "agent_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "agent_review_runs_review_id_agent_reviews_id_fk": {
+          "name": "agent_review_runs_review_id_agent_reviews_id_fk",
+          "tableFrom": "agent_review_runs",
+          "tableTo": "agent_reviews",
+          "columnsFrom": ["review_id"],
+          "columnsTo": ["id"],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "agent_review_runs_agent_id_agents_id_fk": {
+          "name": "agent_review_runs_agent_id_agents_id_fk",
+          "tableFrom": "agent_review_runs",
+          "tableTo": "agents",
+          "columnsFrom": ["agent_id"],
+          "columnsTo": ["id"],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.agent_reviews": {
+      "name": "agent_reviews",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "uuidv7()"
+        },
+        "app_id": {
+          "name": "app_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "requested_by": {
+          "name": "requested_by",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "version_id": {
+          "name": "version_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "status": {
+          "name": "status",
+          "type": "review_status",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'QUEUED'"
+        },
+        "estimated_tokens": {
+          "name": "estimated_tokens",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "started_at": {
+          "name": "started_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "finished_at": {
+          "name": "finished_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "agent_reviews_one_live": {
+          "name": "agent_reviews_one_live",
+          "columns": [
+            {
+              "expression": "app_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "where": "status IN ('QUEUED', 'RUNNING')",
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "agent_reviews_app_idx": {
+          "name": "agent_reviews_app_idx",
+          "columns": [
+            {
+              "expression": "app_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "created_at",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "agent_reviews_app_id_apps_id_fk": {
+          "name": "agent_reviews_app_id_apps_id_fk",
+          "tableFrom": "agent_reviews",
+          "tableTo": "apps",
+          "columnsFrom": ["app_id"],
+          "columnsTo": ["id"],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "agent_reviews_requested_by_users_id_fk": {
+          "name": "agent_reviews_requested_by_users_id_fk",
+          "tableFrom": "agent_reviews",
+          "tableTo": "users",
+          "columnsFrom": ["requested_by"],
+          "columnsTo": ["id"],
+          "onDelete": "restrict",
+          "onUpdate": "no action"
+        },
+        "agent_reviews_version_id_document_versions_id_fk": {
+          "name": "agent_reviews_version_id_document_versions_id_fk",
+          "tableFrom": "agent_reviews",
+          "tableTo": "document_versions",
+          "columnsFrom": ["version_id"],
+          "columnsTo": ["id"],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
     }
   },
   "enums": {
@@ -3027,6 +3330,11 @@
       "schema": "public",
       "values": ["IDEA", "DEFINING", "IN_DEVELOPMENT", "PUBLISHED", "PAUSED", "ARCHIVED"]
     },
+    "public.comments_layout": {
+      "name": "comments_layout",
+      "schema": "public",
+      "values": ["SIDEBAR", "STACKED"]
+    },
     "public.document_type": {
       "name": "document_type",
       "schema": "public",
@@ -3050,7 +3358,8 @@
         "PRECURSOR_TRANSFERRED",
         "APPS_INHERITED",
         "AI_MODEL_UNAVAILABLE",
-        "AI_QUOTA_THRESHOLD"
+        "AI_QUOTA_THRESHOLD",
+        "AI_AGENT_FAILED"
       ]
     },
     "public.platform_role": {
@@ -3062,6 +3371,11 @@
       "name": "provider_status",
       "schema": "public",
       "values": ["ACTIVE", "DISABLED", "INVALID"]
+    },
+    "public.review_status": {
+      "name": "review_status",
+      "schema": "public",
+      "values": ["QUEUED", "RUNNING", "DONE", "CANCELLED", "FAILED"]
     },
     "public.thread_kind": {
       "name": "thread_kind",

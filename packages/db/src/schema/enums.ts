@@ -32,6 +32,21 @@ export const accessLevelEnum = pgEnum('access_level', [
  */
 export const commentsLayoutEnum = pgEnum('comments_layout', ['SIDEBAR', 'STACKED']);
 
+/**
+ * En qué punto está una revisión, o una de sus ejecuciones (RF-1606..1610).
+ *
+ * El mismo enum para las dos: una ejecución es una revisión en pequeño, pasa
+ * por los mismos estados y tenerlos separados solo obligaría a traducir entre
+ * dos listas idénticas.
+ */
+export const reviewStatusEnum = pgEnum('review_status', [
+  'QUEUED',
+  'RUNNING',
+  'DONE',
+  'CANCELLED',
+  'FAILED',
+]);
+
 export const documentTypeEnum = pgEnum('document_type', ['VISION', 'PRD', 'TRD']);
 export const threadKindEnum = pgEnum('thread_kind', ['GENERAL', 'INLINE']);
 export const threadStatusEnum = pgEnum('thread_status', ['OPEN', 'RESOLVED']);

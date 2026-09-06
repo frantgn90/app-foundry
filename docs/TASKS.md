@@ -1082,12 +1082,12 @@ Solo se desglosa el hito en curso. H9, H10, H11 y H12 están cerradas; **H13** e
 
 | # | Tarea | Verificación | Traza | Estado |
 |---|---|---|---|---|
-| BH1 | Enum `review_status` y tabla `agent_reviews` | Estado, versión revisada, quien la pidió, techo estimado y marcas de tiempo | RF-1606, RF-1607 | ⬜ |
-| BH2 | Único parcial: una revisión viva por app | `UNIQUE (app_id) WHERE status IN ('QUEUED','RUNNING')`; el segundo `INSERT` falla en el motor | RF-1609 | ⬜ |
-| BH3 | Tabla `agent_review_runs`, una fila por agente | Con su estado, cuántos hilos escribió y su clave de idempotencia única | T-33 | ⬜ |
-| BH4 | `ai_invocations.review_run_id` | Cada invocación del abanico apunta a su ejecución; el consumo del mes se puede desglosar por revisión | RD-10, RF-1208 | ⬜ |
-| BH5 | RLS de las dos tablas nuevas | Se ven si se ve la app; las escribe el worker por la puerta estrecha, no el rol de la aplicación | RNF-904 | ⬜ |
-| BH6 | Los hilos de una revisión saben de cuál salieron | `comment_threads.review_id`, para poder decir «esto lo dejó la revisión del martes» | RF-1606 | ⬜ |
+| BH1 | Enum `review_status` y tabla `agent_reviews` | Estado, versión revisada, quien la pidió, techo estimado y marcas de tiempo | RF-1606, RF-1607 | ✅ |
+| BH2 | Único parcial: una revisión viva por app | `UNIQUE (app_id) WHERE status IN ('QUEUED','RUNNING')`; el segundo `INSERT` falla en el motor | RF-1609 | ✅ |
+| BH3 | Tabla `agent_review_runs`, una fila por agente | Con su estado, cuántos hilos escribió y su clave de idempotencia única | T-33 | ✅ |
+| BH4 | `ai_invocations.review_run_id` | Cada invocación del abanico apunta a su ejecución; el consumo del mes se puede desglosar por revisión | RD-10, RF-1208 | ✅ |
+| BH5 | RLS de las dos tablas nuevas | Se ven si se ve la app; pedirla basta con leerla y moverla es de quien la pidió o del precursor | RNF-904, RF-1608 | ✅ |
+| BH6 | Los hilos de una revisión saben de cuál salieron | `comment_threads.review_id`, para poder decir «esto lo dejó la revisión del martes» | RF-1606 | ✅ |
 
 > **Sobre BH2.** El solapamiento no se comprueba en el servicio: se hace **imposible en el motor**. Un `SELECT`
 > previo deja una carrera de milisegundos entre mirar y escribir, y el precio de perderla es pagar dos
@@ -1097,6 +1097,18 @@ Solo se desglosa el hito en curso. H9, H10, H11 y H12 están cerradas; **H13** e
 > **Sobre BH3.** Una ejecución por agente y no una por revisión, porque es la unidad de todo lo demás: el
 > reintento, la idempotencia, la cancelación y el progreso. Un agente lento no bloquea a los otros cuatro y un
 > agente que falla no tira la revisión entera.
+>
+> **Sobre BH5, ya escrito.** La política de inserción es la que se sale de lo habitual: en el resto del modelo
+> de agentes escribir exige poder **editar** la app, y aquí basta con poder **leerla** (RF-1608, D-12). Pedir
+> que te lean no cambia nada del documento, y quien solo tiene lectura es justamente quien más necesita una
+> segunda opinión. Copiar la política de al lado habría dejado eso roto sin que ningún otro test se enterara,
+> así que tiene la suya propia.
+>
+> Moverla —arrancarla, cerrarla, cancelarla— es de quien la pidió o del precursor. El worker escribe con la
+> identidad de quien la pidió, igual que al contestar una mención, así que sus cambios de estado entran por esa
+> misma puerta sin necesidad de una excepción para él. Y no hay política de borrado en ninguna de las dos
+> tablas: cancelar es cambiar de estado, porque una revisión cancelada tiene que seguir explicando los
+> comentarios que llegó a dejar (RF-1610).
 
 ### Bloque BI — La estimación y la confirmación
 
@@ -1160,12 +1172,11 @@ Solo se desglosa el hito en curso. H9, H10, H11 y H12 están cerradas; **H13** e
 | BL5 | Cancelar desde la misma pantalla | Quien la pidió o el precursor de la app | RF-1610 | ⬜ |
 | BL6 | Los hilos aparecen según se escriben | Por el mismo canal, sin recargar | RF-1602, T-6 | ⬜ |
 
-> **Sobre BL3 y BL6.** Aquí hay una decisión que conviene tomar antes de escribir código: el canal de avisos es
-> **por persona**, y el progreso de una revisión le importa a cualquiera que esté mirando esa app. Lo más
-> barato es publicárselo a quien la pidió —que es quien está esperando— y que los demás lo vean al abrir la
-> ficha, donde el estado viene con la app. Lo más completo es repartirlo a todos los conectados que ven esa
-> app, que obliga a resolver esa audiencia en cada cambio de estado. Se propone lo primero, y dejar lo segundo
-> para cuando alguien lo eche de menos.
+> **Sobre BL3 y BL6.** El canal en tiempo real es **por persona**, y el progreso de una revisión le importa a
+> cualquiera que esté mirando esa app. **Se reparte a todos los que la ven**, no solo a quien la pidió: dos
+> personas delante de la misma ficha ven lo mismo a la vez, y la alternativa barata dejaba la pantalla del
+> compañero quieta durante minutos, que se lee como que está rota. El precio es resolver esa audiencia en cada
+> cambio de estado —quién puede ver la app y está conectado— y repartir por varios canales en lugar de uno.
 
 ### Bloque BM — Cerrar H13
 

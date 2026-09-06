@@ -1,5 +1,6 @@
 import { sql } from 'drizzle-orm';
 import {
+  type AnyPgColumn,
   boolean,
   foreignKey,
   index,
@@ -18,6 +19,7 @@ import { aiOutcomeEnum, aiProviderEnum, aiTaskEnum, providerStatusEnum } from '.
 import { bytea } from './types.js';
 import { agents } from './agents.js';
 import { apps } from './apps.js';
+import { agentReviewRuns } from './reviews.js';
 import { users } from './users.js';
 import { workspaces } from './workspaces.js';
 
@@ -238,6 +240,16 @@ export const aiInvocations = pgTable(
     outcome: aiOutcomeEnum('outcome').notNull(),
     /** El `kind` de la taxonomía cuando falló. Nunca el mensaje del proveedor. */
     errorKind: text('error_kind'),
+    /**
+     * De qué ejecución de una revisión salió, si salió de alguna (RD-10).
+     *
+     * Es lo que permite responder «cuánto costó la revisión del martes» sin
+     * cruzar por tiempo, que es como se cuentan mal las cosas que corren en
+     * paralelo.
+     */
+    reviewRunId: uuid('review_run_id').references((): AnyPgColumn => agentReviewRuns.id, {
+      onDelete: 'set null',
+    }),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
   },
   (table) => [
