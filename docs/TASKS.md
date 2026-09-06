@@ -548,10 +548,10 @@ empezar cada hito, con el mismo método que la v1.
 | **H10** ✅ | Arreglo del menú de selección (U26, U27) y asistente de escritura, con diff que se acepta      | **Primer valor real**              |
 | **H11** ✅ | Generación de ideas, con y sin búsqueda web, y la app creada con su visión sembrada            | Cierra «no tengo ideas»            |
 | **H12** ✅ | Agentes: modelo, catálogo de fábrica, instancias, autoría polimórfica, menciones y respuestas  | Un interlocutor con perfil         |
-| **H13**    | Revisión en abanico: cola, estimación, confirmación, cancelación y cortafuegos                 | **Pensar acompañado, completo**    |
+| **H13** 🔄 | Revisión en abanico: cola, estimación, confirmación, cancelación y cortafuegos                 | **Pensar acompañado, completo**    |
 | **H14**    | Panel de Grafana, recorrido de extremo a extremo, conciliación de cupos y cierre               | v2 completa                        |
 
-Solo se desglosa el hito en curso. H9, H10, H11 y H12 están cerradas; **H13** se desglosará al empezarlo.
+Solo se desglosa el hito en curso. H9, H10, H11 y H12 están cerradas; **H13** está desglosada abajo.
 
 ---
 
@@ -1059,3 +1059,119 @@ Solo se desglosa el hito en curso. H9, H10, H11 y H12 están cerradas; **H13** s
 > El recorrido comprueba de paso el tramo que ningún otro test toca: la respuesta del agente aparece **sin
 > recargar**. Llega invalidando los hilos desde el canal de avisos (T-6), y no hay refresco periódico ni al
 > volver a la ventana que pueda disimularlo: si ese canal se rompe, este test se pone rojo.
+
+---
+
+## H13 — La revisión en abanico
+
+> Objetivo: pulsar **un botón** y que los agentes activos de la app lean la visión y dejen sus hilos anclados
+> a fragmentos concretos, más uno general con su valoración. Es el gesto que convierte a los agentes de
+> «alguien a quien preguntar» en «alguien que te lee».
+>
+> Es también el primer gesto **caro** del producto: cinco agentes leyendo un documento entero son cinco
+> invocaciones que alguien paga. Por eso no arranca sin enseñar el techo de tokens y pedir confirmación
+> (RF-1207, RF-1608), no arranca si no cabe en el cupo (nunca a medias), y se puede parar a mitad (RF-1610).
+>
+> Lo que **ya está** de H12 y aquí solo se usa: la cola y el worker (T-32), los cortafuegos de disparo
+> (RF-1604, RF-1605), la puerta de escritura de comentarios de agente, el paso común de invocación con su
+> cupo y su registro, y el aviso de que el agente no ve lo que no está commiteado (RF-1607, BF16).
+>
+> Lo que **no** entra: el panel de Grafana y la conciliación de cupos, que son H14.
+
+### Bloque BH — El modelo de datos de la revisión
+
+| # | Tarea | Verificación | Traza | Estado |
+|---|---|---|---|---|
+| BH1 | Enum `review_status` y tabla `agent_reviews` | Estado, versión revisada, quien la pidió, techo estimado y marcas de tiempo | RF-1606, RF-1607 | ⬜ |
+| BH2 | Único parcial: una revisión viva por app | `UNIQUE (app_id) WHERE status IN ('QUEUED','RUNNING')`; el segundo `INSERT` falla en el motor | RF-1609 | ⬜ |
+| BH3 | Tabla `agent_review_runs`, una fila por agente | Con su estado, cuántos hilos escribió y su clave de idempotencia única | T-33 | ⬜ |
+| BH4 | `ai_invocations.review_run_id` | Cada invocación del abanico apunta a su ejecución; el consumo del mes se puede desglosar por revisión | RD-10, RF-1208 | ⬜ |
+| BH5 | RLS de las dos tablas nuevas | Se ven si se ve la app; las escribe el worker por la puerta estrecha, no el rol de la aplicación | RNF-904 | ⬜ |
+| BH6 | Los hilos de una revisión saben de cuál salieron | `comment_threads.review_id`, para poder decir «esto lo dejó la revisión del martes» | RF-1606 | ⬜ |
+
+> **Sobre BH2.** El solapamiento no se comprueba en el servicio: se hace **imposible en el motor**. Un `SELECT`
+> previo deja una carrera de milisegundos entre mirar y escribir, y el precio de perderla es pagar dos
+> revisiones enteras del mismo documento. El índice único parcial cierra la puerta sin depender de que nadie se
+> acuerde.
+>
+> **Sobre BH3.** Una ejecución por agente y no una por revisión, porque es la unidad de todo lo demás: el
+> reintento, la idempotencia, la cancelación y el progreso. Un agente lento no bloquea a los otros cuatro y un
+> agente que falla no tira la revisión entera.
+
+### Bloque BI — La estimación y la confirmación
+
+| # | Tarea | Verificación | Traza | Estado |
+|---|---|---|---|---|
+| BI1 | `POST /apps/:id/reviews/estimate` | Devuelve el techo por agente y el total, con permiso de **lectura** sobre la app | RF-1608, RF-1207 | ⬜ |
+| BI2 | El techo es techo: entrada real, salida al máximo | Entrada contada con el proveedor; salida, el máximo que la tarea permite generar, por cada agente activo | RF-1207 | ⬜ |
+| BI3 | Si no cabe en el cupo restante, no arranca | Ni a medias ni «los que quepan»: se rechaza entera y se dice cuánto falta | RF-1204, RF-1207 | ⬜ |
+| BI4 | El límite por miembro cuenta el abanico entero | Cinco agentes son cinco invocaciones, no una | RF-1206 | ⬜ |
+| BI5 | Sin agentes activos, ni se ofrece | Un botón que no puede hacer nada no se enseña | RF-1010 | ⬜ |
+
+> **Sobre BI2.** La estimación se enseña **antes** de gastar y por eso tiene que pasarse de larga, nunca
+> quedarse corta: quien confirma un número y recibe una factura mayor no vuelve a confiar en el número. Contar
+> la entrada de verdad cuesta una llamada al proveedor por agente, y aun así sale más barato que la sorpresa.
+
+### Bloque BJ — El abanico: cola, worker y cancelación
+
+| # | Tarea | Verificación | Traza | Estado |
+|---|---|---|---|---|
+| BJ1 | Cola `ai-review` y su consumidor en el worker | Arranca con la de respuestas, comparte proceso y configuración | T-32, TRD §11.2 | ⬜ |
+| BJ2 | Un trabajo por agente, encolados al confirmar | La revisión pasa a `RUNNING` con el primero; los cinco corren en paralelo acotado | RF-1606 | ⬜ |
+| BJ3 | Cada ejecución escribe **todo** en una transacción | Sus hilos, sus comentarios y su cambio de estado; una caída a mitad no deja medio hilo | T-33, RNF-703 | ⬜ |
+| BJ4 | Un reintento no repite lo escrito | La clave de idempotencia encuentra la ejecución completada y no vuelve a escribir | T-33 | ⬜ |
+| BJ5 | Concurrencia acotada por proveedor | Cinco agentes de un workspace no agotan el límite de tasa ni tumban al asistente de otro | RNF-705 | ⬜ |
+| BJ6 | Cancelar: bandera en Redis y `AbortSignal` | Lo escrito se queda; lo pendiente no arranca; la llamada en curso se corta | RF-1610 | ⬜ |
+| BJ7 | La revisión se cierra cuando acaba la última ejecución | `DONE` aunque alguna haya fallado; `FAILED` solo si fallaron todas | RF-1606 | ⬜ |
+| BJ8 | Si el proveedor falla del todo, se avisa a quien la pidió | Mismo criterio que con una mención: en palabras y sin el mensaje técnico | RF-1615 | ⬜ |
+
+> **Sobre BJ6.** Cancelar tiene dos alcances y hacen falta los dos: la bandera evita que arranquen los agentes
+> que aún no han empezado, y el `AbortSignal` corta la generación en curso. Sin lo segundo, cancelar una
+> revisión de cinco agentes sigue pagando hasta cinco respuestas completas.
+>
+> **Sobre BJ7.** Que una ejecución falle no puede dejar la revisión colgada en `RUNNING` para siempre: eso
+> bloquearía la app entera por el único parcial de BH2. El cierre lo hace quien termina el último, mire como
+> mire su propio resultado.
+
+### Bloque BK — Lo que devuelve el agente, anclado al documento
+
+| # | Tarea | Verificación | Traza | Estado |
+|---|---|---|---|---|
+| BK1 | El papel y el esquema de la revisión | Lista de `{cita, comentario}` más una valoración de conjunto, contra esquema | RF-1606 | ⬜ |
+| BK2 | Lee la **versión actual**, nunca la copia de trabajo | Aunque haya cambios sin commitear; y el aviso ya está puesto (BF16) | RF-1607, D-35 | ⬜ |
+| BK3 | Cada cita se ancla con el mecanismo de siempre | Cita, prefijo, sufijo y posición en el fuente de esa versión | RF-808, RF-817 | ⬜ |
+| BK4 | Una cita que no está en el documento se descarta | Y se cuenta como métrica: perder un comentario es mejor que colgarlo del sitio equivocado | D-13 | ⬜ |
+| BK5 | La valoración de conjunto va como hilo general | Uno por agente, no uno por revisión | RF-1606 | ⬜ |
+| BK6 | Los comentarios de la revisión llevan su revisión de prompt | Como los de una mención: se lee con el perfil que tenía entonces | RF-1510 | ⬜ |
+
+> **Sobre BK4.** Un modelo que cita «casi» literalmente es lo normal, no la excepción: cambia unas comillas,
+> arregla una tilde, se come una palabra. Anclar por aproximación colgaría el comentario de un fragmento
+> parecido y el lector no tendría forma de saberlo. Se descarta y se mide cuántas se pierden, que es el número
+> que dice si el papel hay que mejorarlo.
+
+### Bloque BL — La revisión en la interfaz
+
+| # | Tarea | Verificación | Traza | Estado |
+|---|---|---|---|---|
+| BL1 | Botón de revisión en la ficha de la app | Con permiso de lectura, no de edición | RF-1608, D-12 | ⬜ |
+| BL2 | El techo, antes de confirmar | Cuántos tokens y cuántos agentes; confirmar es un segundo gesto | RF-1207 | ⬜ |
+| BL3 | Progreso mientras corre, sin sondear | Cuántos agentes van; llega por el canal que ya alimenta los avisos | RF-1609, T-6 | ⬜ |
+| BL4 | Con una en curso, no se puede lanzar otra | El botón lo dice en vez de fallar al pulsarlo | RF-1609 | ⬜ |
+| BL5 | Cancelar desde la misma pantalla | Quien la pidió o el precursor de la app | RF-1610 | ⬜ |
+| BL6 | Los hilos aparecen según se escriben | Por el mismo canal, sin recargar | RF-1602, T-6 | ⬜ |
+
+> **Sobre BL3 y BL6.** Aquí hay una decisión que conviene tomar antes de escribir código: el canal de avisos es
+> **por persona**, y el progreso de una revisión le importa a cualquiera que esté mirando esa app. Lo más
+> barato es publicárselo a quien la pidió —que es quien está esperando— y que los demás lo vean al abrir la
+> ficha, donde el estado viene con la app. Lo más completo es repartirlo a todos los conectados que ven esa
+> app, que obliga a resolver esa audiencia en cada cambio de estado. Se propone lo primero, y dejar lo segundo
+> para cuando alguien lo eche de menos.
+
+### Bloque BM — Cerrar H13
+
+| # | Tarea | Verificación | Traza | Estado |
+|---|---|---|---|---|
+| BM1 | Suite del corte por cupo y del límite por miembro | Con sus casos negativos, sobre el abanico | RNF-903 | ⬜ |
+| BM2 | Aislamiento de las tablas nuevas | Con el rol de la aplicación, como el resto | RNF-904 | ⬜ |
+| BM3 | Recorrido completo con el proveedor de mentira | Pedir revisión, ver el techo, confirmar, que aparezcan los hilos anclados y cancelar otra a medias | RNF-905 | ⬜ |
+| BM4 | Documentación al día | TRD §7.4 y §11.2 con lo que se acabó haciendo, y `.env.example` con lo que sea configurable | RNF-1002 | ⬜ |
