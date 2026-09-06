@@ -987,6 +987,7 @@ Solo se desglosa el hito en curso. H9, H10, H11 y H12 están cerradas; **H13** s
 | BE13 | Un reintento no duplica el comentario | Escritura y cierre del trabajo en la misma transacción, con clave de idempotencia | T-33, RNF-703 | ✅ |
 | BE14 | Las personas se enteran; el agente no recibe nada | Misma audiencia que entre personas | RF-1612, RF-902 | ✅ |
 | BE15 | Silenciar los avisos de un agente concreto | Sigue escribiendo; deja de avisar a quien lo silenció | RF-1612 | ✅ |
+| BE16 | La cita del fragmento viaja con el material | En un hilo inline, aparte del documento y del hilo; no si el ancla quedó huérfana | RF-1616, RF-809 | ✅ |
 
 > **Sobre BE1 y BE2.** Una respuesta de agente no se espera mirando la pantalla, así que no tiene por qué vivir
 > dentro de una petición HTTP: va a la cola y el worker la escribe cuando la tiene. De paso resuelve gratis lo
@@ -1031,6 +1032,7 @@ Solo se desglosa el hito en curso. H9, H10, H11 y H12 están cerradas; **H13** s
 | BF13 | Límite de longitud de la respuesta, configurable | En plantilla y en agente, en palabras; 0 es sin límite y es lo de fábrica | RF-1516 | ✅ |
 | BF14 | Aviso cuando el agente no puede contestar | Fallo definitivo del proveedor, modelo vacío o agente pausado al mencionarlo; solo a quien disparó | RF-1615 | ✅ |
 | BF15 | Dónde va la conversación, elegible por app | Al lado o debajo a todo lo ancho; en los ajustes de la app, y se recuerda | RF-818 | ✅ |
+| BF16 | Aviso de que el agente no verá lo que no está commiteado | Solo al llamar a un agente y solo con cambios pendientes; en los tres compositores | RF-1607 | ✅ |
 
 > **Sobre BF7.** Es la primera vez que algo aparece en el panel de comentarios **sin que quien mira haya hecho
 > nada**: el agente contesta cuando el worker termina, que puede ser diez segundos después de mandar la mención.

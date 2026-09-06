@@ -34,6 +34,16 @@ export interface AgentReplyContext {
    * hablar como si hubiera leído algo.
    */
   readonly document: string | null;
+  /**
+   * El fragmento del documento sobre el que se abrió el hilo, si es inline.
+   *
+   * Nulo en un hilo general y en uno huérfano (RF-809), que ya no señala nada. Es lo
+   * primero que mira una persona al entrar en un hilo inline —la conversación
+   * habla de **eso** y no del documento entero—, y sin ello un agente contesta
+   * a una pregunta a la que le falta el sujeto: «¿esto se sostiene?» no dice
+   * nada si no se sabe qué es «esto» (RF-1616).
+   */
+  readonly anchorQuote: string | null;
   /** El hilo entero, del primero al último. */
   readonly thread: readonly ThreadEntry[];
   /**
@@ -117,6 +127,18 @@ export function agentReplyMessages(context: AgentReplyContext): readonly PromptM
       ? '\n<document>\nThis app has no committed vision document yet.\n</document>'
       : `\n<document>\n${context.document}\n</document>`,
   );
+
+  /*
+   * La cita va **antes** del hilo y aparte del documento: es el nexo entre los
+   * dos. Dentro de `<document>` se perdería entre miles de palabras, y dentro
+   * de `<thread>` parecería que alguien la dijo.
+   */
+  if (context.anchorQuote !== null) {
+    partes.push(
+      `\n<quoted-from-document>\n${context.anchorQuote}\n</quoted-from-document>` +
+        '\nThe thread below is about that fragment.',
+    );
+  }
 
   const hilo = context.thread
     .map((entrada) => {

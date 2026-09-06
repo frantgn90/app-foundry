@@ -356,3 +356,85 @@ describe('el límite de palabras de la respuesta', () => {
     expect(peticiones[0]!.system).toContain('must fit in 60 words');
   });
 });
+
+describe('un hilo sobre un fragmento del documento', () => {
+  /**
+   * Un hilo inline propio, con su cita y su estado de ancla.
+   *
+   * Se siembra a mano porque el escenario del arnés tiene un hilo general, que
+   * es el caso normal, y aquí lo que se prueba es justo el otro.
+   */
+  async function hiloInline(
+    cita: string,
+    estado: 'ANCHORED' | 'ORPHANED',
+  ): Promise<{ threadId: string; disparador: string }> {
+    /* Un hilo inline pertenece a una versión, y el motor lo exige (RF-817). */
+    const [version] = (
+      await h.db.execute<{ id: string }>(
+        sql`INSERT INTO document_versions (document_id, version_no, content, author_id, message)
+            SELECT d.id, coalesce(max(v.version_no), 0) + 1, ${'# Idea\n\n' + 'Un documento.'},
+                   ${h.escenario.anaId}::uuid, 'Primera'
+            FROM documents d LEFT JOIN document_versions v ON v.document_id = d.id
+            WHERE d.app_id = ${h.escenario.appId}::uuid
+            GROUP BY d.id
+            RETURNING id`,
+      )
+    ).rows;
+
+    const [hilo] = (
+      await h.db.execute<{ id: string }>(
+        sql`INSERT INTO comment_threads
+              (app_id, document_id, kind, anchor_quote, anchor_status,
+               anchored_version_id, created_by)
+            VALUES (
+              ${h.escenario.appId}::uuid,
+              (SELECT id FROM documents WHERE app_id = ${h.escenario.appId}::uuid LIMIT 1),
+              'INLINE', ${cita}, ${estado}, ${version!.id}::uuid, ${h.escenario.anaId}::uuid)
+            RETURNING id`,
+      )
+    ).rows;
+
+    const [comentario] = (
+      await h.db.execute<{ id: string }>(
+        sql`INSERT INTO comments (thread_id, body, author_id)
+            VALUES (${hilo!.id}::uuid, '@po ¿esto se sostiene?', ${h.escenario.anaId}::uuid)
+            RETURNING id`,
+      )
+    ).rows;
+
+    return { threadId: hilo!.id, disparador: comentario!.id };
+  }
+
+  it('le llega la cita, y sabe que la conversación va de ahí', async () => {
+    /*
+     * Sin ella, «¿esto se sostiene?» llega sin sujeto: el agente recibe el
+     * documento entero y una pregunta que señala a un trozo que no viene
+     * (RF-1616).
+     */
+    const { threadId, disparador } = await hiloInline(
+      'Los datos abiertos dan posiciones cada treinta segundos',
+      'ANCHORED',
+    );
+
+    await h.encolar({ threadId, triggerCommentId: disparador });
+    await aQueTermine();
+
+    expect(peticiones[0]!.material).toContain('Los datos abiertos dan posiciones');
+    expect(peticiones[0]!.material).toContain('<quoted-from-document>');
+  });
+
+  it('pero no si el ancla se quedó huérfana', async () => {
+    /*
+     * El hilo conserva la cita para que se entienda de qué se hablaba, pero ese
+     * texto ya no está en el documento (RF-809). Dárselo sería pedirle que
+     * opine sobre algo que nadie puede ir a mirar.
+     */
+    const { threadId, disparador } = await hiloInline('Un párrafo que ya no está', 'ORPHANED');
+
+    await h.encolar({ threadId, triggerCommentId: disparador });
+    await aQueTermine();
+
+    expect(peticiones[0]!.material).not.toContain('Un párrafo que ya no está');
+    expect(peticiones[0]!.material).not.toContain('quoted-from-document');
+  });
+});

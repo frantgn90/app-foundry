@@ -13,6 +13,7 @@ const BASE: AgentReplyContext = {
   appName: 'Reading Companion',
   appDescription: 'Turn what you read into something usable',
   document: '# The problem\n\nNotes end up scattered.',
+  anchorQuote: null,
   thread: [{ author: 'ana', mine: false, byAgent: false, body: '@po ¿esto se sostiene?' }],
   replyWordLimit: 0,
 };
@@ -127,5 +128,43 @@ describe('el límite de palabras', () => {
         'shares the same budget',
       );
     }
+  });
+});
+
+describe('el fragmento del que habla el hilo', () => {
+  it('viaja con el material, y dicho como lo que es', () => {
+    /*
+     * Sin esto, «¿esto se sostiene?» llegaba sin sujeto: el agente recibía el
+     * documento entero y una pregunta que señalaba a un trozo que no venía
+     * (RF-1616).
+     */
+    const [mensaje] = agentReplyMessages({
+      ...BASE,
+      anchorQuote: 'Los datos abiertos dan posiciones cada treinta segundos',
+    });
+
+    expect(mensaje!.content).toContain('<quoted-from-document>');
+    expect(mensaje!.content).toContain('Los datos abiertos dan posiciones cada treinta segundos');
+    expect(mensaje!.content).toContain('The thread below is about that fragment.');
+  });
+
+  it('va antes del hilo: es de dónde sale la conversación, no parte de ella', () => {
+    const [mensaje] = agentReplyMessages({ ...BASE, anchorQuote: 'un fragmento' });
+    const contenido = mensaje!.content;
+
+    expect(contenido.indexOf('<quoted-from-document>')).toBeLessThan(contenido.indexOf('<thread>'));
+  });
+
+  it('y en un hilo general no se dice nada de ningún fragmento', () => {
+    const [mensaje] = agentReplyMessages(BASE);
+
+    expect(mensaje!.content).not.toContain('quoted-from-document');
+  });
+
+  it('sigue sin ir en el papel, como el resto del material', () => {
+    /* La cita es texto del documento: entra por el lado de los datos (RF-1614). */
+    const papel = agentSystemPrompt({ ...BASE, anchorQuote: 'un fragmento del documento' });
+
+    expect(papel).not.toContain('un fragmento del documento');
   });
 });

@@ -378,6 +378,12 @@ fallos dejan de ser una molestia al comentar y pasan a inutilizar media función
   instrucciones**: un documento que pida al agente saltarse su perfil no **DEBE** cambiar su comportamiento. La
   garantía estructural es RF-1601 —un agente sin herramientas solo puede escribir un mal comentario—, y el
   sistema **DEBE** además separar explícitamente perfil y contenido al construir la petición.
+- **RF-1616** — Un agente que contesta en un hilo **inline** **DEBE** recibir la **cita del fragmento** sobre
+  el que se abrió el hilo, separada del documento y del hilo: la conversación habla de ese trozo, y sin él una
+  pregunta como «¿esto se sostiene?» llega sin sujeto. Si el ancla quedó **huérfana** (RF-809) la cita **NO
+  DEBE** enviarse: ese texto ya no está en el documento, y pedirle opinión sobre él sería pedirle que hable de
+  algo que nadie puede ir a mirar. La cita es texto del documento, así que entra por el lado de los **datos**
+  y nunca en el papel del agente (RF-1614).
 - **RF-1615** — Cuando un agente **no puede** contestar a quien lo llamó, el sistema **DEBE** avisar a esa
   persona, y solo a ella. Cuenta como no poder: que el proveedor falle definitivamente —credencial rechazada,
   modelo retirado, servicio caído tras agotar los reintentos—, que el modelo devuelva vacío, y que el agente

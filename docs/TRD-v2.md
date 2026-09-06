@@ -707,7 +707,7 @@ contra la documentación se comporta como dice cuando hay alguien al otro lado.
 | RF-1301..1312 ideas | §12.1 |
 | RF-1401..1416 asistente y menú de selección | §12.2, §12.2.1 |
 | RF-1501..1516 agentes, catálogo de fábrica y límite de respuesta | §7.2, §13, §14 |
-| RF-1615 aviso cuando un agente no puede contestar | §7.2, §11.2 |
+| RF-1615 aviso cuando un agente no puede contestar · RF-1616 la cita del fragmento | §7.2, §11.2, §12.3 |
 | RF-1601..1614 conversación de agentes | §12.3, §8.4 |
 | RF-1701..1705 transparencia y auditoría | §7.4, §14, §15 |
 | RNF-601..607 seguridad | §8 |

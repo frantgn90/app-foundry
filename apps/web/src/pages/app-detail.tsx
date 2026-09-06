@@ -35,6 +35,7 @@ import {
 } from '../components/assist-proposal.js';
 import { CommentsPanel } from '../components/comments-panel.js';
 import { type AnchorRange, paintAnchors, paintPending, sourceOffsetAt } from '../lib/highlight.js';
+import { AgentSeesNotice } from '../components/agent-sees-notice.js';
 import { SelectionMenu } from '../components/selection-menu.js';
 import { resolveSelection, selectionRect, type SourceSelection } from '../lib/selection.js';
 import { MentionInput } from '../components/mention-input.js';
@@ -1022,6 +1023,17 @@ export function AppDetailPage({
                       agents={agentesMencionables}
                       autoFocus
                     />
+                    {/*
+                      Aquí es donde más importa: se está comentando un fragmento
+                      de la copia de trabajo, así que si además hay cambios sin
+                      commitear el agente puede no encontrar ni el fragmento
+                      (RF-1607).
+                    */}
+                    <AgentSeesNotice
+                      draft={selectionDraft}
+                      agents={agentesMencionables}
+                      hayCambiosSinCommitear={sinCommitear}
+                    />
                     <div className="flex gap-2">
                       <Button onClick={postInlineComment} disabled={!selectionDraft.trim()}>
                         Comment
@@ -1180,6 +1192,7 @@ export function AppDetailPage({
               versionMirada={versionElegida === null ? null : (elegida.data?.versionNo ?? null)}
               people={people.data ?? []}
               agents={agentesMencionables}
+              hayCambiosSinCommitear={sinCommitear}
               selectedId={selectedThread}
               onSelect={(id) => {
                 setSelectedThread(id);

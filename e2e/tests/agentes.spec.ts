@@ -72,10 +72,30 @@ test('adoptar un agente, mencionarlo, replicarle y que calle al llegar a su tope
     await expect(page.getByText('From Product Owner')).toBeVisible();
   });
 
-  await test.step('al mencionarlo, contesta en el hilo y sin recargar', async () => {
+  await test.step('con cambios sin commitear, se avisa de lo que el agente no verá', async () => {
     await page.getByRole('button', { name: 'VISION.md' }).click();
+
+    await page.getByRole('button', { name: 'Edit', exact: true }).click();
+    const editor = page.locator('.cm-content');
+    await editor.click();
+    await editor.pressSequentially('# La idea\n\nUn párrafo recién escrito.');
+    await page.getByRole('button', { name: 'Save', exact: true }).click();
+    await page.getByRole('button', { name: 'Stop editing' }).click();
+
+    /*
+     * El aviso pide las dos cosas: cambios sin commitear y que el texto llame a
+     * un agente (RF-1607). Con lo primero solo, no aparece.
+     */
     await page.getByRole('button', { name: 'Add a general comment' }).click();
+    const aviso = page.getByText(/agents read the last committed version/i);
+    await page.getByRole('textbox').last().fill('Una nota para nadie en concreto.');
+    await expect(aviso).toHaveCount(0);
+
     await page.getByRole('textbox').last().fill('@po ¿esto se sostiene?');
+    await expect(aviso).toBeVisible();
+  });
+
+  await test.step('al mencionarlo, contesta en el hilo y sin recargar', async () => {
     await page.getByRole('button', { name: 'Comment', exact: true }).click();
 
     /*

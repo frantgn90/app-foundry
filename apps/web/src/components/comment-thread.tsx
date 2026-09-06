@@ -1,6 +1,7 @@
 import { useState } from 'react';
 
 import type { Comment, MentionableUser, Thread } from '../lib/api.js';
+import { AgentSeesNotice } from './agent-sees-notice.js';
 import { MentionInput, type MentionableAgent } from './mention-input.js';
 import { AgentIcon } from './agent-icon.js';
 import { Avatar } from './ui/avatar.js';
@@ -12,6 +13,8 @@ interface Props {
   thread: Thread;
   people: MentionableUser[];
   agents: MentionableAgent[];
+  /** Si el documento tiene cambios que todavía no están en ninguna versión. */
+  hayCambiosSinCommitear: boolean;
   isSelected: boolean;
   onSelect: () => void;
   onReply: (body: string) => void;
@@ -24,6 +27,7 @@ export function CommentThread({
   thread,
   people,
   agents,
+  hayCambiosSinCommitear,
   isSelected,
   onSelect,
   onReply,
@@ -149,6 +153,11 @@ export function CommentThread({
             agents={agents}
             placeholder="Reply…"
             autoFocus
+          />
+          <AgentSeesNotice
+            draft={draft}
+            agents={agents}
+            hayCambiosSinCommitear={hayCambiosSinCommitear}
           />
           <div className="flex gap-2">
             <Button className="px-2 py-1 text-xs" onClick={send} disabled={!draft.trim()}>

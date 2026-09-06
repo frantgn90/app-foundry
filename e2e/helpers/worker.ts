@@ -52,9 +52,18 @@ export function pararWorker(): void {
  * motivo que no se ve en el fallo. Mejor decirlo antes y en una línea.
  */
 function exigirQueNoHayaOtro(): void {
+  /*
+   * El patrón va **anclado a un `node` al principio** y no suelto.
+   *
+   * `pgrep -f` compara con la línea de órdenes entera de cada proceso, así que
+   * un patrón suelto se encuentra a sí mismo en cualquier consola que tuviera
+   * escrita esa ruta —un `pkill` de la orden anterior, por ejemplo— y el
+   * recorrido se negaba a arrancar por un worker que no existía. Se vio
+   * ejecutándolo desde una terminal donde acababa de escribirse.
+   */
   let salida: string;
   try {
-    salida = execFileSync('pgrep', ['-f', 'apps/worker/dist/main.js'], {
+    salida = execFileSync('pgrep', ['-f', '^[^ ]*node .*apps/worker/dist/main\\.js'], {
       encoding: 'utf8',
     }).trim();
   } catch {
@@ -62,12 +71,15 @@ function exigirQueNoHayaOtro(): void {
     return;
   }
 
-  if (salida.length > 0) {
-    throw new Error(
-      'Hay un worker en marcha y comparte cola con el de los recorridos: párralo antes ' +
-        `(pkill -f apps/worker/dist/main.js). Procesos: ${salida.split('\n').join(', ')}`,
-    );
-  }
+  const ajenos = salida
+    .split('\n')
+    .filter((pid) => pid.length > 0 && pid !== String(process.pid) && pid !== String(process.ppid));
+  if (ajenos.length === 0) return;
+
+  throw new Error(
+    'Hay un worker en marcha y comparte cola con el de los recorridos: párralo antes ' +
+      `(pkill -f apps/worker/dist/main.js). Procesos: ${ajenos.join(', ')}`,
+  );
 }
 
 function aQueDigaQueEstaListo(hijo: ChildProcess): Promise<void> {

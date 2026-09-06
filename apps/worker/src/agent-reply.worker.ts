@@ -171,6 +171,9 @@ async function responder(deps: AgentReplyDeps, trabajo: AgentReplyJob): Promise<
           appName: apps.name,
           appDescription: apps.shortDescription,
           workspaceId: apps.workspaceId,
+          /* De qué fragmento habla el hilo, si habla de uno (RF-1616). */
+          anchorQuote: commentThreads.anchorQuote,
+          anchorStatus: commentThreads.anchorStatus,
           agentHandle: agents.handle,
           agentWordLimit: agents.replyWordLimit,
           agentActive: agents.active,
@@ -246,6 +249,13 @@ async function responder(deps: AgentReplyDeps, trabajo: AgentReplyJob): Promise<
         appName: contexto.appName,
         appDescription: contexto.appDescription,
         document: documento,
+        /*
+         * La cita, solo si el ancla sigue viva: un hilo huérfano conserva el
+         * texto que se comentó, pero ese texto ya no está en el documento, y
+         * dárselo al agente sería pedirle que opine sobre un texto que ya nadie
+         * ve (RF-1616, RF-809).
+         */
+        anchorQuote: contexto.anchorStatus === 'ANCHORED' ? contexto.anchorQuote : null,
         thread: hilo,
         /* Lo que se le pidió de largo a este agente; 0 es sin límite (RF-1516). */
         replyWordLimit: contexto.agentWordLimit,

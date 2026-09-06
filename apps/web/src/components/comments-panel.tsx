@@ -1,6 +1,7 @@
 import { useState } from 'react';
 
 import type { MentionableUser, OpenElsewhere, Thread } from '../lib/api.js';
+import { AgentSeesNotice } from './agent-sees-notice.js';
 import { CommentThread } from './comment-thread.js';
 import { MentionInput, type MentionableAgent } from './mention-input.js';
 import { Button } from './ui/button.js';
@@ -26,6 +27,8 @@ interface Props {
   onIrAVersion: (versionId: string) => void;
   people: MentionableUser[];
   agents: MentionableAgent[];
+  /** Si el documento tiene cambios que todavía no están en ninguna versión. */
+  hayCambiosSinCommitear: boolean;
   selectedId: string | null;
   onSelect: (threadId: string | null) => void;
   onNewGeneral: (body: string) => void;
@@ -51,6 +54,7 @@ export function CommentsPanel({
   onIrAVersion,
   agents,
   people,
+  hayCambiosSinCommitear,
   selectedId,
   onSelect,
   onNewGeneral,
@@ -188,6 +192,7 @@ export function CommentsPanel({
             thread={thread}
             people={people}
             agents={agents}
+            hayCambiosSinCommitear={hayCambiosSinCommitear}
             isSelected={thread.id === selectedId}
             onSelect={() => {
               onSelect(thread.id === selectedId ? null : thread.id);
@@ -217,6 +222,11 @@ export function CommentsPanel({
               agents={agents}
               placeholder="Leave a general comment…"
               autoFocus
+            />
+            <AgentSeesNotice
+              draft={draft}
+              agents={agents}
+              hayCambiosSinCommitear={hayCambiosSinCommitear}
             />
             <div className="flex gap-2">
               <Button onClick={post} disabled={!draft.trim()}>
