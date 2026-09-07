@@ -549,9 +549,9 @@ empezar cada hito, con el mismo método que la v1.
 | **H11** ✅ | Generación de ideas, con y sin búsqueda web, y la app creada con su visión sembrada            | Cierra «no tengo ideas»            |
 | **H12** ✅ | Agentes: modelo, catálogo de fábrica, instancias, autoría polimórfica, menciones y respuestas  | Un interlocutor con perfil         |
 | **H13** ✅ | Revisión en abanico: cola, estimación, confirmación, cancelación y cortafuegos                 | **Pensar acompañado, completo**    |
-| **H14**    | Panel de Grafana, recorrido de extremo a extremo, conciliación de cupos y cierre               | v2 completa                        |
+| **H14** 🔄 | Panel de Grafana, recorrido de extremo a extremo, conciliación de cupos y cierre               | v2 completa                        |
 
-Solo se desglosa el hito en curso. H9 a H13 están cerradas; **H14** se desglosará al empezarlo.
+Solo se desglosa el hito en curso. H9 a H13 están cerradas; **H14** está desglosada abajo.
 
 ---
 
@@ -1229,3 +1229,60 @@ Solo se desglosa el hito en curso. H9 a H13 están cerradas; **H14** se desglosa
 > proveedor de mentira tarde entre trozo y trozo, y con un cuarto de segundo el recorrido llega a ver el
 > progreso, pulsa «Stop» y comprueba que lo escrito antes sigue donde estaba. No tiene efecto con un proveedor
 > real: solo lo lee el de mentira.
+
+---
+
+## H14 — Cerrar la v2
+
+> Objetivo: que lo construido en H9..H13 se pueda **operar** y se pueda **demostrar**. Ni una función nueva:
+> lo que falta es ver por dentro lo que ya corre —colas, revisiones, desfase entre lo estimado y lo gastado— y
+> un recorrido que enseñe la v2 entera de un tirón.
+>
+> Lo que **ya está** y aquí solo se comprueba: el panel de IA con gasto, errores y latencia (RNF-803, de H9),
+> la conciliación diaria del contador de cupo y sus pruebas (RNF-903, §9.3), y las métricas de invocación,
+> tokens, cupo agotado y cortacircuitos (RNF-802, RNF-804).
+
+### Bloque BN — Lo que falta medir
+
+| # | Tarea | Verificación | Traza | Estado |
+|---|---|---|---|---|
+| BN1 | Profundidad y espera de las colas | Cuántos trabajos aguardan y cuánto llevan, por cola | TRD §15, RNF-802 | ⬜ |
+| BN2 | Citas descartadas por no aparecer literalmente | Hoy solo se registra en el log; tiene que ser un número que se pueda mirar | D-13, TRD §15 | ⬜ |
+| BN3 | Brecha entre el techo estimado y el gasto real | Por tarea: es lo que dice si el techo que se enseña es honesto o alarmista | RF-1207, TRD §15 | ⬜ |
+| BN4 | Hilos y comentarios que deja una revisión | Cuántos escribe cada abanico, para saber si sirven de algo | RF-1606 | ⬜ |
+
+> **Sobre BN3.** Es la métrica que más dice de todo el bloque. El techo se enseña **antes** de gastar y por eso
+> se calcula por lo alto (RF-1207); si resulta que el gasto real es siempre la décima parte, la cifra que se
+> enseña asusta sin motivo y hay que ajustar cómo se calcula. Sin medir la brecha, eso no se sabe: se intuye.
+
+### Bloque BO — El panel
+
+| # | Tarea | Verificación | Traza | Estado |
+|---|---|---|---|---|
+| BO1 | Fila de agentes y revisiones en el panel de IA | Invocaciones por tarea, hilos escritos y citas descartadas | RNF-803 | ⬜ |
+| BO2 | Fila de colas | Profundidad, espera y trabajos fallidos, por cola | RNF-802 | ⬜ |
+| BO3 | El panel entra solo al levantar la infraestructura | Sin importar nada a mano, como los que ya hay | RNF-1001 | ⬜ |
+
+### Bloque BP — El recorrido de la v2 entera
+
+| # | Tarea | Verificación | Traza | Estado |
+|---|---|---|---|---|
+| BP1 | Un solo recorrido de punta a punta | Proveedor falso → ideas → app creada desde una → mejorar un párrafo → revisión con comentarios | RNF-905 | ⬜ |
+
+> **Sobre BP1.** Ya hay recorridos de cada pieza —ideas, asistente, agentes, revisión— y este no los sustituye:
+> lo que prueba es lo que ninguno prueba, que es que **encajan**. La app que crea el generador de ideas es la
+> que se edita, y el documento que sale del asistente es el que leen los agentes.
+
+### Bloque BQ — Cerrar
+
+| # | Tarea | Verificación | Traza | Estado |
+|---|---|---|---|---|
+| BQ1 | El modelo propio de un agente: usarlo o quitarlo | Hoy se guarda y se enseña, y **nadie lo lee**: el agente contesta con el modelo de la tarea | RF-1104 | ⬜ |
+| BQ2 | Repaso de los criterios de aceptación de la v2 | Los diecinueve, uno a uno, con dónde se comprueba cada uno | §7 de REQUIREMENTS-v2 | ⬜ |
+| BQ3 | `.env.example`, README y TRD al día | Que levantar esto de cero y en limpio funcione y esté contado | RNF-1001, RNF-1002 | ⬜ |
+
+> **Sobre BQ1.** Es la deuda más visible que deja H12: la interfaz deja fijarle a un agente un modelo propio
+> (RF-1104), la columna existe y el DTO lo devuelve, pero el worker resuelve el modelo por la tarea y nunca
+> mira esa columna. Enseñar un ajuste que no hace nada es peor que no tenerlo. Son dos salidas —hacer que se
+> respete, que es un parámetro más en el plan de tarea, o retirarlo de la interfaz hasta que se respete— y
+> conviene elegir antes de dar la v2 por cerrada.
