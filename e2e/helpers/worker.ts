@@ -36,6 +36,21 @@ export async function arrancarWorker(): Promise<void> {
   });
 
   await aQueDigaQueEstaListo(proceso);
+
+  /*
+   * A partir de aquí su salida se reenvía a la consola de los recorridos.
+   *
+   * Sin esto, un trabajo que falla dentro del worker se ve desde fuera como un
+   * comentario que no aparece: el recorrido agota su espera y no dice por qué.
+   * El prefijo es para no confundirla con la de la API, que Playwright ya
+   * reenvía con el suyo.
+   */
+  proceso.stdout?.on('data', (trozo: Buffer) => {
+    process.stdout.write(`[worker] ${trozo.toString()}`);
+  });
+  proceso.stderr?.on('data', (trozo: Buffer) => {
+    process.stdout.write(`[worker] ${trozo.toString()}`);
+  });
 }
 
 export function pararWorker(): void {

@@ -1118,7 +1118,7 @@ Solo se desglosa el hito en curso. H9, H10, H11 y H12 están cerradas; **H13** e
 | BI2 | El techo es techo: entrada real, salida al máximo | Entrada contada con el proveedor; salida, el máximo que la tarea permite generar, por cada agente activo | RF-1207 | ✅ |
 | BI3 | Si no cabe en el cupo restante, no arranca | Se vuelve a estimar al lanzar y se rechaza entera, diciendo cuánto falta | RF-1204, RF-1207 | ✅ |
 | BI4 | El límite por miembro cuenta el abanico entero | Cinco agentes son cinco invocaciones, no una | RF-1206 | ⬜ |
-| BI5 | Sin agentes activos, ni se ofrece | Un botón que no puede hacer nada no se enseña | RF-1010 | ⬜ |
+| BI5 | Sin agentes activos, ni se ofrece | Un botón que no puede hacer nada no se enseña | RF-1010 | ✅ |
 
 > **Sobre BI2.** La estimación se enseña **antes** de gastar y por eso tiene que pasarse de larga, nunca
 > quedarse corta: quien confirma un número y recibe una factura mayor no vuelve a confiar en el número. Contar
@@ -1188,18 +1188,25 @@ Solo se desglosa el hito en curso. H9, H10, H11 y H12 están cerradas; **H13** e
 
 | # | Tarea | Verificación | Traza | Estado |
 |---|---|---|---|---|
-| BL1 | Botón de revisión en la ficha de la app | Con permiso de lectura, no de edición | RF-1608, D-12 | ⬜ |
-| BL2 | El techo, antes de confirmar | Cuántos tokens y cuántos agentes; confirmar es un segundo gesto | RF-1207 | ⬜ |
-| BL3 | Progreso mientras corre, sin sondear | Cuántos agentes van; llega por el canal que ya alimenta los avisos | RF-1609, T-6 | ⬜ |
-| BL4 | Con una en curso, no se puede lanzar otra | El botón lo dice en vez de fallar al pulsarlo | RF-1609 | ⬜ |
-| BL5 | Cancelar desde la misma pantalla | Quien la pidió o el precursor de la app | RF-1610 | ⬜ |
-| BL6 | Los hilos aparecen según se escriben | Por el mismo canal, sin recargar | RF-1602, T-6 | ⬜ |
+| BL1 | Botón de revisión junto al documento | Con permiso de lectura, no de edición; y solo si hay agentes activos | RF-1608, D-12, RF-1010 | ✅ |
+| BL2 | El techo, antes de confirmar | Cuántos tokens, qué versión y quiénes leen; confirmar es un segundo gesto | RF-1207 | ✅ |
+| BL3 | Progreso mientras corre, sin sondear | Cuántos van y quién falta, por el canal que ya alimenta los avisos | RF-1609, T-6 | ✅ |
+| BL4 | Con una en curso, no se puede lanzar otra | Mientras corre, en su sitio está el progreso y no el botón | RF-1609 | ✅ |
+| BL5 | Cancelar desde la misma pantalla | Quien la pidió o el precursor de la app; el botón solo lo ven ellos | RF-1610 | ✅ |
+| BL6 | Los hilos aparecen según se escriben | Por el mismo canal, sin recargar | RF-1602, T-6 | ✅ |
 
 > **Sobre BL3 y BL6.** El canal en tiempo real es **por persona**, y el progreso de una revisión le importa a
 > cualquiera que esté mirando esa app. **Se reparte a todos los que la ven**, no solo a quien la pidió: dos
 > personas delante de la misma ficha ven lo mismo a la vez, y la alternativa barata dejaba la pantalla del
 > compañero quieta durante minutos, que se lee como que está rota. El precio es resolver esa audiencia en cada
 > cambio de estado —quién puede ver la app y está conectado— y repartir por varios canales en lugar de uno.
+>
+> **Sobre dónde acabó el botón.** El TRD lo ponía en la ficha de la app, con los agentes. Está junto al
+> documento, debajo de la fila de controles: es donde se lee la visión, que es el momento en que a uno se le
+> ocurre pedir que la lean otros. En la ficha habría que acordarse de ir a buscarlo.
+>
+> Y no se ofrece mirando una versión pasada: sobre ellas no se puede comentar (RF-817), así que una revisión
+> ahí dejaría comentarios que nadie podría leer en su sitio.
 
 ### Bloque BM — Cerrar H13
 

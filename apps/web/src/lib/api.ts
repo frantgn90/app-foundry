@@ -838,6 +838,19 @@ export function useNotificationStream(enabled: boolean) {
       void client.invalidateQueries({ queryKey: ['threads'] });
     });
 
+    /*
+     * Y el progreso de una revisión, que llega por el mismo canal con su propio
+     * tipo de evento (RF-1609). Se refresca la revisión —el «3 de 5»— y los
+     * hilos, porque los comentarios van apareciendo según cada agente termina y
+     * no al final: una revisión de cinco agentes tarda minutos, y esperar a que
+     * acabe para enseñar lo que ya está escrito es dejar la pantalla quieta sin
+     * motivo.
+     */
+    source.addEventListener('review', () => {
+      void client.invalidateQueries({ queryKey: ['review'] });
+      void client.invalidateQueries({ queryKey: ['threads'] });
+    });
+
     return () => {
       source.close();
     };
@@ -1637,6 +1650,99 @@ export function useMuteAgent(appId: string) {
     },
     onSuccess: async () => {
       await client.invalidateQueries({ queryKey: ['muted-agents', appId] });
+    },
+  });
+}
+
+/* ── La revisión en abanico ───────────────────────────────────────────────── */
+
+export interface ReviewEstimate {
+  agents: { agentId: string; handle: string; name: string; estimatedTokens: number }[];
+  totalTokens: number;
+  provider: string;
+  modelId: string;
+  versionNo: number;
+  versionId: string;
+  fitsInQuota: boolean;
+  remainingTokens: number | null;
+}
+
+export interface Review {
+  id: string;
+  status: 'QUEUED' | 'RUNNING' | 'DONE' | 'CANCELLED' | 'FAILED';
+  requestedByHandle: string;
+  canCancel: boolean;
+  versionNo: number;
+  versionId: string;
+  estimatedTokens: number;
+  runs: { agentId: string; handle: string; name: string; status: string; threadsWritten: number }[];
+  done: number;
+  createdAt: string;
+  finishedAt: string | null;
+}
+
+/** La revisión viva, o la última que hubo. Nulo si nunca se pidió una. */
+export function useReview(appId: string | undefined) {
+  return useQuery<Review | null>({
+    queryKey: ['review', appId],
+    enabled: Boolean(appId),
+    queryFn: async () => {
+      const { data, error } = await api.GET('/api/v1/apps/{id}/reviews/current', {
+        params: { path: { id: appId! } },
+      });
+      if (error) throw new Error('Could not load the review');
+      return data ?? null;
+    },
+  });
+}
+
+/**
+ * El techo, que se pide **antes** de lanzar nada (RF-1207).
+ *
+ * Es una mutación y no una consulta porque contar los tokens de entrada es una
+ * llamada al proveedor por cada agente: no es algo que deba dispararse solo al
+ * pintar una pantalla.
+ */
+export function useReviewEstimate(appId: string) {
+  return useMutation({
+    mutationFn: async () => {
+      const { data, error } = await api.POST('/api/v1/apps/{id}/reviews/estimate', {
+        params: { path: { id: appId } },
+      });
+      if (error || !data) throw new Error('Could not work out what it would cost');
+      return data;
+    },
+  });
+}
+
+export function useStartReview(appId: string) {
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: async () => {
+      const { data, error } = await api.POST('/api/v1/apps/{id}/reviews', {
+        params: { path: { id: appId } },
+      });
+      if (error || !data) throw new Error('Could not start the review');
+      return data;
+    },
+    onSuccess: async () => {
+      await client.invalidateQueries({ queryKey: ['review', appId] });
+    },
+  });
+}
+
+export function useCancelReview(appId: string) {
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: async (reviewId: string) => {
+      const { data, error } = await api.DELETE('/api/v1/apps/{id}/reviews/{reviewId}', {
+        params: { path: { id: appId, reviewId } },
+      });
+      if (error || !data) throw new Error('Could not stop the review');
+      return data;
+    },
+    onSuccess: async () => {
+      await client.invalidateQueries({ queryKey: ['review', appId] });
     },
   });
 }

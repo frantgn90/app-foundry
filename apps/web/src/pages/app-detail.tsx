@@ -36,6 +36,7 @@ import {
 import { CommentsPanel } from '../components/comments-panel.js';
 import { type AnchorRange, paintAnchors, paintPending, sourceOffsetAt } from '../lib/highlight.js';
 import { AgentSeesNotice } from '../components/agent-sees-notice.js';
+import { ReviewControl } from '../components/review-control.js';
 import { SelectionMenu } from '../components/selection-menu.js';
 import { resolveSelection, selectionRect, type SourceSelection } from '../lib/selection.js';
 import { MentionInput } from '../components/mention-input.js';
@@ -869,6 +870,25 @@ export function AppDetailPage({
                 </Button>
               )}
             </div>
+
+            {/*
+              Pedir que los agentes lean, y ver cómo van (RF-1606..1610).
+              
+              Debajo de la fila de controles y no dentro: mientras corre, esto
+              deja de ser un botón y pasa a ser una caja con quién ha terminado
+              y quién sigue leyendo, y eso no cabe en una fila de ocho.
+
+              Solo cuando se mira la copia de trabajo: sobre una versión pasada
+              no se puede comentar (RF-817), así que ofrecer una revisión ahí
+              sería ofrecer comentarios que nadie va a poder leer en su sitio.
+            */}
+            {mirandoCopiaDeTrabajo && !editando && (
+              <ReviewControl
+                appId={appId}
+                hayAgentes={agentesMencionables.length > 0}
+                sinCommitear={sinCommitear}
+              />
+            )}
 
             {/*
               De dónde salió esta visión, mientras todavía no la haya firmado

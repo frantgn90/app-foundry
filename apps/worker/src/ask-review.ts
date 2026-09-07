@@ -3,6 +3,8 @@ import { Inject, Injectable } from '@nestjs/common';
 import { AiTask, ProviderError, ProviderErrorKind, type ReviewOutput } from '@app-foundry/core';
 import type { ProviderRegistry } from '@app-foundry/ai';
 import { AiInvocationService, AI_REGISTRY } from '@app-foundry/ai-runtime';
+import type { Database } from '@app-foundry/db';
+import { conIdentidad, DATABASE } from '@app-foundry/platform';
 
 /**
  * Lo que un agente devuelve al revisar, por el paso común (RD-10).
@@ -20,6 +22,7 @@ export class AskReview {
   constructor(
     private readonly invocations: AiInvocationService,
     @Inject(AI_REGISTRY) private readonly registry: ProviderRegistry,
+    @Inject(DATABASE) private readonly db: Database,
   ) {}
 
   async ask(peticion: {
@@ -42,16 +45,30 @@ export class AskReview {
       agentId: peticion.agentId,
     };
 
-    const empezada = await this.invocations.begin(context, [
-      {
-        label: 'agent-review',
-        request: {
-          system: peticion.system,
-          messages: peticion.messages,
-          maxOutputTokens: peticion.maxOutputTokens,
+    /*
+     * Abrir y cerrar la invocación necesitan transacción —leen la tarea, la
+     * credencial y el cupo—, pero **generar no**: eso dura minutos y mantener
+     * una transacción abierta mientras tanto inmoviliza una conexión. Así que
+     * son dos transacciones cortas con la generación en medio, igual que en la
+     * generación de ideas.
+     *
+     * Se descubrió ejecutándolo: el worker de respuestas llama al modelo dentro
+     * de la transacción del trabajo, y copiar esa forma aquí dejaba a `begin`
+     * sin contexto y la revisión colgada en RUNNING sin una sola invocación
+     * registrada.
+     */
+    const empezada = await conIdentidad(this.db, peticion.actorUserId, () =>
+      this.invocations.begin(context, [
+        {
+          label: 'agent-review',
+          request: {
+            system: peticion.system,
+            messages: peticion.messages,
+            maxOutputTokens: peticion.maxOutputTokens,
+          },
         },
-      },
-    ]);
+      ]),
+    );
 
     const proveedor = this.registry.get(empezada.plan.provider);
     const inicio = Date.now();
@@ -81,16 +98,21 @@ export class AskReview {
         }
       }
 
-      await this.invocations.finish(context, empezada, usage, {
-        outcome: 'COMPLETED',
-        ...(ttftMs !== undefined && { ttftMs }),
-      });
+      await conIdentidad(this.db, peticion.actorUserId, () =>
+        this.invocations.finish(context, empezada, usage, {
+          outcome: 'COMPLETED',
+          ...(ttftMs !== undefined && { ttftMs }),
+        }),
+      );
     } catch (error) {
       const kind = error instanceof ProviderError ? error.kind : ProviderErrorKind.TRANSIENT;
-      await this.invocations.finish(context, empezada, usage, {
-        outcome: peticion.signal?.aborted ? 'CANCELLED' : 'FAILED',
-        errorKind: kind,
-      });
+      /* Se liquida **siempre**: una reserva sin liquidar deja cupo comido. */
+      await conIdentidad(this.db, peticion.actorUserId, () =>
+        this.invocations.finish(context, empezada, usage, {
+          outcome: peticion.signal?.aborted ? 'CANCELLED' : 'FAILED',
+          errorKind: kind,
+        }),
+      );
       throw error;
     }
 
