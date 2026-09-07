@@ -1032,6 +1032,66 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/apps/{id}/reviews": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Lanzar la revisión. Basta con poder leer la app
+         * @description Vuelve a estimar antes de arrancar: entre ver el número y confirmar pueden haberse gastado el cupo o haberse pausado un agente. Si no cabe, no arranca.
+         */
+        post: operations["ReviewsController_start"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/apps/{id}/reviews/current": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * La revisión viva, o la última que hubo
+         * @description Nulo si esta app no se ha revisado nunca.
+         */
+        get: operations["ReviewsController_current"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/apps/{id}/reviews/{reviewId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /**
+         * Pararla a media: quien la pidió o el precursor de la app
+         * @description Lo ya escrito se queda; lo que no ha empezado no arranca.
+         */
+        delete: operations["ReviewsController_cancel"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/apps/{appId}/threads": {
         parameters: {
             query?: never;
@@ -1875,6 +1935,39 @@ export interface components {
             fitsInQuota: boolean;
             /** @description Lo que queda del cupo del mes, o nulo si el proveedor no tiene cupo puesto */
             remainingTokens: number | null;
+        };
+        ReviewRunDto: {
+            /** Format: uuid */
+            agentId: string;
+            handle: string;
+            name: string;
+            /** @enum {string} */
+            status: "QUEUED" | "RUNNING" | "DONE" | "CANCELLED" | "FAILED";
+            /** @description Cuántos hilos dejó. Cero es un resultado, no un fallo */
+            threadsWritten: number;
+        };
+        ReviewDto: {
+            /** Format: uuid */
+            id: string;
+            /** @enum {string} */
+            status: "QUEUED" | "RUNNING" | "DONE" | "CANCELLED" | "FAILED";
+            /** @description Handle de quien la pidió */
+            requestedByHandle: string;
+            /** @description Si quien consulta puede cancelarla */
+            canCancel: boolean;
+            /** @description Qué versión se revisó */
+            versionNo: number;
+            /** Format: uuid */
+            versionId: string;
+            /** @description El techo que se confirmó al pedirla */
+            estimatedTokens: number;
+            runs: components["schemas"]["ReviewRunDto"][];
+            /** @description Cuántos agentes han terminado, para el progreso */
+            done: number;
+            /** Format: date-time */
+            createdAt: string;
+            /** Format: date-time */
+            finishedAt: string | null;
         };
         CommentDto: {
             /** Format: uuid */
@@ -3644,6 +3737,70 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ReviewEstimateDto"];
+                };
+            };
+        };
+    };
+    ReviewsController_start: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ReviewDto"];
+                };
+            };
+        };
+    };
+    ReviewsController_current: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ReviewDto"] | null;
+                };
+            };
+        };
+    };
+    ReviewsController_cancel: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+                reviewId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ReviewDto"];
                 };
             };
         };

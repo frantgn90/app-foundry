@@ -230,3 +230,109 @@ describe('el cupo', () => {
     await h.as(ana).put(`/api/v1/workspaces/${ana.workspaceId}/ai/providers/ANTHROPIC/quota`, {});
   });
 });
+
+describe('lanzar la revisión', () => {
+  it('crea una ejecución por agente y la deja encolada', async () => {
+    const res = await h.as(ana).post(`/api/v1/apps/${appDeAna}/reviews`, {});
+    expect(res.status).toBe(201);
+
+    const revision = (await res.json()) as {
+      id: string;
+      status: string;
+      runs: { handle: string; status: string }[];
+      done: number;
+      estimatedTokens: number;
+      canCancel: boolean;
+    };
+
+    expect(revision.status).toBe('QUEUED');
+    expect(revision.runs.map((r) => r.handle).sort()).toEqual(['devil', 'po']);
+    expect(revision.done).toBe(0);
+    expect(revision.estimatedTokens).toBeGreaterThan(0);
+    expect(revision.canCancel).toBe(true);
+  });
+
+  it('y mientras esa siga viva no se puede lanzar otra', async () => {
+    /*
+     * Lo dice el motor, no una consulta previa: el único parcial es lo que
+     * hace imposible pagar dos revisiones del mismo documento (RF-1609).
+     */
+    const res = await h.as(ana).post(`/api/v1/apps/${appDeAna}/reviews`, {});
+
+    expect(res.status).toBe(409);
+    expect(await res.text()).toContain('already a review running');
+  });
+
+  it('la ve cualquiera que vea la app, con su progreso', async () => {
+    const res = await h.as(bruno).get(`/api/v1/apps/${appDeAna}/reviews/current`);
+    const revision = (await res.json()) as { status: string; canCancel: boolean; done: number };
+
+    expect(revision.status).toBe('QUEUED');
+    expect(revision.done).toBe(0);
+    /* Verla no es poder pararla: Bruno ni la pidió ni es el precursor. */
+    expect(revision.canCancel).toBe(false);
+  });
+
+  it('y un extraño no la ve, como no ve la app', async () => {
+    const res = await h.as(carla).get(`/api/v1/apps/${appDeAna}/reviews/current`);
+
+    expect(res.status).toBe(404);
+  });
+});
+
+describe('pararla a media', () => {
+  it('un miembro que no la pidió no puede', async () => {
+    const actual = (await (
+      await h.as(ana).get(`/api/v1/apps/${appDeAna}/reviews/current`)
+    ).json()) as { id: string };
+
+    const res = await h.as(bruno).delete(`/api/v1/apps/${appDeAna}/reviews/${actual.id}`);
+
+    expect(res.status).toBe(403);
+  });
+
+  it('quien la pidió, sí, y lo pendiente se cierra con ella', async () => {
+    const actual = (await (
+      await h.as(ana).get(`/api/v1/apps/${appDeAna}/reviews/current`)
+    ).json()) as { id: string };
+
+    const res = await h.as(ana).delete(`/api/v1/apps/${appDeAna}/reviews/${actual.id}`);
+    expect(res.status).toBe(200);
+
+    const parada = (await res.json()) as { status: string; runs: { status: string }[] };
+    expect(parada.status).toBe('CANCELLED');
+    expect(parada.runs.every((r) => r.status === 'CANCELLED')).toBe(true);
+  });
+
+  it('y una que ya está parada no se para dos veces', async () => {
+    const actual = (await (
+      await h.as(ana).get(`/api/v1/apps/${appDeAna}/reviews/current`)
+    ).json()) as { id: string };
+
+    const res = await h.as(ana).delete(`/api/v1/apps/${appDeAna}/reviews/${actual.id}`);
+
+    expect(res.status).toBe(409);
+  });
+
+  it('con la anterior cerrada, se puede volver a pedir', async () => {
+    const res = await h.as(ana).post(`/api/v1/apps/${appDeAna}/reviews`, {});
+
+    expect(res.status).toBe(201);
+
+    /* Se deja parada para no dejar trabajo suelto en la cola de los tests. */
+    const nueva = (await res.json()) as { id: string };
+    await h.as(ana).delete(`/api/v1/apps/${appDeAna}/reviews/${nueva.id}`);
+  });
+});
+
+describe('el rastro', () => {
+  it('la auditoría registra que se pidió y que se paró, sin nada del documento', async () => {
+    const cuerpo = await (
+      await h.as(ana).get(`/api/v1/workspaces/${ana.workspaceId}/audit`)
+    ).text();
+
+    expect(cuerpo).toContain('ai.review_requested');
+    expect(cuerpo).toContain('ai.review_cancelled');
+    expect(cuerpo).not.toContain('Apuntar una idea cuesta');
+  });
+});

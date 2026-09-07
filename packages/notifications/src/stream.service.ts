@@ -16,7 +16,31 @@ export interface EventoAviso {
   createdAt: string;
 }
 
-type Oyente = (evento: EventoAviso) => void;
+/**
+ * Cómo va una revisión, para quien esté mirando esa app (RF-1609).
+ *
+ * Va por el mismo canal que los avisos y no por uno nuevo: el navegador ya
+ * tiene una conexión abierta por pestaña, y una segunda para lo mismo sería
+ * otra conexión que mantener por cada persona que abre una ficha.
+ *
+ * Lo distingue `kind`, que es lo que el otro extremo traduce a un tipo de
+ * evento distinto: quien escucha avisos no tiene por qué enterarse de esto, y
+ * al revés.
+ */
+export interface EventoRevision {
+  kind: 'review';
+  reviewId: string;
+  appId: string;
+  status: string;
+  /** Cuántos agentes han terminado y cuántos son, que es el progreso. */
+  done: number;
+  total: number;
+}
+
+/** Lo que puede llegar por el canal de una persona. */
+export type MensajeCanal = EventoAviso | EventoRevision;
+
+type Oyente = (mensaje: MensajeCanal) => void;
 
 const CANAL = 'notif:user:';
 
@@ -71,6 +95,21 @@ export class NotificationsStream implements OnModuleInit, OnApplicationShutdown 
     await this.redis.publish(`${CANAL}${userId}`, JSON.stringify(evento));
   }
 
+  /**
+   * Reparte el progreso de una revisión a quienes pueden verla (RF-1609).
+   *
+   * La audiencia la resuelve quien publica, no este servicio: aquí no hay forma
+   * de saber quién ve una app sin consultar la base, y el reparto fino ya lo
+   * hace el mapa local de cada instancia. Quien no esté conectado no se entera,
+   * y no pasa nada: al abrir la ficha, el estado viene con ella.
+   */
+  async publicarRevision(userIds: readonly string[], evento: EventoRevision): Promise<void> {
+    const mensaje = JSON.stringify(evento);
+    for (const userId of userIds) {
+      await this.redis.publish(`${CANAL}${userId}`, mensaje);
+    }
+  }
+
   /** Registra una conexión y devuelve cómo darla de baja. */
   escuchar(userId: string, oyente: Oyente): () => void {
     const suyos = this.oyentes.get(userId) ?? new Set<Oyente>();
@@ -96,9 +135,9 @@ export class NotificationsStream implements OnModuleInit, OnApplicationShutdown 
     const suyos = this.oyentes.get(userId);
     if (!suyos || suyos.size === 0) return;
 
-    let evento: EventoAviso;
+    let evento: MensajeCanal;
     try {
-      evento = JSON.parse(mensaje) as EventoAviso;
+      evento = JSON.parse(mensaje) as MensajeCanal;
     } catch {
       this.logger.warn('Llegó un mensaje que no se pudo interpretar');
       return;

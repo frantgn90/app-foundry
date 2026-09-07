@@ -4,18 +4,20 @@ import { Logger, Module } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
 import type { Redis } from 'ioredis';
 
-import { AGENT_REPLY_QUEUE } from '@app-foundry/core';
+import { AGENT_REPLY_QUEUE, AGENT_REVIEW_QUEUE } from '@app-foundry/core';
 import type { Database } from '@app-foundry/db';
 import type { Env } from '@app-foundry/env';
-import { NotificationEmitter } from '@app-foundry/notifications';
+import { NotificationEmitter, NotificationsStream } from '@app-foundry/notifications';
 import { DATABASE, DB_HANDLE, ENV, REDIS } from '@app-foundry/platform';
 import type { DbHandle } from '@app-foundry/db';
 
 import { startAgentReplyWorker } from './agent-reply.worker.js';
+import { startAgentReviewWorker } from './agent-review.worker.js';
 import { AskModel } from './ask-model.js';
+import { AskReview } from './ask-review.js';
 import { WorkerAiModule } from './ai.module.js';
 
-@Module({ imports: [WorkerAiModule], providers: [AskModel, NotificationEmitter] })
+@Module({ imports: [WorkerAiModule], providers: [AskModel, AskReview, NotificationEmitter] })
 class WorkerModule {}
 
 /**
@@ -40,7 +42,9 @@ async function bootstrap(): Promise<void> {
   const db = app.get<Database>(DATABASE);
   const redis = app.get<Redis>(REDIS);
   const ask = app.get(AskModel);
+  const askReview = app.get(AskReview);
   const emisor = app.get(NotificationEmitter);
+  const canal = app.get(NotificationsStream);
 
   const worker = startAgentReplyWorker({
     redis,
@@ -51,8 +55,19 @@ async function bootstrap(): Promise<void> {
     notify: (aviso) => emisor.emit(aviso),
   });
 
+  const revisiones = startAgentReviewWorker({
+    redis,
+    db,
+    env,
+    log,
+    ask: (peticion) => askReview.ask(peticion),
+    notify: (aviso) => emisor.emit(aviso),
+    progreso: (userIds, evento) => canal.publicarRevision(userIds, evento),
+  });
+
   log.log(
-    `worker listo en ${AGENT_REPLY_QUEUE}, concurrencia ${String(env.AI_WORKER_CONCURRENCY)}`,
+    `worker listo en ${AGENT_REPLY_QUEUE} y ${AGENT_REVIEW_QUEUE}, ` +
+      `concurrencia ${String(env.AI_WORKER_CONCURRENCY)}`,
   );
 
   /*
@@ -62,7 +77,7 @@ async function bootstrap(): Promise<void> {
    */
   const apagar = async (señal: string): Promise<void> => {
     log.log(`${señal}: apagando, se termina lo que hay empezado`);
-    await worker.close();
+    await Promise.all([worker.close(), revisiones.close()]);
     await app.get<DbHandle>(DB_HANDLE).close();
     redis.disconnect();
     await app.close();

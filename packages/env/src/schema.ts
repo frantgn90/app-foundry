@@ -113,6 +113,16 @@ export const envSchema = z.object({
    * lo que hay que leer después.
    */
   AI_MAX_REVIEW_THREADS_PER_AGENT: z.coerce.number().int().positive().default(5),
+  /**
+   * El ritmo del abanico: cuántas revisiones de agente arrancan por intervalo.
+   *
+   * Es el freno de RNF-705, y no el de la concurrencia: cinco agentes de una
+   * revisión salen a la vez contra el mismo proveedor, y sin esto se llevan por
+   * delante su límite de tasa y de paso al asistente de escritura de otro
+   * workspace, que no tiene nada que ver con esta revisión.
+   */
+  AI_REVIEW_MAX_PER_INTERVAL: z.coerce.number().int().positive().default(2),
+  AI_REVIEW_INTERVAL_MS: z.coerce.number().int().positive().default(1_000),
 
   OTEL_EXPORTER_OTLP_ENDPOINT: z.url().default('http://localhost:4318'),
   OTEL_SERVICE_NAME: z.string().default('app-foundry-api'),

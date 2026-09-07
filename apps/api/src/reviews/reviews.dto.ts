@@ -43,3 +43,46 @@ export class ReviewEstimateDto {
   })
   remainingTokens!: number | null;
 }
+
+/** Cómo va lo que le toca a un agente dentro de la revisión. */
+export class ReviewRunDto {
+  @ApiProperty({ format: 'uuid' }) agentId!: string;
+  @ApiProperty() handle!: string;
+  @ApiProperty() name!: string;
+
+  @ApiProperty({ enum: ['QUEUED', 'RUNNING', 'DONE', 'CANCELLED', 'FAILED'] })
+  status!: string;
+
+  @ApiProperty({ description: 'Cuántos hilos dejó. Cero es un resultado, no un fallo' })
+  threadsWritten!: number;
+}
+
+/**
+ * Una revisión, tal como se mira mientras corre (RF-1609).
+ *
+ * Lleva sus ejecuciones dentro porque el progreso es justamente eso: cuántos de
+ * los agentes han terminado. Pedirlas aparte obligaría a dos llamadas para
+ * pintar una línea.
+ */
+export class ReviewDto {
+  @ApiProperty({ format: 'uuid' }) id!: string;
+
+  @ApiProperty({ enum: ['QUEUED', 'RUNNING', 'DONE', 'CANCELLED', 'FAILED'] })
+  status!: string;
+
+  @ApiProperty({ description: 'Handle de quien la pidió' }) requestedByHandle!: string;
+  @ApiProperty({ description: 'Si quien consulta puede cancelarla' }) canCancel!: boolean;
+
+  @ApiProperty({ description: 'Qué versión se revisó' }) versionNo!: number;
+  @ApiProperty({ format: 'uuid' }) versionId!: string;
+
+  @ApiProperty({ description: 'El techo que se confirmó al pedirla' }) estimatedTokens!: number;
+
+  @ApiProperty({ type: [ReviewRunDto] }) runs!: ReviewRunDto[];
+
+  @ApiProperty({ description: 'Cuántos agentes han terminado, para el progreso' })
+  done!: number;
+
+  @ApiProperty({ format: 'date-time' }) createdAt!: string;
+  @ApiProperty({ format: 'date-time', nullable: true, type: String }) finishedAt!: string | null;
+}

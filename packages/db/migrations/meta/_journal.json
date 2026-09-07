@@ -456,6 +456,20 @@
       "when": 1788691646633,
       "tag": "0064_agent_reviews_rls",
       "breakpoints": true
+    },
+    {
+      "idx": 65,
+      "version": "7",
+      "when": 1788795664405,
+      "tag": "0065_agent_open_thread",
+      "breakpoints": true
+    },
+    {
+      "idx": 66,
+      "version": "7",
+      "when": 1788796068799,
+      "tag": "0066_agent_open_thread_grants",
+      "breakpoints": true
     }
   ]
 }

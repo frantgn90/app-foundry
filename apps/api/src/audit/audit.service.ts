@@ -47,6 +47,9 @@ export const AuditAction = {
   AGENT_ADDED: 'agent.added',
   AGENT_UPDATED: 'agent.updated',
   AGENT_REMOVED: 'agent.removed',
+  /* La revisión en abanico: pedirla y pararla (RF-1702). */
+  AI_REVIEW_REQUESTED: 'ai.review_requested',
+  AI_REVIEW_CANCELLED: 'ai.review_cancelled',
 } as const;
 export type AuditAction = (typeof AuditAction)[keyof typeof AuditAction];
 

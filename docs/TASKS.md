@@ -1116,7 +1116,7 @@ Solo se desglosa el hito en curso. H9, H10, H11 y H12 están cerradas; **H13** e
 |---|---|---|---|---|
 | BI1 | `POST /apps/:id/reviews/estimate` | Devuelve el techo por agente y el total, con permiso de **lectura** sobre la app | RF-1608, RF-1207 | ✅ |
 | BI2 | El techo es techo: entrada real, salida al máximo | Entrada contada con el proveedor; salida, el máximo que la tarea permite generar, por cada agente activo | RF-1207 | ✅ |
-| BI3 | Si no cabe en el cupo restante, no arranca | La estimación ya dice si cabe y cuánto queda; **negarse a arrancar** es de BJ, que es quien arranca | RF-1204, RF-1207 | 🔄 |
+| BI3 | Si no cabe en el cupo restante, no arranca | Se vuelve a estimar al lanzar y se rechaza entera, diciendo cuánto falta | RF-1204, RF-1207 | ✅ |
 | BI4 | El límite por miembro cuenta el abanico entero | Cinco agentes son cinco invocaciones, no una | RF-1206 | ⬜ |
 | BI5 | Sin agentes activos, ni se ofrece | Un botón que no puede hacer nada no se enseña | RF-1010 | ⬜ |
 
@@ -1138,14 +1138,14 @@ Solo se desglosa el hito en curso. H9, H10, H11 y H12 están cerradas; **H13** e
 
 | # | Tarea | Verificación | Traza | Estado |
 |---|---|---|---|---|
-| BJ1 | Cola `ai-review` y su consumidor en el worker | Arranca con la de respuestas, comparte proceso y configuración | T-32, TRD §11.2 | ⬜ |
-| BJ2 | Un trabajo por agente, encolados al confirmar | La revisión pasa a `RUNNING` con el primero; los cinco corren en paralelo acotado | RF-1606 | ⬜ |
-| BJ3 | Cada ejecución escribe **todo** en una transacción | Sus hilos, sus comentarios y su cambio de estado; una caída a mitad no deja medio hilo | T-33, RNF-703 | ⬜ |
-| BJ4 | Un reintento no repite lo escrito | La clave de idempotencia encuentra la ejecución completada y no vuelve a escribir | T-33 | ⬜ |
-| BJ5 | Concurrencia acotada por proveedor | Cinco agentes de un workspace no agotan el límite de tasa ni tumban al asistente de otro | RNF-705 | ⬜ |
-| BJ6 | Cancelar: bandera en Redis y `AbortSignal` | Lo escrito se queda; lo pendiente no arranca; la llamada en curso se corta | RF-1610 | ⬜ |
-| BJ7 | La revisión se cierra cuando acaba la última ejecución | `DONE` aunque alguna haya fallado; `FAILED` solo si fallaron todas | RF-1606 | ⬜ |
-| BJ8 | Si el proveedor falla del todo, se avisa a quien la pidió | Mismo criterio que con una mención: en palabras y sin el mensaje técnico | RF-1615 | ⬜ |
+| BJ1 | Cola `ai-review` y su consumidor en el worker | Arranca con la de respuestas, comparte proceso y configuración | T-32, TRD §11.2 | ✅ |
+| BJ2 | Un trabajo por agente, encolados al confirmar | La revisión pasa a `RUNNING` con el primero; los cinco corren en paralelo acotado | RF-1606 | ✅ |
+| BJ3 | Cada ejecución escribe **todo** en una transacción | Sus hilos, sus comentarios y su cambio de estado; una caída a mitad no deja medio hilo | T-33, RNF-703 | ✅ |
+| BJ4 | Un reintento no repite lo escrito | La clave de idempotencia encuentra la ejecución completada y no vuelve a escribir | T-33 | ✅ |
+| BJ5 | Ritmo acotado en la cola del abanico | Cinco agentes no salen a la vez contra el proveedor ni tumban al asistente de otro workspace | RNF-705 | ✅ |
+| BJ6 | Cancelar: bandera en Redis y `AbortSignal` | Lo escrito se queda; lo pendiente no arranca; la llamada en curso se corta | RF-1610 | ✅ |
+| BJ7 | La revisión se cierra cuando acaba la última ejecución | `DONE` aunque alguna haya fallado; `FAILED` solo si fallaron todas | RF-1606 | ✅ |
+| BJ8 | Si el proveedor falla del todo, se avisa a quien la pidió | Mismo criterio que con una mención: en palabras y sin el mensaje técnico | RF-1615 | ✅ |
 
 > **Sobre BJ6.** Cancelar tiene dos alcances y hacen falta los dos: la bandera evita que arranquen los agentes
 > que aún no han empezado, y el `AbortSignal` corta la generación en curso. Sin lo segundo, cancelar una
@@ -1154,17 +1154,30 @@ Solo se desglosa el hito en curso. H9, H10, H11 y H12 están cerradas; **H13** e
 > **Sobre BJ7.** Que una ejecución falle no puede dejar la revisión colgada en `RUNNING` para siempre: eso
 > bloquearía la app entera por el único parcial de BH2. El cierre lo hace quien termina el último, mire como
 > mire su propio resultado.
+>
+> **Sobre BJ5, y su simplificación.** El TRD pide acotar la concurrencia **por proveedor**. Lo que hay es un
+> ritmo por **cola**: dos trabajos de revisión por segundo, configurable. Acota menos fino y nunca de menos
+> —una revisión contra Groq puede esperar por otra contra Anthropic—, y a cambio no hace falta ni una cola por
+> proveedor ni un contador propio en Redis. Cuando dos workspaces con proveedores distintos se estorben de
+> verdad, ahí se separa; hoy sería complejidad sin caso.
+>
+> **Sobre las tres transacciones.** Una ejecución no cabe en una sola: leer dura minutos y mantener abierta una
+> transacción mientras tanto inmoviliza una conexión e impide al motor limpiar detrás de nadie. Así que son
+> tres —anunciarse, leer fuera de transacción, y escribirlo todo de una vez— y la tercera es la que T-33 exige
+> atómica. Entre la segunda y la tercera se vuelve a mirar si la han cancelado: lo generado entonces **no se
+> publica**, porque quien pulsó «parar» y ve aparecer comentarios diez segundos después no vuelve a fiarse del
+> botón.
 
 ### Bloque BK — Lo que devuelve el agente, anclado al documento
 
 | # | Tarea | Verificación | Traza | Estado |
 |---|---|---|---|---|
-| BK1 | El papel y el esquema de la revisión | Lista de `{cita, comentario}` más una valoración de conjunto, contra esquema | RF-1606 | ⬜ |
-| BK2 | Lee la **versión actual**, nunca la copia de trabajo | Aunque haya cambios sin commitear; y el aviso ya está puesto (BF16) | RF-1607, D-35 | ⬜ |
-| BK3 | Cada cita se ancla con el mecanismo de siempre | Cita, prefijo, sufijo y posición en el fuente de esa versión | RF-808, RF-817 | ⬜ |
-| BK4 | Una cita que no está en el documento se descarta | Y se cuenta como métrica: perder un comentario es mejor que colgarlo del sitio equivocado | D-13 | ⬜ |
-| BK5 | La valoración de conjunto va como hilo general | Uno por agente, no uno por revisión | RF-1606 | ⬜ |
-| BK6 | Los comentarios de la revisión llevan su revisión de prompt | Como los de una mención: se lee con el perfil que tenía entonces | RF-1510 | ⬜ |
+| BK1 | El papel y el esquema de la revisión | Lista de `{cita, comentario}` más una valoración de conjunto, contra esquema | RF-1606 | ✅ |
+| BK2 | Lee la **versión actual**, nunca la copia de trabajo | Aunque haya cambios sin commitear; y el aviso ya está puesto (BF16) | RF-1607, D-35 | ✅ |
+| BK3 | Cada cita se ancla con el mecanismo de siempre | Cita, prefijo, sufijo y posición en el fuente de esa versión | RF-808, RF-817 | ✅ |
+| BK4 | Una cita que no está en el documento se descarta | Se cuenta en el registro; perder un comentario es mejor que colgarlo del sitio equivocado | D-13 | ✅ |
+| BK5 | La valoración de conjunto va como hilo general | Uno por agente, no uno por revisión | RF-1606 | ✅ |
+| BK6 | Los comentarios de la revisión llevan su revisión de prompt | Como los de una mención: se lee con el perfil que tenía entonces | RF-1510 | ✅ |
 
 > **Sobre BK4.** Un modelo que cita «casi» literalmente es lo normal, no la excepción: cambia unas comillas,
 > arregla una tilde, se come una palabra. Anclar por aproximación colgaría el comentario de un fragmento

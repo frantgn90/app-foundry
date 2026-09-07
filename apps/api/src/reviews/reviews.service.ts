@@ -13,7 +13,16 @@ import {
   agentReviewSystemPrompt,
   AiTask,
 } from '@app-foundry/core';
-import { agentPromptRevisions, agents, apps, documents, documentVersions } from '@app-foundry/db';
+import {
+  agentPromptRevisions,
+  agentReviewRuns,
+  agentReviews,
+  agents,
+  apps,
+  documents,
+  documentVersions,
+  users,
+} from '@app-foundry/db';
 import type { Env } from '@app-foundry/env';
 import {
   AiInvocationService,
@@ -23,7 +32,9 @@ import {
 import { currentTx, DATABASE, ENV } from '@app-foundry/platform';
 import type { Database } from '@app-foundry/db';
 
-import type { ReviewAgentEstimateDto, ReviewEstimateDto } from './reviews.dto.js';
+import { AuditAction, AuditService } from '../audit/audit.service.js';
+import { ReviewQueueService } from './review-queue.service.js';
+import type { ReviewAgentEstimateDto, ReviewDto, ReviewEstimateDto } from './reviews.dto.js';
 
 /** Lo que hace falta saber de la app para decidir si se puede revisar. */
 interface AppParaRevisar {
@@ -58,6 +69,8 @@ export class ReviewsService {
     private readonly invocations: AiInvocationService,
     private readonly providers: AiProviderAccessService,
     private readonly quota: AiQuotaService,
+    private readonly cola: ReviewQueueService,
+    private readonly audit: AuditService,
     @Inject(DATABASE) private readonly db: Database,
     @Inject(ENV) private readonly env: Env,
   ) {}
@@ -122,6 +135,218 @@ export class ReviewsService {
       fitsInQuota: restante === null || totalTokens <= restante,
       remainingTokens: restante,
     };
+  }
+
+  /**
+   * Lanza la revisión: una fila por agente y un trabajo por fila (RF-1606).
+   *
+   * Vuelve a estimar en vez de fiarse de lo que el cliente confirmó. Cuesta
+   * otra vuelta de conteo y es lo único honesto: entre ver el número y decir
+   * que sí pueden haber pasado minutos, haberse gastado el cupo o haberse
+   * pausado un agente, y quien decide si esto arranca es el servidor.
+   */
+  async start(appId: string, userId: string): Promise<ReviewDto> {
+    const techo = await this.estimate(appId, userId);
+
+    /*
+     * Si no cabe, no arranca: ni a medias ni «los que quepan» (RF-1207). Media
+     * revisión es lo peor de los dos mundos —se ha gastado y no se ha leído
+     * entera— y deja al que la pidió sin saber qué falta.
+     */
+    if (!techo.fitsInQuota) {
+      throw new ConflictException(
+        `This review needs ${String(techo.totalTokens)} tokens and only ` +
+          `${String(techo.remainingTokens ?? 0)} are left this month. It will not start`,
+      );
+    }
+
+    const [creada] = await currentTx()
+      .insert(agentReviews)
+      .values({
+        appId,
+        requestedBy: userId,
+        versionId: techo.versionId,
+        estimatedTokens: techo.totalTokens,
+      })
+      .onConflictDoNothing()
+      .returning({ id: agentReviews.id });
+
+    /*
+     * Sin fila es que ya hay una viva: lo dice el único parcial del motor y no
+     * una consulta previa, que dejaría una carrera entre mirar y escribir cuyo
+     * precio es pagar dos revisiones del mismo documento (RF-1609).
+     */
+    if (!creada) {
+      throw new ConflictException('There is already a review running on this app');
+    }
+
+    const ejecuciones = await currentTx()
+      .insert(agentReviewRuns)
+      .values(
+        techo.agents.map((agente) => ({
+          reviewId: creada.id,
+          agentId: agente.agentId,
+          idempotencyKey: `${creada.id}:${agente.agentId}`,
+        })),
+      )
+      .returning({ id: agentReviewRuns.id, agentId: agentReviewRuns.agentId });
+
+    this.cola.encolar(
+      ejecuciones.map((ejecucion) => ({
+        reviewId: creada.id,
+        runId: ejecucion.id,
+        appId,
+        agentId: ejecucion.agentId,
+        actorUserId: userId,
+      })),
+    );
+
+    await this.audit.record({
+      actorId: userId,
+      action: AuditAction.AI_REVIEW_REQUESTED,
+      resourceType: 'agent_review',
+      resourceId: creada.id,
+      workspaceId: (await this.appRevisable(appId)).workspaceId,
+      /* Cuántos y cuánto, nunca qué dice el documento (RF-1703). */
+      metadata: {
+        appId,
+        agents: techo.agents.length,
+        estimatedTokens: techo.totalTokens,
+      },
+    });
+
+    return this.byId(appId, creada.id, userId);
+  }
+
+  /**
+   * Cancela una revisión en marcha (RF-1610).
+   *
+   * Lo ya escrito se queda: son comentarios de pleno derecho y borrarlos por
+   * haber parado la revisión sería tirar trabajo que alguien puede estar
+   * leyendo. Lo que no ha empezado, no empieza.
+   */
+  async cancel(appId: string, reviewId: string, userId: string): Promise<ReviewDto> {
+    const revision = await this.byId(appId, reviewId, userId);
+
+    if (revision.status !== 'QUEUED' && revision.status !== 'RUNNING') {
+      throw new ConflictException('That review is not running any more');
+    }
+
+    /*
+     * Quién puede pararla lo decide la política del motor: si no es de quien
+     * llama ni es el precursor de la app, el UPDATE no toca ninguna fila. Se
+     * comprueba el resultado para poder decirlo con un 403 en vez de con un
+     * «no ha pasado nada» (RNF-102).
+     */
+    const parada = await currentTx()
+      .update(agentReviews)
+      .set({ status: 'CANCELLED', finishedAt: new Date() })
+      .where(eq(agentReviews.id, reviewId))
+      .returning({ id: agentReviews.id });
+
+    if (parada.length === 0) {
+      throw new ForbiddenException('Only whoever asked for it, or the app precursor, can stop it');
+    }
+
+    /* Lo que aún no ha empezado se cierra aquí; lo que corre lo corta el worker. */
+    await currentTx()
+      .update(agentReviewRuns)
+      .set({ status: 'CANCELLED', finishedAt: new Date() })
+      .where(and(eq(agentReviewRuns.reviewId, reviewId), eq(agentReviewRuns.status, 'QUEUED')));
+
+    this.cola.cancelar(
+      reviewId,
+      revision.runs.map((r) => r.agentId),
+    );
+
+    await this.audit.record({
+      actorId: userId,
+      action: AuditAction.AI_REVIEW_CANCELLED,
+      resourceType: 'agent_review',
+      resourceId: reviewId,
+      workspaceId: (await this.appRevisable(appId)).workspaceId,
+      metadata: { appId },
+    });
+
+    return this.byId(appId, reviewId, userId);
+  }
+
+  /**
+   * La revisión que hay que enseñar en la ficha de la app.
+   *
+   * La viva si la hay, y si no la última: lo primero es lo que impide lanzar
+   * otra y lo segundo es lo que explica de dónde salieron los hilos que se
+   * están leyendo (RF-1609).
+   */
+  async current(appId: string, userId: string): Promise<ReviewDto | null> {
+    await this.appVisible(appId);
+
+    const [fila] = await currentTx()
+      .select({ id: agentReviews.id })
+      .from(agentReviews)
+      .where(eq(agentReviews.appId, appId))
+      .orderBy(desc(agentReviews.createdAt))
+      .limit(1);
+
+    return fila ? this.byId(appId, fila.id, userId) : null;
+  }
+
+  private async byId(appId: string, reviewId: string, userId: string): Promise<ReviewDto> {
+    const [revision] = await currentTx()
+      .select({
+        id: agentReviews.id,
+        status: agentReviews.status,
+        estimatedTokens: agentReviews.estimatedTokens,
+        createdAt: agentReviews.createdAt,
+        finishedAt: agentReviews.finishedAt,
+        requestedBy: agentReviews.requestedBy,
+        requestedByHandle: users.handle,
+        versionNo: documentVersions.versionNo,
+        versionId: documentVersions.id,
+        precursorId: apps.precursorId,
+      })
+      .from(agentReviews)
+      .innerJoin(users, eq(users.id, agentReviews.requestedBy))
+      .innerJoin(documentVersions, eq(documentVersions.id, agentReviews.versionId))
+      .innerJoin(apps, eq(apps.id, agentReviews.appId))
+      .where(and(eq(agentReviews.id, reviewId), eq(agentReviews.appId, appId)));
+
+    if (!revision) throw new NotFoundException('That review does not exist');
+
+    const runs = await currentTx()
+      .select({
+        agentId: agentReviewRuns.agentId,
+        handle: agents.handle,
+        name: agents.name,
+        status: agentReviewRuns.status,
+        threadsWritten: agentReviewRuns.threadsWritten,
+      })
+      .from(agentReviewRuns)
+      .innerJoin(agents, eq(agents.id, agentReviewRuns.agentId))
+      .where(eq(agentReviewRuns.reviewId, reviewId))
+      .orderBy(asc(agents.handle));
+
+    const viva = revision.status === 'QUEUED' || revision.status === 'RUNNING';
+
+    return {
+      id: revision.id,
+      status: revision.status,
+      requestedByHandle: revision.requestedByHandle,
+      canCancel: viva && (revision.requestedBy === userId || revision.precursorId === userId),
+      versionNo: revision.versionNo,
+      versionId: revision.versionId,
+      estimatedTokens: revision.estimatedTokens,
+      runs,
+      done: runs.filter((r) => r.status !== 'QUEUED' && r.status !== 'RUNNING').length,
+      createdAt: revision.createdAt.toISOString(),
+      finishedAt: revision.finishedAt?.toISOString() ?? null,
+    };
+  }
+
+  /** Que la app se vea basta para mirar sus revisiones. */
+  private async appVisible(appId: string): Promise<void> {
+    const [app] = await currentTx().select({ id: apps.id }).from(apps).where(eq(apps.id, appId));
+    if (!app) throw new NotFoundException('That app does not exist');
   }
 
   /**

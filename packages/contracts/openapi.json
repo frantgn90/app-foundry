@@ -2614,6 +2614,116 @@
         ]
       }
     },
+    "/api/v1/apps/{id}/reviews": {
+      "post": {
+        "description": "Vuelve a estimar antes de arrancar: entre ver el número y confirmar pueden haberse gastado el cupo o haberse pausado un agente. Si no cabe, no arranca.",
+        "operationId": "ReviewsController_start",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReviewDto"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Lanzar la revisión. Basta con poder leer la app",
+        "tags": [
+          "reviews"
+        ]
+      }
+    },
+    "/api/v1/apps/{id}/reviews/current": {
+      "get": {
+        "description": "Nulo si esta app no se ha revisado nunca.",
+        "operationId": "ReviewsController_current",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "nullable": true,
+                  "type": "object",
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/ReviewDto"
+                    }
+                  ]
+                }
+              }
+            }
+          }
+        },
+        "summary": "La revisión viva, o la última que hubo",
+        "tags": [
+          "reviews"
+        ]
+      }
+    },
+    "/api/v1/apps/{id}/reviews/{reviewId}": {
+      "delete": {
+        "description": "Lo ya escrito se queda; lo que no ha empezado no arranca.",
+        "operationId": "ReviewsController_cancel",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "reviewId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReviewDto"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Pararla a media: quien la pidió o el precursor de la app",
+        "tags": [
+          "reviews"
+        ]
+      }
+    },
     "/api/v1/apps/{appId}/threads": {
       "get": {
         "description": "Un hilo pertenece a la versión sobre la que se escribió. Sin `versionId` se devuelven los de la copia de trabajo, colocados sobre el texto que se está leyendo. Los generales van siempre, sea cual sea la versión. Devuelve todos, incluidos los resueltos: la interfaz decide qué enseña.",
@@ -5332,6 +5442,113 @@
           "versionId",
           "fitsInQuota",
           "remainingTokens"
+        ]
+      },
+      "ReviewRunDto": {
+        "type": "object",
+        "properties": {
+          "agentId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "handle": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "QUEUED",
+              "RUNNING",
+              "DONE",
+              "CANCELLED",
+              "FAILED"
+            ]
+          },
+          "threadsWritten": {
+            "type": "number",
+            "description": "Cuántos hilos dejó. Cero es un resultado, no un fallo"
+          }
+        },
+        "required": [
+          "agentId",
+          "handle",
+          "name",
+          "status",
+          "threadsWritten"
+        ]
+      },
+      "ReviewDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "QUEUED",
+              "RUNNING",
+              "DONE",
+              "CANCELLED",
+              "FAILED"
+            ]
+          },
+          "requestedByHandle": {
+            "type": "string",
+            "description": "Handle de quien la pidió"
+          },
+          "canCancel": {
+            "type": "boolean",
+            "description": "Si quien consulta puede cancelarla"
+          },
+          "versionNo": {
+            "type": "number",
+            "description": "Qué versión se revisó"
+          },
+          "versionId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "estimatedTokens": {
+            "type": "number",
+            "description": "El techo que se confirmó al pedirla"
+          },
+          "runs": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ReviewRunDto"
+            }
+          },
+          "done": {
+            "type": "number",
+            "description": "Cuántos agentes han terminado, para el progreso"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "finishedAt": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          }
+        },
+        "required": [
+          "id",
+          "status",
+          "requestedByHandle",
+          "canCancel",
+          "versionNo",
+          "versionId",
+          "estimatedTokens",
+          "runs",
+          "done",
+          "createdAt",
+          "finishedAt"
         ]
       },
       "CommentDto": {

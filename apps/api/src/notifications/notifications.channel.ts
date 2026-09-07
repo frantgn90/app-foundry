@@ -8,7 +8,7 @@ import { conIdentidad } from '@app-foundry/platform';
 import { currentTx } from '@app-foundry/platform';
 import { DATABASE } from '../infrastructure/tokens.js';
 import { MetricsService } from '../observability/metrics.service.js';
-import type { EventoAviso } from '@app-foundry/notifications';
+import type { EventoAviso, MensajeCanal } from '@app-foundry/notifications';
 import { NotificationsStream } from '@app-foundry/notifications';
 
 /** Cada cuánto se manda señal de vida. Por debajo del minuto de casi todo proxy. */
@@ -119,9 +119,24 @@ export class NotificationsChannel {
     }
   }
 
-  private enviar(response: Response, evento: EventoAviso): void {
-    response.write(`id: ${evento.id}\n`);
+  /**
+   * Escribe un evento en la conexión, con el nombre que le toca.
+   *
+   * Dos tipos por el mismo canal (RF-1609): un aviso lleva identificador,
+   * porque el navegador reanuda por él al reconectar; el progreso de una
+   * revisión no, porque es un estado que caduca —lo que importa es el último— y
+   * reenviarlo al reconectar sería contar dos veces una carrera que ya terminó.
+   */
+  private enviar(response: Response, evento: MensajeCanal): void {
+    if ('kind' in evento && evento.kind === 'review') {
+      response.write(`event: review\n`);
+      response.write(`data: ${JSON.stringify(evento)}\n\n`);
+      return;
+    }
+
+    const aviso = evento as EventoAviso;
+    response.write(`id: ${aviso.id}\n`);
     response.write(`event: notification\n`);
-    response.write(`data: ${JSON.stringify(evento)}\n\n`);
+    response.write(`data: ${JSON.stringify(aviso)}\n\n`);
   }
 }

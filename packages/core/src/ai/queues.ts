@@ -9,7 +9,7 @@
  */
 
 /**
- * Respuestas de agente. Las revisiones van a su propia cola, en H13.
+ * Respuestas de agente. Las revisiones van a su propia cola, aquí abajo.
  *
  * Con guion y no con dos puntos, aunque el TRD la llamara `ai:agent-reply`:
  * BullMQ usa `:` para componer sus claves de Redis y rechaza un nombre que lo
@@ -68,4 +68,62 @@ export function agentReplyJobId(job: Pick<AgentReplyJob, 'agentId' | 'triggerCom
    * fija, así que un separador de un carácter no puede dar dos claves iguales.
    */
   return `${job.triggerCommentId}_${job.agentId}`;
+}
+
+/**
+ * Revisiones en abanico (RF-1606, T-32).
+ *
+ * Cola aparte de la de respuestas y no la misma con un campo que distinga: una
+ * revisión dura minutos y llega de cinco en cinco, y una mención espera a que
+ * alguien mire la pantalla. Compartir cola dejaría a quien acaba de mencionar a
+ * un agente detrás de veinticinco trabajos de una revisión ajena.
+ */
+export const AGENT_REVIEW_QUEUE = 'ai-review';
+
+/**
+ * Lo que le hace falta al worker para que **un** agente revise el documento.
+ *
+ * Un trabajo por agente y no uno por revisión, porque es la unidad de todo lo
+ * demás: el reintento, la idempotencia, la cancelación y el progreso. Un agente
+ * lento no bloquea a los otros cuatro y uno que falla no tira la revisión.
+ *
+ * Identificadores y nada más, como en el otro: el documento se lee al ejecutar
+ * y Redis no es sitio para el contenido de nadie (RNF-112).
+ */
+export interface AgentReviewJob {
+  readonly reviewId: string;
+  /** La fila de esta ejecución, que ya existe cuando el trabajo se encola. */
+  readonly runId: string;
+  readonly appId: string;
+  readonly agentId: string;
+  /**
+   * Quién pidió la revisión.
+   *
+   * El worker lee y escribe **con su identidad**, igual que al contestar una
+   * mención: un agente no ve nada que no viera quien lo puso a leer.
+   */
+  readonly actorUserId: string;
+}
+
+/**
+ * La clave de idempotencia de una ejecución (T-33).
+ *
+ * Un agente revisa **una vez** por revisión, aunque el trabajo se encole dos:
+ * BullMQ descarta el trabajo repetido por el identificador, y la fila de la
+ * ejecución lo remata con su único.
+ */
+export function agentReviewJobId(job: Pick<AgentReviewJob, 'reviewId' | 'agentId'>): string {
+  return `${job.reviewId}_${job.agentId}`;
+}
+
+/**
+ * Dónde se apunta que una revisión se ha cancelado (RF-1610).
+ *
+ * En Redis y no en la base porque lo que tiene que ver es el worker **entre
+ * agentes**, y consultarlo en la base obligaría a abrir una transacción por
+ * comprobación. La fila cambia de estado igual; esto es lo que hace que los
+ * agentes que aún no han empezado no lleguen a empezar.
+ */
+export function reviewCancelKey(reviewId: string): string {
+  return `ai:review:cancelled:${reviewId}`;
 }
