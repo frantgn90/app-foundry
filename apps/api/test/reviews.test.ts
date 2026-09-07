@@ -325,6 +325,47 @@ describe('pararla a media', () => {
   });
 });
 
+describe('el cupo manda sobre el abanico', () => {
+  it('si no cabe, no arranca: ni a medias ni «los que quepan»', async () => {
+    /*
+     * Media revisión es lo peor de los dos mundos —se ha gastado y no se ha
+     * leído entera— y deja a quien la pidió sin saber qué falta (RF-1207).
+     */
+    const techo = (await (await estimar(ana)).json()) as Techo;
+
+    await h.as(ana).put(`/api/v1/workspaces/${ana.workspaceId}/ai/providers/ANTHROPIC/quota`, {
+      monthlyTokenQuota: Math.floor(techo.totalTokens / 2),
+    });
+
+    const res = await h.as(ana).post(`/api/v1/apps/${appDeAna}/reviews`, {});
+
+    expect(res.status).toBe(409);
+    const dicho = await res.text();
+    expect(dicho).toContain('will not start');
+    expect(dicho).toContain('are left this month');
+  });
+
+  it('y no deja la app bloqueada por una revisión a medio crear', async () => {
+    /*
+     * Importa porque el único parcial impide una segunda revisión viva: si el
+     * rechazo hubiera dejado una fila en `QUEUED`, esta app no admitiría otra
+     * revisión nunca más (RF-1609).
+     */
+    const actual = (await (
+      await h.as(ana).get(`/api/v1/apps/${appDeAna}/reviews/current`)
+    ).json()) as { status: string };
+
+    expect(['CANCELLED', 'DONE', 'FAILED']).toContain(actual.status);
+
+    await h.as(ana).put(`/api/v1/workspaces/${ana.workspaceId}/ai/providers/ANTHROPIC/quota`, {});
+    const res = await h.as(ana).post(`/api/v1/apps/${appDeAna}/reviews`, {});
+    expect(res.status).toBe(201);
+
+    const nueva = (await res.json()) as { id: string };
+    await h.as(ana).delete(`/api/v1/apps/${appDeAna}/reviews/${nueva.id}`);
+  });
+});
+
 describe('el rastro', () => {
   it('la auditoría registra que se pidió y que se paró, sin nada del documento', async () => {
     const cuerpo = await (

@@ -548,10 +548,10 @@ empezar cada hito, con el mismo método que la v1.
 | **H10** ✅ | Arreglo del menú de selección (U26, U27) y asistente de escritura, con diff que se acepta      | **Primer valor real**              |
 | **H11** ✅ | Generación de ideas, con y sin búsqueda web, y la app creada con su visión sembrada            | Cierra «no tengo ideas»            |
 | **H12** ✅ | Agentes: modelo, catálogo de fábrica, instancias, autoría polimórfica, menciones y respuestas  | Un interlocutor con perfil         |
-| **H13** 🔄 | Revisión en abanico: cola, estimación, confirmación, cancelación y cortafuegos                 | **Pensar acompañado, completo**    |
+| **H13** ✅ | Revisión en abanico: cola, estimación, confirmación, cancelación y cortafuegos                 | **Pensar acompañado, completo**    |
 | **H14**    | Panel de Grafana, recorrido de extremo a extremo, conciliación de cupos y cierre               | v2 completa                        |
 
-Solo se desglosa el hito en curso. H9, H10, H11 y H12 están cerradas; **H13** está desglosada abajo.
+Solo se desglosa el hito en curso. H9 a H13 están cerradas; **H14** se desglosará al empezarlo.
 
 ---
 
@@ -1117,7 +1117,7 @@ Solo se desglosa el hito en curso. H9, H10, H11 y H12 están cerradas; **H13** e
 | BI1 | `POST /apps/:id/reviews/estimate` | Devuelve el techo por agente y el total, con permiso de **lectura** sobre la app | RF-1608, RF-1207 | ✅ |
 | BI2 | El techo es techo: entrada real, salida al máximo | Entrada contada con el proveedor; salida, el máximo que la tarea permite generar, por cada agente activo | RF-1207 | ✅ |
 | BI3 | Si no cabe en el cupo restante, no arranca | Se vuelve a estimar al lanzar y se rechaza entera, diciendo cuánto falta | RF-1204, RF-1207 | ✅ |
-| BI4 | El límite por miembro cuenta el abanico entero | Cinco agentes son cinco invocaciones, no una | RF-1206 | ⬜ |
+| BI4 | El límite por miembro cuenta el abanico entero | Una invocación por ejecución, y el límite se consume en cada `begin` | RF-1206 | ✅ |
 | BI5 | Sin agentes activos, ni se ofrece | Un botón que no puede hacer nada no se enseña | RF-1010 | ✅ |
 
 > **Sobre BI2.** La estimación se enseña **antes** de gastar y por eso tiene que pasarse de larga, nunca
@@ -1212,7 +1212,20 @@ Solo se desglosa el hito en curso. H9, H10, H11 y H12 están cerradas; **H13** e
 
 | # | Tarea | Verificación | Traza | Estado |
 |---|---|---|---|---|
-| BM1 | Suite del corte por cupo y del límite por miembro | Con sus casos negativos, sobre el abanico | RNF-903 | ⬜ |
-| BM2 | Aislamiento de las tablas nuevas | Con el rol de la aplicación, como el resto | RNF-904 | ⬜ |
-| BM3 | Recorrido completo con el proveedor de mentira | Pedir revisión, ver el techo, confirmar, que aparezcan los hilos anclados y cancelar otra a medias | RNF-905 | ⬜ |
-| BM4 | Documentación al día | TRD §7.4 y §11.2 con lo que se acabó haciendo, y `.env.example` con lo que sea configurable | RNF-1002 | ⬜ |
+| BM1 | Suite del corte por cupo sobre el abanico | No arranca si no cabe, y el rechazo no deja la app bloqueada | RNF-903 | ✅ |
+| BM2 | Aislamiento de las tablas nuevas | Con el rol de la aplicación, como el resto; entró con BH | RNF-904 | ✅ |
+| BM3 | Recorrido completo con el proveedor de mentira | Pedir revisión, ver el techo, confirmar, que aparezcan los hilos anclados y parar otra a media | RNF-905 | ✅ |
+| BM4 | Documentación al día | TRD §7.4, §11.2 y §13 con lo que se acabó haciendo, y `.env.example` con lo configurable | RNF-1002 | ✅ |
+
+> **Sobre BI4 y BM1, y lo que cada uno prueba de verdad.** El límite por miembro se consume dentro de `begin`,
+> una vez por invocación, y el abanico hace una invocación por ejecución: cinco agentes gastan cinco. Eso es
+> estructural, y el límite en sí tiene sus propias pruebas en `ai-quota`, así que aquí no se duplica. Lo que sí
+> se prueba —y no estaba probado en ningún sitio— es el corte por cupo **sobre el abanico**: que una revisión
+> que no cabe no arranque, y sobre todo que ese rechazo **no deje una fila a medio crear**, porque con el único
+> parcial de BH2 eso dejaría la app sin poder revisarse nunca más.
+>
+> **Sobre BM3 y el proveedor de mentira a cámara lenta.** Cancelar a media no se podía probar desde fuera: sin
+> retardo la revisión termina antes de que dé tiempo a pulsar el botón. `AI_FAKE_DELAY_MS` hace que el
+> proveedor de mentira tarde entre trozo y trozo, y con un cuarto de segundo el recorrido llega a ver el
+> progreso, pulsa «Stop» y comprueba que lo escrito antes sigue donde estaba. No tiene efecto con un proveedor
+> real: solo lo lee el de mentira.

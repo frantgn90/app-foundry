@@ -338,13 +338,31 @@ agent_reviews                                -- RF-1606..1610
   id, app_id, requested_by → users
   version_id → document_versions               -- la versión revisada (RF-1607, D-35)
   status review_status                         -- QUEUED | RUNNING | DONE | CANCELLED | FAILED
-  estimated_tokens bigint, started_at, finished_at
+  estimated_tokens bigint, started_at, finished_at, created_at
   UNIQUE INDEX (app_id) WHERE status IN ('QUEUED','RUNNING')   -- RF-1609 en el motor
 
 agent_review_runs
   id, review_id → agent_reviews, agent_id → agents
   status, threads_written int, idempotency_key text UNIQUE      -- T-33
+  UNIQUE (review_id, agent_id)                 -- un agente lee una vez por revisión
+
+comment_threads.review_id → agent_reviews     -- de qué revisión salió el hilo
+ai_invocations.review_run_id → agent_review_runs   -- qué costó cada revisión
 ```
+
+**Quién puede qué**, que es donde la revisión se sale del resto del modelo de agentes: **pedirla basta con
+poder leer la app** (RF-1608), mientras que en las demás tablas escribir exige poder editarla. Pedir que te
+lean no cambia nada del documento, y quien solo tiene lectura es justamente quien más necesita una segunda
+opinión. Moverla —arrancarla, cerrarla, cancelarla— es de quien la pidió o del precursor; el worker escribe
+con la identidad de quien la pidió, así que entra por esa misma puerta sin excepciones para él. Y no hay
+política de borrado: cancelar es cambiar de estado, porque una revisión cancelada tiene que seguir explicando
+los comentarios que llegó a dejar.
+
+Los hilos de una revisión los abre `agent_open_thread`, hermana de `agent_write_comment` y por el mismo
+motivo: las políticas de `comment_threads` exigen `created_by = current_app_user()`, que es exactamente lo que
+impide abrir un hilo a nombre de un agente. Relajarlas abriría cualquier escritura; una función con dueño
+propio y sus comprobaciones dentro —identidad, app visible y no archivada, agente activo de esa app y
+**revisión viva**— la deja abierta solo para esto (T-27).
 
 Ese índice único parcial es lo que hace imposible una segunda revisión simultánea: no depende de que el
 código se acuerde de comprobarlo.
@@ -492,16 +510,30 @@ asíncronas por naturaleza —nadie espera mirando a que un agente conteste a un
 Los nombres llevan guion y no dos puntos, que es como estaban escritos aquí hasta que se arrancó el worker:
 BullMQ compone sus claves de Redis con `:` y rechaza en el arranque cualquier cola que lo lleve en el nombre.
 
-- **Concurrencia**: limitada globalmente y **por proveedor**, para que una revisión de cinco agentes no agote
-  el límite de tasa del proveedor y tumbe de paso al asistente de escritura de otro workspace (RNF-705).
+- **Concurrencia**: limitada globalmente, y el abanico además **por ritmo de cola**: dos trabajos de revisión
+  por segundo (`AI_REVIEW_MAX_PER_INTERVAL`, `AI_REVIEW_INTERVAL_MS`). El TRD pedía acotar por **proveedor** y
+  esto acota menos fino y nunca de menos —una revisión contra Groq puede esperar por otra contra Anthropic—, a
+  cambio de no necesitar ni una cola por proveedor ni un contador propio en Redis. Se separará cuando dos
+  workspaces con proveedores distintos se estorben de verdad (RNF-705).
 - **Reintentos**: solo para `TRANSIENT` y `RATE_LIMIT`, con espera creciente y tope. El resto no se reintenta.
 - **Idempotencia**: cada ejecución `(revisión, agente)` tiene su clave, y **escribe todos sus hilos y su
   cambio de estado en una sola transacción** (T-33). Un reintento que encuentra la ejecución completada no
   repite nada.
-- **Cancelación**: bandera en Redis que el worker consulta entre agentes, más `AbortSignal` para la llamada en
-  curso. Lo ya escrito se queda; lo pendiente no arranca (RF-1610).
-- **Progreso**: cada cambio de estado se publica en el canal Redis que ya alimenta el SSE (T-6), así que la
-  interfaz ve avanzar la revisión sin sondear.
+- **Tres transacciones, no una**: anunciarse, leer y escribir. La lectura dura minutos y mantener una
+  transacción abierta mientras tanto inmoviliza una conexión e impide al motor limpiar detrás de nadie, así
+  que la generación queda **fuera** de toda transacción y solo la escritura es atómica. Por lo mismo, abrir y
+  cerrar la invocación en el paso común van en dos transacciones cortas propias: copiar la forma del worker de
+  respuestas —que llama al modelo dentro de la suya— dejaba la revisión colgada en `RUNNING` sin una sola
+  invocación registrada.
+- **Cancelación**: bandera en Redis que el worker consulta al empezar y mientras genera, más `AbortSignal`
+  para la llamada en curso. Lo ya escrito se queda; lo pendiente no arranca (RF-1610). Y lo generado **antes**
+  de que la cancelación se notara tampoco se publica: quien pulsa «parar» y ve aparecer comentarios diez
+  segundos después no vuelve a fiarse del botón.
+- **Progreso**: cada cambio de estado se publica en el canal Redis que ya alimenta el SSE (T-6), con un tipo
+  de evento propio (`event: review`), así que la interfaz ve avanzar la revisión sin sondear. Se reparte a
+  **todos los que ven la app** y no solo a quien la pidió: dos personas delante de la misma ficha ven lo mismo
+  a la vez, y la alternativa dejaba la pantalla del compañero quieta durante minutos. La audiencia la resuelve
+  el worker al publicar, porque el repartidor no conoce el modelo.
 - **Cortacircuitos**: fallos consecutivos por proveedor contados en Redis. Abierto, las funciones que dependen
   de ese proveedor responden «el proveedor no responde» en vez de fallar de forma genérica (RNF-704).
 
@@ -602,6 +634,7 @@ Rutas nuevas, todas bajo el mismo esquema de sesión y CSRF de la v1:
 | `GET/POST/PATCH/DELETE /apps/:id/agents/...` | edición | Agentes de la app |
 | `POST /apps/:id/reviews/estimate` | lectura | Techo de tokens y confirmación |
 | `POST /apps/:id/reviews` | lectura | Lanzar revisión |
+| `GET /apps/:id/reviews/current` | lectura | La viva, o la última que hubo |
 | `DELETE /apps/:id/reviews/:rid` | lectura *(quien la pidió)* / precursor | Cancelar |
 
 El contrato OpenAPI y el cliente tipado se regeneran como en la v1 (T-8), así que el MCP de la v3 hereda todo
@@ -708,6 +741,7 @@ contra la documentación se comporta como dice cuando hay alguien al otro lado.
 | RF-1401..1416 asistente y menú de selección | §12.2, §12.2.1 |
 | RF-1501..1516 agentes, catálogo de fábrica y límite de respuesta | §7.2, §13, §14 |
 | RF-1615 aviso cuando un agente no puede contestar · RF-1616 la cita del fragmento | §7.2, §11.2, §12.3 |
+| RF-1606..1610 revisión en abanico: cola, techo, cancelación y progreso | §7.4, §11.2, §12.3, §13, §14 |
 | RF-1601..1614 conversación de agentes | §12.3, §8.4 |
 | RF-1701..1705 transparencia y auditoría | §7.4, §14, §15 |
 | RNF-601..607 seguridad | §8 |

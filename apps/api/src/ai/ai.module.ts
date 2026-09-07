@@ -79,9 +79,16 @@ import { WorkspaceAiController } from './workspace-ai.controller.js';
                * RF-1305)— por el camino real, en vez de dar una por buena sin
                * haberla ejecutado nunca.
                */
+              /* El retardo solo lo lee el de mentira, y por defecto es cero. */
+              const lento = env.AI_FAKE_DELAY_MS > 0 ? { delayMs: env.AI_FAKE_DELAY_MS } : {};
+
               return createProviderRegistry([
-                new FakeProvider({ id: AiProvider.ANTHROPIC }),
-                new FakeProvider({ id: AiProvider.GROQ, capabilities: { webSearch: false } }),
+                new FakeProvider({ id: AiProvider.ANTHROPIC, ...lento }),
+                new FakeProvider({
+                  id: AiProvider.GROQ,
+                  capabilities: { webSearch: false },
+                  ...lento,
+                }),
               ]);
             }
             return createProviderRegistry([new AnthropicProvider(), new GroqProvider()]);

@@ -123,6 +123,17 @@ export const envSchema = z.object({
    */
   AI_REVIEW_MAX_PER_INTERVAL: z.coerce.number().int().positive().default(2),
   AI_REVIEW_INTERVAL_MS: z.coerce.number().int().positive().default(1_000),
+  /**
+   * Cuánto tarda el proveedor de mentira entre trozo y trozo (T-36).
+   *
+   * Cero, que es lo normal, contesta al instante. Se sube en los recorridos que
+   * necesitan que una generación **dure** para poder cancelarla a mitad: sin
+   * esto, con el proveedor de mentira todo acaba antes de que dé tiempo a
+   * pulsar el botón, y la cancelación solo se podría probar por dentro.
+   *
+   * No tiene efecto con un proveedor real: solo lo lee el de mentira.
+   */
+  AI_FAKE_DELAY_MS: z.coerce.number().int().nonnegative().default(0),
 
   OTEL_EXPORTER_OTLP_ENDPOINT: z.url().default('http://localhost:4318'),
   OTEL_SERVICE_NAME: z.string().default('app-foundry-api'),

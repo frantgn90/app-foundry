@@ -114,5 +114,27 @@ test('pedir una revisión, ver el techo, confirmarla y leer lo que dejó', async
     });
   });
 
+  await test.step('otra se puede parar a media, y lo escrito se queda', async () => {
+    /*
+     * Aquí es donde hace falta que el proveedor de mentira vaya despacio
+     * (`AI_FAKE_DELAY_MS`): sin retardo, la revisión termina antes de que dé
+     * tiempo a pulsar «Stop» y la cancelación solo se podría probar por dentro.
+     */
+    const yaEscritos = await page.getByText('overall de mentira').count();
+
+    await page.getByRole('button', { name: 'Ask for a review' }).click();
+    await page.getByRole('button', { name: 'Start the review' }).click();
+
+    await page.getByRole('button', { name: 'Stop' }).click({ timeout: 20_000 });
+
+    /* Vuelve a ofrecerse: la revisión ya no está viva (RF-1610). */
+    await expect(page.getByRole('button', { name: 'Ask for a review' })).toBeVisible({
+      timeout: 20_000,
+    });
+
+    /* Y lo de la revisión anterior sigue donde estaba. */
+    expect(await page.getByText('overall de mentira').count()).toBeGreaterThanOrEqual(yaEscritos);
+  });
+
   expect(erroresDePagina).toEqual([]);
 });

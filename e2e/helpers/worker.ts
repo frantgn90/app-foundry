@@ -27,6 +27,15 @@ export async function arrancarWorker(): Promise<void> {
       ...process.env,
       OTEL_ENABLED: 'false',
       AI_USE_FAKE_PROVIDER: 'true',
+      /*
+       * El proveedor de mentira, a cámara lenta a propósito.
+       *
+       * Sin retardo una revisión termina antes de que el navegador llegue a
+       * pintar el progreso, y cancelarla a mitad sería imposible de probar
+       * desde fuera. Un cuarto de segundo por trozo basta para que se vea
+       * correr y sigue siendo instantáneo comparado con un modelo real.
+       */
+      AI_FAKE_DELAY_MS: '250',
       /* La misma llave de juguete que la API de esta configuración: si no
          coincide, el worker no puede descifrar la credencial que escribió el
          recorrido y el agente se queda mudo por un motivo que no es el suyo. */

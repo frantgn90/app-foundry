@@ -82,9 +82,16 @@ class WorkerMetrics implements AiMetricsPort, NotificationMetricsPort {
                 'AI_USE_FAKE_PROVIDER activo: ningún modelo real será invocado, ' +
                   'las respuestas son de mentira',
               );
+              /* El retardo solo lo lee el de mentira, y por defecto es cero. */
+              const lento = env.AI_FAKE_DELAY_MS > 0 ? { delayMs: env.AI_FAKE_DELAY_MS } : {};
+
               return createProviderRegistry([
-                new FakeProvider({ id: AiProvider.ANTHROPIC }),
-                new FakeProvider({ id: AiProvider.GROQ, capabilities: { webSearch: false } }),
+                new FakeProvider({ id: AiProvider.ANTHROPIC, ...lento }),
+                new FakeProvider({
+                  id: AiProvider.GROQ,
+                  capabilities: { webSearch: false },
+                  ...lento,
+                }),
               ]);
             }
             return createProviderRegistry([new AnthropicProvider(), new GroqProvider()]);
