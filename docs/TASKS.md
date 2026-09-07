@@ -1114,15 +1114,25 @@ Solo se desglosa el hito en curso. H9, H10, H11 y H12 están cerradas; **H13** e
 
 | # | Tarea | Verificación | Traza | Estado |
 |---|---|---|---|---|
-| BI1 | `POST /apps/:id/reviews/estimate` | Devuelve el techo por agente y el total, con permiso de **lectura** sobre la app | RF-1608, RF-1207 | ⬜ |
-| BI2 | El techo es techo: entrada real, salida al máximo | Entrada contada con el proveedor; salida, el máximo que la tarea permite generar, por cada agente activo | RF-1207 | ⬜ |
-| BI3 | Si no cabe en el cupo restante, no arranca | Ni a medias ni «los que quepan»: se rechaza entera y se dice cuánto falta | RF-1204, RF-1207 | ⬜ |
+| BI1 | `POST /apps/:id/reviews/estimate` | Devuelve el techo por agente y el total, con permiso de **lectura** sobre la app | RF-1608, RF-1207 | ✅ |
+| BI2 | El techo es techo: entrada real, salida al máximo | Entrada contada con el proveedor; salida, el máximo que la tarea permite generar, por cada agente activo | RF-1207 | ✅ |
+| BI3 | Si no cabe en el cupo restante, no arranca | La estimación ya dice si cabe y cuánto queda; **negarse a arrancar** es de BJ, que es quien arranca | RF-1204, RF-1207 | 🔄 |
 | BI4 | El límite por miembro cuenta el abanico entero | Cinco agentes son cinco invocaciones, no una | RF-1206 | ⬜ |
 | BI5 | Sin agentes activos, ni se ofrece | Un botón que no puede hacer nada no se enseña | RF-1010 | ⬜ |
 
 > **Sobre BI2.** La estimación se enseña **antes** de gastar y por eso tiene que pasarse de larga, nunca
 > quedarse corta: quien confirma un número y recibe una factura mayor no vuelve a confiar en el número. Contar
 > la entrada de verdad cuesta una llamada al proveedor por agente, y aun así sale más barato que la sorpresa.
+>
+> **Sobre lo que queda de este bloque.** BI3 está a medias a propósito: la estimación ya calcula si cabe y
+> cuánto queda —contando lo **reservado** por otras revisiones en curso, no solo lo gastado—, pero negarse a
+> arrancar solo puede hacerlo quien arranca, que es BJ. Lo mismo con BI4: el límite por miembro se consume en
+> cada invocación, así que un abanico de cinco agentes cuenta cinco veces por construcción, y eso se comprueba
+> cuando exista el abanico. BI5 es de pantalla y va con BL.
+>
+> El papel de la revisión y su esquema salen de aquí y no de BK, porque estimar de verdad obliga a construir
+> **la misma petición** que se va a enviar: una cifra contada sobre un prompt de mentira no es un techo, es un
+> número.
 
 ### Bloque BJ — El abanico: cola, worker y cancelación
 

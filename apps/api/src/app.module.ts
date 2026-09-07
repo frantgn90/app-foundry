@@ -2,6 +2,7 @@ import { Module } from '@nestjs/common';
 import { APP_GUARD, APP_INTERCEPTOR } from '@nestjs/core';
 
 import { AgentsModule } from './agents/agents.module.js';
+import { ReviewsModule } from './reviews/reviews.module.js';
 import { AiModule } from './ai/ai.module.js';
 import { AppsModule } from './apps/apps.module.js';
 import { AuditModule } from './audit/audit.service.js';
@@ -31,6 +32,7 @@ import { WorkspacesModule } from './workspaces/workspaces.module.js';
     AppsModule,
     AiModule,
     AgentsModule,
+    ReviewsModule,
     DocumentsModule,
     CommentsModule,
     HealthModule,

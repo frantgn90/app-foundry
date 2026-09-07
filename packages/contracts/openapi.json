@@ -2582,6 +2582,38 @@
         ]
       }
     },
+    "/api/v1/apps/{id}/reviews/estimate": {
+      "post": {
+        "description": "Entrada contada de verdad y salida al máximo, por cada agente activo. Si no cabe en el cupo, la revisión no arrancará.",
+        "operationId": "ReviewsController_estimate",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReviewEstimateDto"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Cuánto costaría como mucho una revisión. Basta con poder leer la app",
+        "tags": [
+          "reviews"
+        ]
+      }
+    },
     "/api/v1/apps/{appId}/threads": {
       "get": {
         "description": "Un hilo pertenece a la versión sobre la que se escribió. Sin `versionId` se devuelven los de la copia de trabajo, colocados sobre el texto que se está leyendo. Los generales van siempre, sea cual sea la versión. Devuelve todos, incluidos los resueltos: la interfaz decide qué enseña.",
@@ -5227,6 +5259,80 @@
             ]
           }
         }
+      },
+      "ReviewAgentEstimateDto": {
+        "type": "object",
+        "properties": {
+          "agentId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "handle": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "estimatedTokens": {
+            "type": "number",
+            "description": "Entrada contada más salida al máximo: un techo, no una media"
+          }
+        },
+        "required": [
+          "agentId",
+          "handle",
+          "name",
+          "estimatedTokens"
+        ]
+      },
+      "ReviewEstimateDto": {
+        "type": "object",
+        "properties": {
+          "agents": {
+            "description": "Uno por agente activo",
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ReviewAgentEstimateDto"
+            }
+          },
+          "totalTokens": {
+            "type": "number",
+            "description": "La suma: lo que se confirma"
+          },
+          "provider": {
+            "type": "string"
+          },
+          "modelId": {
+            "type": "string"
+          },
+          "versionNo": {
+            "type": "number",
+            "description": "Qué versión se revisaría. Nunca la copia de trabajo"
+          },
+          "versionId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "fitsInQuota": {
+            "type": "boolean",
+            "description": "Si entra en lo que queda de cupo este mes. Si no, la revisión no arranca"
+          },
+          "remainingTokens": {
+            "type": "number",
+            "nullable": true,
+            "description": "Lo que queda del cupo del mes, o nulo si el proveedor no tiene cupo puesto"
+          }
+        },
+        "required": [
+          "agents",
+          "totalTokens",
+          "provider",
+          "modelId",
+          "versionNo",
+          "versionId",
+          "fitsInQuota",
+          "remainingTokens"
+        ]
       },
       "CommentDto": {
         "type": "object",

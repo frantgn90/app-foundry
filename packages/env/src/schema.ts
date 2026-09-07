@@ -105,6 +105,14 @@ export const envSchema = z.object({
 
   AI_MAX_AGENTS_PER_APP: z.coerce.number().int().positive().default(5),
   AI_MAX_AGENT_TURNS_PER_THREAD: z.coerce.number().int().positive().default(3),
+  /**
+   * Cuántos hilos abre como mucho cada agente en una revisión (RF-1606).
+   *
+   * Cinco por agente y cinco agentes son veinticinco hilos sobre un documento:
+   * ya es más de lo que nadie lee de una sentada. Acota el gasto y, sobre todo,
+   * lo que hay que leer después.
+   */
+  AI_MAX_REVIEW_THREADS_PER_AGENT: z.coerce.number().int().positive().default(5),
 
   OTEL_EXPORTER_OTLP_ENDPOINT: z.url().default('http://localhost:4318'),
   OTEL_SERVICE_NAME: z.string().default('app-foundry-api'),

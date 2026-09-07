@@ -1012,6 +1012,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/apps/{id}/reviews/estimate": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Cuánto costaría como mucho una revisión. Basta con poder leer la app
+         * @description Entrada contada de verdad y salida al máximo, por cada agente activo. Si no cabe en el cupo, la revisión no arrancará.
+         */
+        post: operations["ReviewsController_estimate"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/apps/{appId}/threads": {
         parameters: {
             query?: never;
@@ -1831,6 +1851,30 @@ export interface components {
             /** @description Palabras como mucho en una respuesta. 0, lo de fábrica, es sin límite */
             replyWordLimit?: number;
             model?: components["schemas"]["AgentModelDto"] | null;
+        };
+        ReviewAgentEstimateDto: {
+            /** Format: uuid */
+            agentId: string;
+            handle: string;
+            name: string;
+            /** @description Entrada contada más salida al máximo: un techo, no una media */
+            estimatedTokens: number;
+        };
+        ReviewEstimateDto: {
+            /** @description Uno por agente activo */
+            agents: components["schemas"]["ReviewAgentEstimateDto"][];
+            /** @description La suma: lo que se confirma */
+            totalTokens: number;
+            provider: string;
+            modelId: string;
+            /** @description Qué versión se revisaría. Nunca la copia de trabajo */
+            versionNo: number;
+            /** Format: uuid */
+            versionId: string;
+            /** @description Si entra en lo que queda de cupo este mes. Si no, la revisión no arranca */
+            fitsInQuota: boolean;
+            /** @description Lo que queda del cupo del mes, o nulo si el proveedor no tiene cupo puesto */
+            remainingTokens: number | null;
         };
         CommentDto: {
             /** Format: uuid */
@@ -3579,6 +3623,27 @@ export interface operations {
                 };
                 content: {
                     "application/json": string[];
+                };
+            };
+        };
+    };
+    ReviewsController_estimate: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ReviewEstimateDto"];
                 };
             };
         };
