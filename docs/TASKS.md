@@ -10,6 +10,45 @@
 
 ---
 
+## Estado: proyecto aparcado (8 de septiembre de 2026)
+
+**App Foundry deja de desarrollarse aquí.** No por un problema técnico ni por falta de tiempo: por una
+decisión sobre el producto, tomada con la v2 a once tareas de cerrarse.
+
+**Lo que hay hecho.** La v1 está cerrada y verificada (145 tareas más 25 mejoras salidas de usar el producto; U26 y U27 se cerraron después, dentro de H10).
+De la v2 están cerrados cinco hitos —H9 el grifo y el contador, H10 el asistente de escritura, H11 la
+generación de ideas, H12 los agentes con perfil y H13 la revisión en abanico—: 170 tareas. Lo que corre,
+corre y tiene tests.
+
+**Lo que falta.** El hito H14 entero, desglosado y sin empezar: las métricas que faltan (BN1–BN4), las filas
+del panel de Grafana (BO1–BO3), el recorrido de punta a punta de la v2 (BP1) y el cierre (BQ1–BQ3). De esas,
+la única que es deuda visible para quien use la aplicación es **BQ1**: la interfaz deja fijarle a un agente un
+modelo propio (RF-1104), pero el worker nunca lee esa columna y responde con el modelo de la tarea.
+
+**Por qué se para.** Como *repositorio de ideas de apps*, el producto no tiene un hueco claro: contrastar una
+intuición en un chat y dejarla en un markdown cuesta menos que traerla aquí. Hay tres señales dentro de estos
+mismos documentos que lo apuntaban antes de que se decidiera:
+
+- La v2 nace de que *«no hay interlocutor»*. Toda la colaboración de la v1 —invitaciones, precursor y
+  contribuidores, comentarios anclados— está construida para un equipo de personas que no llegó a aparecer;
+  los agentes vinieron a ocupar ese sitio vacío.
+- La especificación de App Foundry vive en `docs/`, en git, y no dentro de App Foundry. No podía ser de otra
+  manera: el producto solo guarda el `VISION.md`, y los documentos que de verdad se usan a diario —requisitos,
+  TRD, tareas— están fuera de alcance hasta la Fase 5.
+- En la hoja de ruta, el servidor MCP (Fase 4) y la cadena visión → PRD → TRD → tareas (Fase 5) van **detrás**
+  de la capa de IA y de colaboración. Son justo las dos cosas que harían que el documento importase.
+
+**Qué se salva.** Nada de esto se tira si algún día se retoma el problema por otro sitio: el aislamiento por
+workspace y sus políticas RLS, el versionado con copia de trabajo y commits, los comentarios anclados con
+reanclaje, el contrato de proveedor con capacidades declaradas, los cupos por tokens con corte, el registro
+nominal de invocaciones y la auditoría. Todo eso es independiente de que el artefacto central sea un
+`VISION.md`.
+
+**Cómo leer el resto de este documento.** Lo que sigue queda tal cual estaba: el estado real, tarea a tarea,
+el día que se paró. Las tareas de H14 marcadas ⬜ están pendientes de verdad, no olvidadas.
+
+---
+
 ## Estado: v1 cerrada (31 de agosto de 2026)
 
 Los ocho hitos están hechos y verificados: 145 tareas más 25 mejoras salidas de usar el producto.

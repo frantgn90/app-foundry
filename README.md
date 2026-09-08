@@ -1,5 +1,10 @@
 # App Foundry
 
+> **Proyecto aparcado el 8 de septiembre de 2026.** La v1 está cerrada y de la v2 quedan hechos cinco de sus
+> seis hitos; falta H14 entero. Se para por una decisión de producto, no por un problema técnico: el porqué,
+> lo que hay hecho y lo que se salva están contados al principio de
+> [docs/TASKS.md](docs/TASKS.md).
+
 Un espacio para pensar, definir y traquear ideas de aplicaciones.
 
 Todo empieza cuando creas una **app**: escribes su **visión** en markdown y esa visión, versionada y
